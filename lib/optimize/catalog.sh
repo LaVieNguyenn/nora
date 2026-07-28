@@ -3,29 +3,29 @@
 
 set -euo pipefail
 
-if [[ -n "${MOLE_OPTIMIZE_CATALOG_LOADED:-}" ]]; then
+if [[ -n "${NORA_OPTIMIZE_CATALOG_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_OPTIMIZE_CATALOG_LOADED=1
+readonly NORA_OPTIMIZE_CATALOG_LOADED=1
 
 # The catalog uses aligned arrays instead of serialized records. This keeps
 # field boundaries explicit on Bash 3.2 and lets each consumer read only the
 # projection it owns. Every registered task is safe for automatic execution.
-MOLE_OPTIMIZE_ACTIONS=()
-MOLE_OPTIMIZE_HANDLERS=()
-MOLE_OPTIMIZE_HEALTH_NAMES=()
-MOLE_OPTIMIZE_WHITELIST_NAMES=()
-MOLE_OPTIMIZE_DESCRIPTIONS=()
-MOLE_OPTIMIZE_SAFE_VALUES=()
+NORA_OPTIMIZE_ACTIONS=()
+NORA_OPTIMIZE_HANDLERS=()
+NORA_OPTIMIZE_HEALTH_NAMES=()
+NORA_OPTIMIZE_WHITELIST_NAMES=()
+NORA_OPTIMIZE_DESCRIPTIONS=()
+NORA_OPTIMIZE_SAFE_VALUES=()
 
 _optimize_catalog_register() {
-    local index=${#MOLE_OPTIMIZE_ACTIONS[@]}
-    MOLE_OPTIMIZE_ACTIONS[index]="$1"
-    MOLE_OPTIMIZE_HANDLERS[index]="$2"
-    MOLE_OPTIMIZE_HEALTH_NAMES[index]="$3"
-    MOLE_OPTIMIZE_WHITELIST_NAMES[index]="$4"
-    MOLE_OPTIMIZE_DESCRIPTIONS[index]="$5"
-    MOLE_OPTIMIZE_SAFE_VALUES[index]="$6"
+    local index=${#NORA_OPTIMIZE_ACTIONS[@]}
+    NORA_OPTIMIZE_ACTIONS[index]="$1"
+    NORA_OPTIMIZE_HANDLERS[index]="$2"
+    NORA_OPTIMIZE_HEALTH_NAMES[index]="$3"
+    NORA_OPTIMIZE_WHITELIST_NAMES[index]="$4"
+    NORA_OPTIMIZE_DESCRIPTIONS[index]="$5"
+    NORA_OPTIMIZE_SAFE_VALUES[index]="$6"
 }
 
 _optimize_catalog_register system_maintenance opt_system_maintenance \
@@ -101,9 +101,9 @@ _optimize_catalog_register coreduet_cleanup opt_coreduet_cleanup \
 optimize_catalog_handler_for() {
     local requested_action="$1"
     local index
-    for ((index = 0; index < ${#MOLE_OPTIMIZE_ACTIONS[@]}; index++)); do
-        if [[ "${MOLE_OPTIMIZE_ACTIONS[$index]}" == "$requested_action" ]]; then
-            printf '%s\n' "${MOLE_OPTIMIZE_HANDLERS[$index]}"
+    for ((index = 0; index < ${#NORA_OPTIMIZE_ACTIONS[@]}; index++)); do
+        if [[ "${NORA_OPTIMIZE_ACTIONS[$index]}" == "$requested_action" ]]; then
+            printf '%s\n' "${NORA_OPTIMIZE_HANDLERS[$index]}"
             return 0
         fi
     done
@@ -111,16 +111,16 @@ optimize_catalog_handler_for() {
 }
 
 optimize_catalog_validate() {
-    local count=${#MOLE_OPTIMIZE_ACTIONS[@]}
+    local count=${#NORA_OPTIMIZE_ACTIONS[@]}
     if [[ $count -eq 0 ]]; then
         echo "Optimize task catalog is empty" >&2
         return 1
     fi
-    if [[ ${#MOLE_OPTIMIZE_HANDLERS[@]} -ne $count ||
-        ${#MOLE_OPTIMIZE_HEALTH_NAMES[@]} -ne $count ||
-        ${#MOLE_OPTIMIZE_WHITELIST_NAMES[@]} -ne $count ||
-        ${#MOLE_OPTIMIZE_DESCRIPTIONS[@]} -ne $count ||
-        ${#MOLE_OPTIMIZE_SAFE_VALUES[@]} -ne $count ]]; then
+    if [[ ${#NORA_OPTIMIZE_HANDLERS[@]} -ne $count ||
+        ${#NORA_OPTIMIZE_HEALTH_NAMES[@]} -ne $count ||
+        ${#NORA_OPTIMIZE_WHITELIST_NAMES[@]} -ne $count ||
+        ${#NORA_OPTIMIZE_DESCRIPTIONS[@]} -ne $count ||
+        ${#NORA_OPTIMIZE_SAFE_VALUES[@]} -ne $count ]]; then
         echo "Optimize task catalog fields are misaligned" >&2
         return 1
     fi
@@ -129,19 +129,19 @@ optimize_catalog_validate() {
     local seen_handlers="|"
     local index action handler
     for ((index = 0; index < count; index++)); do
-        action=${MOLE_OPTIMIZE_ACTIONS[$index]}
-        handler=${MOLE_OPTIMIZE_HANDLERS[$index]}
+        action=${NORA_OPTIMIZE_ACTIONS[$index]}
+        handler=${NORA_OPTIMIZE_HANDLERS[$index]}
         if [[ ! "$action" =~ ^[a-z0-9_]+$ || ! "$handler" =~ ^opt_[a-z0-9_]+$ ]]; then
             echo "Invalid optimize task identity: $action|$handler" >&2
             return 1
         fi
-        if [[ -z "${MOLE_OPTIMIZE_HEALTH_NAMES[$index]}" ||
-            -z "${MOLE_OPTIMIZE_WHITELIST_NAMES[$index]}" ||
-            -z "${MOLE_OPTIMIZE_DESCRIPTIONS[$index]}" ]]; then
+        if [[ -z "${NORA_OPTIMIZE_HEALTH_NAMES[$index]}" ||
+            -z "${NORA_OPTIMIZE_WHITELIST_NAMES[$index]}" ||
+            -z "${NORA_OPTIMIZE_DESCRIPTIONS[$index]}" ]]; then
             echo "Optimize task metadata is incomplete: $action" >&2
             return 1
         fi
-        if [[ "${MOLE_OPTIMIZE_SAFE_VALUES[$index]}" != "true" ]]; then
+        if [[ "${NORA_OPTIMIZE_SAFE_VALUES[$index]}" != "true" ]]; then
             echo "Optimize task is not safe for automatic execution: $action" >&2
             return 1
         fi
@@ -159,10 +159,10 @@ optimize_catalog_validate() {
 }
 
 optimize_catalog_validate
-readonly -a MOLE_OPTIMIZE_ACTIONS
-readonly -a MOLE_OPTIMIZE_HANDLERS
-readonly -a MOLE_OPTIMIZE_HEALTH_NAMES
-readonly -a MOLE_OPTIMIZE_WHITELIST_NAMES
-readonly -a MOLE_OPTIMIZE_DESCRIPTIONS
-readonly -a MOLE_OPTIMIZE_SAFE_VALUES
+readonly -a NORA_OPTIMIZE_ACTIONS
+readonly -a NORA_OPTIMIZE_HANDLERS
+readonly -a NORA_OPTIMIZE_HEALTH_NAMES
+readonly -a NORA_OPTIMIZE_WHITELIST_NAMES
+readonly -a NORA_OPTIMIZE_DESCRIPTIONS
+readonly -a NORA_OPTIMIZE_SAFE_VALUES
 unset -f _optimize_catalog_register

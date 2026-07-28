@@ -1,14 +1,14 @@
 #!/bin/bash
-# Mole - Timeout Control
+# Nora - Timeout Control
 # Command execution with timeout support
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_TIMEOUT_LOADED:-}" ]]; then
+if [[ -n "${NORA_TIMEOUT_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_TIMEOUT_LOADED=1
+readonly NORA_TIMEOUT_LOADED=1
 
 # ============================================================================
 # Timeout Command Initialization
@@ -67,7 +67,7 @@ fi
 # Timeout Execution
 # ============================================================================
 
-_mole_cleanup_timeout_killer() {
+_nora_cleanup_timeout_killer() {
     local killer_pid="${1:-}"
     [[ "$killer_pid" =~ ^[0-9]+$ ]] || return 0
 
@@ -89,10 +89,10 @@ _mole_cleanup_timeout_killer() {
     wait "$killer_pid" 2> /dev/null || true
 }
 
-# Return success when Mole's process group still owns the controlling terminal.
+# Return success when Nora's process group still owns the controlling terminal.
 # Checking this before a prompt avoids SIGTTIN if a nested interactive command
-# returned the tty to Mole's parent shell instead of restoring it to Mole.
-mole_tty_is_foreground() {
+# returned the tty to Nora's parent shell instead of restoring it to Nora.
+nora_tty_is_foreground() {
     # Non-terminal input cannot trigger SIGTTIN; preserve scripted/test flows.
     [[ -t 0 ]] || return 0
 
@@ -197,11 +197,11 @@ run_with_timeout() {
             my $caller_pid = getppid();
 
             # Only the process group that currently owns the terminal may hand it
-            # to a child. Mole runs these helpers concurrently inside one process
+            # to a child. Nora runs these helpers concurrently inside one process
             # group (parallel scan workers), so a helper that started while a
             # sibling held the terminal would capture the sibling child as the
             # "original" owner and later restore the terminal to that already
-            # dead process group. Mole then no longer owns the terminal and the
+            # dead process group. Nora then no longer owns the terminal and the
             # next prompt read stops on SIGTTIN (issue #1222/#1218).
             my $my_pgrp = getpgrp();
             my $tty_fd = -t STDIN ? fileno(STDIN) : undef;
@@ -369,7 +369,7 @@ run_with_timeout() {
     previous_int_trap=$(trap -p INT || true)
 
     # Forward SIGINT to the command while preserving the caller's trap.
-    trap 'interrupted=1; kill -INT "$cmd_pid" 2>/dev/null || true; _mole_cleanup_timeout_killer "$killer_pid"' INT
+    trap 'interrupted=1; kill -INT "$cmd_pid" 2>/dev/null || true; _nora_cleanup_timeout_killer "$killer_pid"' INT
 
     # Wait for command to complete
     local exit_code=0
@@ -385,7 +385,7 @@ run_with_timeout() {
         trap - INT
     fi
 
-    _mole_cleanup_timeout_killer "$killer_pid"
+    _nora_cleanup_timeout_killer "$killer_pid"
 
     if [[ $interrupted -eq 1 ]]; then
         return 130

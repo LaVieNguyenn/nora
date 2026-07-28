@@ -31,7 +31,7 @@ MO_TIMEOUT_PERL_BIN="/usr/bin/perl"
 
 caller_pgrp=$(ps -o pgid= -p $$ | tr -d ' ')
 
-export MOLE_TTY_PROBE_MODE="$MODE"
+export NORA_TTY_PROBE_MODE="$MODE"
 
 # The handoff is not synchronous with this child starting: run_with_timeout's
 # perl parent calls tcsetpgrp *after* forking, so sampling the foreground group
@@ -45,7 +45,7 @@ child_probe='
     my $pgrp = getpgrp();
     open(my $tty, "<", "/dev/tty") or exit 3;
     my $fg = tcgetpgrp(fileno($tty));
-    if (($ENV{MOLE_TTY_PROBE_MODE} || "") eq "tty") {
+    if (($ENV{NORA_TTY_PROBE_MODE} || "") eq "tty") {
         for (1 .. 200) {
             last if $fg == $pgrp;
             select(undef, undef, undef, 0.01);

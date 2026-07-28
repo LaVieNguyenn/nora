@@ -25,7 +25,7 @@ is_rebuildable_gpu_cache_dir() {
 
 gpu_cache_dir_is_stale() {
     local cache_dir="$1"
-    local age_days="${2:-${MOLE_GPU_CACHE_AGE_DAYS:-1}}"
+    local age_days="${2:-${NORA_GPU_CACHE_AGE_DAYS:-1}}"
 
     [[ "$age_days" =~ ^[0-9]+$ ]] || age_days=1
     [[ -d "$cache_dir" ]] || return 1
@@ -76,9 +76,9 @@ clean_deep_system() {
                 cache_cleaned=1
             fi
         done < <(sudo -n find "/Library/Caches" -maxdepth 5 -type f \( \
-            \( -name "*.cache" -mtime "+$MOLE_TEMP_FILE_AGE_DAYS" \) -o \
-            \( -name "*.tmp" -mtime "+$MOLE_TEMP_FILE_AGE_DAYS" \) -o \
-            \( -name "*.log" -mtime "+$MOLE_LOG_AGE_DAYS" \) \
+            \( -name "*.cache" -mtime "+$NORA_TEMP_FILE_AGE_DAYS" \) -o \
+            \( -name "*.tmp" -mtime "+$NORA_TEMP_FILE_AGE_DAYS" \) -o \
+            \( -name "*.log" -mtime "+$NORA_LOG_AGE_DAYS" \) \
             \) -print0 2> /dev/null || true)
     fi
     stop_section_spinner
@@ -87,8 +87,8 @@ clean_deep_system() {
     local tmp_cleaned=0
     local -a sys_temp_dirs=("/private/tmp" "/private/var/tmp")
     for tmp_dir in "${sys_temp_dirs[@]}"; do
-        if sudo -n find "$tmp_dir" -maxdepth 1 -type f -mtime "+${MOLE_TEMP_FILE_AGE_DAYS}" -print -quit 2> /dev/null | grep -q .; then
-            if safe_sudo_find_delete "$tmp_dir" "*" "${MOLE_TEMP_FILE_AGE_DAYS}" "f"; then
+        if sudo -n find "$tmp_dir" -maxdepth 1 -type f -mtime "+${NORA_TEMP_FILE_AGE_DAYS}" -print -quit 2> /dev/null | grep -q .; then
+            if safe_sudo_find_delete "$tmp_dir" "*" "${NORA_TEMP_FILE_AGE_DAYS}" "f"; then
                 tmp_cleaned=1
             fi
         fi
@@ -96,16 +96,16 @@ clean_deep_system() {
     stop_section_spinner
     [[ $tmp_cleaned -eq 1 ]] && log_success "System temp files"
     start_section_spinner "Cleaning system crash reports..."
-    if sudo -n find "/Library/Logs/DiagnosticReports" -maxdepth 1 -type f -mtime "+$MOLE_CRASH_REPORT_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
-        safe_sudo_find_delete "/Library/Logs/DiagnosticReports" "*" "$MOLE_CRASH_REPORT_AGE_DAYS" "f" || true
+    if sudo -n find "/Library/Logs/DiagnosticReports" -maxdepth 1 -type f -mtime "+$NORA_CRASH_REPORT_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
+        safe_sudo_find_delete "/Library/Logs/DiagnosticReports" "*" "$NORA_CRASH_REPORT_AGE_DAYS" "f" || true
     fi
     stop_section_spinner
     log_success "System crash reports"
     start_section_spinner "Cleaning system logs..."
-    if sudo -n find "/private/var/log" -maxdepth 3 -type f \( -name "*.log" -o -name "*.gz" -o -name "*.asl" \) -mtime "+$MOLE_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
-        safe_sudo_find_delete "/private/var/log" "*.log" "$MOLE_LOG_AGE_DAYS" "f" || true
-        safe_sudo_find_delete "/private/var/log" "*.gz" "$MOLE_LOG_AGE_DAYS" "f" || true
-        safe_sudo_find_delete "/private/var/log" "*.asl" "$MOLE_LOG_AGE_DAYS" "f" || true
+    if sudo -n find "/private/var/log" -maxdepth 3 -type f \( -name "*.log" -o -name "*.gz" -o -name "*.asl" \) -mtime "+$NORA_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
+        safe_sudo_find_delete "/private/var/log" "*.log" "$NORA_LOG_AGE_DAYS" "f" || true
+        safe_sudo_find_delete "/private/var/log" "*.gz" "$NORA_LOG_AGE_DAYS" "f" || true
+        safe_sudo_find_delete "/private/var/log" "*.asl" "$NORA_LOG_AGE_DAYS" "f" || true
     fi
     stop_section_spinner
     log_success "System logs"
@@ -118,14 +118,14 @@ clean_deep_system() {
     local third_party_log_dir=""
     for third_party_log_dir in "${third_party_log_dirs[@]}"; do
         if sudo -n test -d "$third_party_log_dir" 2> /dev/null; then
-            if sudo -n find "$third_party_log_dir" -maxdepth 5 -type f -mtime "+$MOLE_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
-                if safe_sudo_find_delete "$third_party_log_dir" "*" "$MOLE_LOG_AGE_DAYS" "f"; then
+            if sudo -n find "$third_party_log_dir" -maxdepth 5 -type f -mtime "+$NORA_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
+                if safe_sudo_find_delete "$third_party_log_dir" "*" "$NORA_LOG_AGE_DAYS" "f"; then
                     third_party_logs_cleaned=1
                 fi
             fi
         fi
     done
-    if sudo -n find "/Library/Logs" -maxdepth 1 -type f -name "adobegc.log" -mtime "+$MOLE_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
+    if sudo -n find "/Library/Logs" -maxdepth 1 -type f -name "adobegc.log" -mtime "+$NORA_LOG_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
         if safe_sudo_remove "/Library/Logs/adobegc.log"; then
             third_party_logs_cleaned=1
         fi
@@ -206,7 +206,7 @@ clean_deep_system() {
         if safe_sudo_remove "$cache_dir"; then
             code_sign_cleaned=$((code_sign_cleaned + 1))
         fi
-    done < <(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" command find /private/var/folders -maxdepth 5 -type d -name "*.code_sign_clone" -path "*/X/*" -print0 2> /dev/null || true)
+    done < <(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" command find /private/var/folders -maxdepth 5 -type d -name "*.code_sign_clone" -path "*/X/*" -print0 2> /dev/null || true)
     stop_section_spinner
     [[ $code_sign_cleaned -gt 0 ]] && log_success "Browser code signature caches, $code_sign_cleaned items"
 
@@ -246,7 +246,7 @@ clean_deep_system() {
         if is_endpoint_security_cache_path "$gpu_cache_dir"; then
             continue
         fi
-        gpu_cache_dir_is_stale "$gpu_cache_dir" "$MOLE_GPU_CACHE_AGE_DAYS" || continue
+        gpu_cache_dir_is_stale "$gpu_cache_dir" "$NORA_GPU_CACHE_AGE_DAYS" || continue
         if safe_sudo_remove "$gpu_cache_dir"; then
             gpu_cache_cleaned=$((gpu_cache_cleaned + 1))
         fi
@@ -279,8 +279,8 @@ clean_deep_system() {
     while IFS= read -r -d '' idle_tmp_dir; do
         # Only act when a stale aborted download actually exists, so the summary
         # line stays truthful and the delete is skipped otherwise.
-        if sudo -n find "$idle_tmp_dir" -maxdepth 5 -type f -name "CFNetworkDownload_*.tmp" -mtime "+$MOLE_TEMP_FILE_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
-            if safe_sudo_find_delete "$idle_tmp_dir" "CFNetworkDownload_*.tmp" "$MOLE_TEMP_FILE_AGE_DAYS" "f"; then
+        if sudo -n find "$idle_tmp_dir" -maxdepth 5 -type f -name "CFNetworkDownload_*.tmp" -mtime "+$NORA_TEMP_FILE_AGE_DAYS" -print -quit 2> /dev/null | grep -q .; then
+            if safe_sudo_find_delete "$idle_tmp_dir" "CFNetworkDownload_*.tmp" "$NORA_TEMP_FILE_AGE_DAYS" "f"; then
                 idle_tmp_cleaned=$((idle_tmp_cleaned + 1))
             fi
         fi
@@ -290,14 +290,14 @@ clean_deep_system() {
 
     local diag_base="/private/var/db/diagnostics"
     start_section_spinner "Cleaning system diagnostic logs..."
-    safe_sudo_find_delete "$diag_base" "*" "$MOLE_LOG_AGE_DAYS" "f" || true
+    safe_sudo_find_delete "$diag_base" "*" "$NORA_LOG_AGE_DAYS" "f" || true
     safe_sudo_find_delete "$diag_base" "*.tracev3" "30" "f" || true
-    safe_sudo_find_delete "/private/var/db/DiagnosticPipeline" "*" "$MOLE_LOG_AGE_DAYS" "f" || true
+    safe_sudo_find_delete "/private/var/db/DiagnosticPipeline" "*" "$NORA_LOG_AGE_DAYS" "f" || true
     stop_section_spinner
     log_success "System diagnostic logs"
 
     start_section_spinner "Cleaning power logs..."
-    safe_sudo_find_delete "/private/var/db/powerlog" "*" "$MOLE_LOG_AGE_DAYS" "f" || true
+    safe_sudo_find_delete "/private/var/db/powerlog" "*" "$NORA_LOG_AGE_DAYS" "f" || true
     stop_section_spinner
     log_success "Power logs"
     start_section_spinner "Cleaning memory exception reports..."
@@ -353,7 +353,7 @@ clean_time_machine_failed_backups() {
     start_section_spinner "Checking Time Machine configuration..."
     local spinner_active=true
     local tm_info
-    tm_info=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" tmutil destinationinfo 2>&1 || echo "failed")
+    tm_info=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" tmutil destinationinfo 2>&1 || echo "failed")
     if [[ "$tm_info" == *"No destinations configured"* || "$tm_info" == "failed" ]]; then
         if [[ "$spinner_active" == "true" ]]; then
             stop_section_spinner
@@ -431,7 +431,7 @@ clean_time_machine_failed_backups() {
                 local current_time
                 current_time=$(get_epoch_seconds)
                 local hours_old=$(((current_time - file_mtime) / 3600))
-                if [[ $hours_old -lt $MOLE_TM_BACKUP_SAFE_HOURS ]]; then
+                if [[ $hours_old -lt $NORA_TM_BACKUP_SAFE_HOURS ]]; then
                     continue
                 fi
                 local size_kb
@@ -494,7 +494,7 @@ clean_time_machine_failed_backups() {
                     local current_time
                     current_time=$(get_epoch_seconds)
                     local hours_old=$(((current_time - file_mtime) / 3600))
-                    if [[ $hours_old -lt $MOLE_TM_BACKUP_SAFE_HOURS ]]; then
+                    if [[ $hours_old -lt $NORA_TM_BACKUP_SAFE_HOURS ]]; then
                         continue
                     fi
                     local size_kb
@@ -591,7 +591,7 @@ clean_local_snapshots() {
 
     start_section_spinner "Checking local snapshots..."
     local snapshot_list
-    snapshot_list=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" tmutil listlocalsnapshots / 2> /dev/null || true)
+    snapshot_list=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" tmutil listlocalsnapshots / 2> /dev/null || true)
     stop_section_spinner
     [[ -z "$snapshot_list" ]] && return 0
 

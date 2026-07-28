@@ -60,8 +60,8 @@ clean_corepack_cache() {
     # and the command looks frozen until the timeout fires (seen on a Node setup
     # where corepack is installed; machines without corepack take the else
     # branch and never hit this).
-    if command -v corepack > /dev/null 2>&1 && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" corepack --version > /dev/null 2>&1; then
-        COREPACK_ENABLE_DOWNLOAD_PROMPT=0 clean_tool_cache "Corepack cache" "$corepack_home" run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" corepack cache clean
+    if command -v corepack > /dev/null 2>&1 && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" corepack --version > /dev/null 2>&1; then
+        COREPACK_ENABLE_DOWNLOAD_PROMPT=0 clean_tool_cache "Corepack cache" "$corepack_home" run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" corepack cache clean
     else
         safe_clean "$corepack_home"/* "Corepack cache"
     fi
@@ -69,13 +69,13 @@ clean_corepack_cache() {
 
 clean_uv_cache() {
     local uv_cache_path="$HOME/.cache/uv"
-    if command -v uv > /dev/null 2>&1 && run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" uv --version > /dev/null 2>&1; then
+    if command -v uv > /dev/null 2>&1 && run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" uv --version > /dev/null 2>&1; then
         local detected_cache
-        detected_cache=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" uv cache dir 2> /dev/null || true)
+        detected_cache=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" uv cache dir 2> /dev/null || true)
         if [[ -n "$detected_cache" && "$detected_cache" == /* ]]; then
             uv_cache_path="$detected_cache"
         fi
-        clean_tool_cache "uv cache" "$uv_cache_path" run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" uv cache prune
+        clean_tool_cache "uv cache" "$uv_cache_path" run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" uv cache prune
     else
         safe_clean "$uv_cache_path"/* "uv cache"
     fi
@@ -85,7 +85,7 @@ conda_cache_whitelisted() {
     local root
     for root in "$@"; do
         [[ -n "$root" ]] || continue
-        if is_path_whitelisted "$root" 2> /dev/null || is_path_whitelisted "$root/.mole-cache-guard" 2> /dev/null; then
+        if is_path_whitelisted "$root" 2> /dev/null || is_path_whitelisted "$root/.nora-cache-guard" 2> /dev/null; then
             return 0
         fi
     done
@@ -111,9 +111,9 @@ clean_conda_metadata_caches() {
     fi
 
     local conda_cache_hint="$HOME/.conda/pkgs"
-    if command -v conda > /dev/null 2>&1 && run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" conda --version > /dev/null 2>&1; then
+    if command -v conda > /dev/null 2>&1 && run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" conda --version > /dev/null 2>&1; then
         clean_tool_cache "conda index/tarball/log caches" "$conda_cache_hint" \
-            run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" conda clean --yes --index-cache --tarballs --logfiles
+            run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" conda clean --yes --index-cache --tarballs --logfiles
         note_activity
         return 0
     fi
@@ -138,7 +138,7 @@ clean_dev_npm() {
 
     if command -v npm > /dev/null 2>&1; then
         start_section_spinner "Checking npm cache path..."
-        npm_cache_path=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" npm config get cache 2> /dev/null) || npm_cache_path=""
+        npm_cache_path=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" npm config get cache 2> /dev/null) || npm_cache_path=""
         stop_section_spinner
 
         if [[ -z "$npm_cache_path" || "$npm_cache_path" != /* ]]; then
@@ -182,14 +182,14 @@ clean_dev_npm() {
     if command -v pnpm > /dev/null 2>&1 && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 pnpm --version > /dev/null 2>&1; then
         local pnpm_store_path
         start_section_spinner "Checking store path..."
-        pnpm_store_path=$(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" pnpm store path 2> /dev/null) || pnpm_store_path=""
+        pnpm_store_path=$(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" pnpm store path 2> /dev/null) || pnpm_store_path=""
         stop_section_spinner
 
         local pnpm_cache_check="$pnpm_default_store"
         if [[ -n "$pnpm_store_path" && "$pnpm_store_path" == /* ]]; then
             pnpm_cache_check="$pnpm_store_path"
         fi
-        COREPACK_ENABLE_DOWNLOAD_PROMPT=0 clean_tool_cache "pnpm cache" "$pnpm_cache_check" run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" pnpm store prune
+        COREPACK_ENABLE_DOWNLOAD_PROMPT=0 clean_tool_cache "pnpm cache" "$pnpm_cache_check" run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" pnpm store prune
     else
         debug_log "pnpm is unavailable, leaving global pnpm store for manual review: $pnpm_default_store"
     fi
@@ -200,7 +200,7 @@ clean_dev_npm() {
     local bun_dry_run="${DRY_RUN:-false}"
     if command -v bun > /dev/null 2>&1 && bun --version > /dev/null 2>&1; then
         if [[ -t 1 ]]; then start_section_spinner "Checking bun cache path..."; fi
-        bun_cache_path=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" bun pm cache 2> /dev/null) || bun_cache_path=""
+        bun_cache_path=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" bun pm cache 2> /dev/null) || bun_cache_path=""
         if [[ -t 1 ]]; then stop_section_spinner; fi
 
         if [[ -z "$bun_cache_path" || "$bun_cache_path" != /* ]]; then
@@ -222,7 +222,7 @@ clean_dev_npm() {
             if [[ -t 1 ]]; then
                 start_section_spinner "Cleaning bun cache..."
             fi
-            if run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" bun pm cache rm > /dev/null 2>&1; then
+            if run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" bun pm cache rm > /dev/null 2>&1; then
                 bun_cache_cleaned=true
             fi
             if [[ -t 1 ]]; then
@@ -270,7 +270,7 @@ clean_dev_python() {
     # Check pip3 is functional (not just macOS stub that triggers CLT install dialog)
     if command -v pip3 > /dev/null 2>&1 && pip3 --version > /dev/null 2>&1; then
         local pip_cache_path
-        pip_cache_path=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" pip3 cache dir 2> /dev/null) || pip_cache_path=""
+        pip_cache_path=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" pip3 cache dir 2> /dev/null) || pip_cache_path=""
         if [[ -z "$pip_cache_path" || "$pip_cache_path" != /* ]]; then
             pip_cache_path="$HOME/Library/Caches/pip"
         fi
@@ -333,7 +333,7 @@ get_mise_cache_path() {
 
     if command -v mise > /dev/null 2>&1; then
         local mise_cache_path
-        mise_cache_path=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" mise cache path 2> /dev/null || echo "")
+        mise_cache_path=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" mise cache path 2> /dev/null || echo "")
         if [[ -n "$mise_cache_path" && "$mise_cache_path" == /* ]]; then
             echo "$mise_cache_path"
             return 0
@@ -492,7 +492,7 @@ check_android_ndk() {
 }
 
 clean_xcode_documentation_cache() {
-    local doc_cache_root="${MOLE_XCODE_DOCUMENTATION_CACHE_DIR:-/Library/Developer/Xcode/DocumentationCache}"
+    local doc_cache_root="${NORA_XCODE_DOCUMENTATION_CACHE_DIR:-/Library/Developer/Xcode/DocumentationCache}"
     [[ -d "$doc_cache_root" ]] || return 0
 
     if pgrep -x "Xcode" > /dev/null 2>&1; then
@@ -598,7 +598,7 @@ _xcode_xctest_devices_process_running() {
 }
 
 clean_xcode_xctest_devices() {
-    local xctest_devices_dir="${MOLE_XCODE_XCTEST_DEVICES_DIR:-$HOME/Library/Developer/XCTestDevices}"
+    local xctest_devices_dir="${NORA_XCODE_XCTEST_DEVICES_DIR:-$HOME/Library/Developer/XCTestDevices}"
     [[ -d "$xctest_devices_dir" ]] || return 0
 
     if _xcode_xctest_devices_process_running; then
@@ -611,7 +611,7 @@ clean_xcode_xctest_devices() {
 }
 
 clean_xcode_system_coresimulator_caches() {
-    local cache_root="${MOLE_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR:-/Library/Developer/CoreSimulator/Caches}"
+    local cache_root="${NORA_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR:-/Library/Developer/CoreSimulator/Caches}"
     [[ -d "$cache_root" ]] || return 0
 
     if _coresimulator_cache_process_running; then
@@ -705,7 +705,7 @@ clean_xcode_system_coresimulator_caches() {
 clean_xcode_device_support() {
     local ds_dir="$1"
     local display_name="$2"
-    local keep_count="${MOLE_XCODE_DEVICE_SUPPORT_KEEP:-2}"
+    local keep_count="${NORA_XCODE_DEVICE_SUPPORT_KEEP:-2}"
     [[ "$keep_count" =~ ^[0-9]+$ ]] || keep_count=2
 
     [[ -d "$ds_dir" ]] || return 0
@@ -790,8 +790,8 @@ clean_xcode_device_support() {
 }
 
 _sim_runtime_mount_points() {
-    if [[ -n "${MOLE_XCODE_SIM_RUNTIME_MOUNT_POINTS:-}" ]]; then
-        printf '%s\n' "$MOLE_XCODE_SIM_RUNTIME_MOUNT_POINTS"
+    if [[ -n "${NORA_XCODE_SIM_RUNTIME_MOUNT_POINTS:-}" ]]; then
+        printf '%s\n' "$NORA_XCODE_SIM_RUNTIME_MOUNT_POINTS"
         return 0
     fi
     mount 2> /dev/null | command awk '{print $3}' || true
@@ -814,9 +814,9 @@ _sim_runtime_size_kb() {
     local target_path="$1"
     local size_kb=0
     if has_sudo_session; then
-        size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
+        size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
     else
-        size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
+        size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" du -skP "$target_path" 2> /dev/null | command awk 'NR==1 {print $1; exit}' || echo "0")
     fi
 
     [[ "$size_kb" =~ ^[0-9]+$ ]] || size_kb=0
@@ -824,8 +824,8 @@ _sim_runtime_size_kb() {
 }
 
 clean_xcode_simulator_runtime_volumes() {
-    local volumes_root="${MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT:-/Library/Developer/CoreSimulator/Volumes}"
-    local cryptex_root="${MOLE_XCODE_SIM_RUNTIME_CRYPTEX_ROOT:-/Library/Developer/CoreSimulator/Cryptex}"
+    local volumes_root="${NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT:-/Library/Developer/CoreSimulator/Volumes}"
+    local cryptex_root="${NORA_XCODE_SIM_RUNTIME_CRYPTEX_ROOT:-/Library/Developer/CoreSimulator/Cryptex}"
 
     local -a candidates=()
     local candidate
@@ -922,7 +922,7 @@ clean_xcode_simulator_runtime_volumes() {
         dryrun_in_use_human=$(bytes_to_human "$((in_use_kb * 1024))")
         echo -e "  ${GRAY}${ICON_LIST}${NC} Runtime volumes total: ${dryrun_total_human} (unused ${dryrun_unused_human}, in-use ${dryrun_in_use_human})"
 
-        local dryrun_max_items="${MOLE_SIM_RUNTIME_DRYRUN_MAX_ITEMS:-20}"
+        local dryrun_max_items="${NORA_SIM_RUNTIME_DRYRUN_MAX_ITEMS:-20}"
         [[ "$dryrun_max_items" =~ ^[0-9]+$ ]] || dryrun_max_items=20
         if [[ "$dryrun_max_items" -le 0 ]]; then
             dryrun_max_items=20
@@ -1026,9 +1026,9 @@ clean_xcode_simulator_runtime_volumes() {
     fi
 }
 
-_MOLE_SIMCTL_DEVELOPER_DIR=""
-_MOLE_SIMCTL_RESOLUTION_STATUS="unavailable"
-_MOLE_SIMCTL_XCODE_APP_ROOTS=(
+_NORA_SIMCTL_DEVELOPER_DIR=""
+_NORA_SIMCTL_RESOLUTION_STATUS="unavailable"
+_NORA_SIMCTL_XCODE_APP_ROOTS=(
     "/Applications"
     "$HOME/Applications"
 )
@@ -1037,7 +1037,7 @@ _simctl_developer_dir_is_usable() {
     local developer_dir="$1"
     [[ -d "$developer_dir" ]] || return 1
 
-    run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" \
+    run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" \
         env "DEVELOPER_DIR=$developer_dir" xcrun --find simctl > /dev/null 2>&1
 }
 
@@ -1045,17 +1045,17 @@ _simctl_developer_dir_is_usable() {
 # An explicit DEVELOPER_DIR is authoritative: if it is invalid, do not
 # silently switch the caller to a different Xcode installation.
 _resolve_simctl_developer_dir() {
-    _MOLE_SIMCTL_DEVELOPER_DIR=""
-    _MOLE_SIMCTL_RESOLUTION_STATUS="unavailable"
+    _NORA_SIMCTL_DEVELOPER_DIR=""
+    _NORA_SIMCTL_RESOLUTION_STATUS="unavailable"
 
     if [[ -n "${DEVELOPER_DIR:-}" ]]; then
         if _simctl_developer_dir_is_usable "$DEVELOPER_DIR"; then
-            _MOLE_SIMCTL_DEVELOPER_DIR="$DEVELOPER_DIR"
-            _MOLE_SIMCTL_RESOLUTION_STATUS="ready"
+            _NORA_SIMCTL_DEVELOPER_DIR="$DEVELOPER_DIR"
+            _NORA_SIMCTL_RESOLUTION_STATUS="ready"
             return 0
         fi
 
-        _MOLE_SIMCTL_RESOLUTION_STATUS="explicit-invalid"
+        _NORA_SIMCTL_RESOLUTION_STATUS="explicit-invalid"
         debug_log "Explicit DEVELOPER_DIR does not provide simctl: $DEVELOPER_DIR"
         return 1
     fi
@@ -1072,8 +1072,8 @@ _resolve_simctl_developer_dir() {
             ;;
         *)
             if _simctl_developer_dir_is_usable "$selected_developer_dir"; then
-                _MOLE_SIMCTL_DEVELOPER_DIR="$selected_developer_dir"
-                _MOLE_SIMCTL_RESOLUTION_STATUS="ready"
+                _NORA_SIMCTL_DEVELOPER_DIR="$selected_developer_dir"
+                _NORA_SIMCTL_RESOLUTION_STATUS="ready"
                 return 0
             fi
             debug_log "Selected Xcode does not provide simctl: $selected_developer_dir"
@@ -1086,7 +1086,7 @@ _resolve_simctl_developer_dir() {
     local nullglob_was_set=0
     shopt -q nullglob && nullglob_was_set=1
     shopt -s nullglob
-    for app_root in "${_MOLE_SIMCTL_XCODE_APP_ROOTS[@]}"; do
+    for app_root in "${_NORA_SIMCTL_XCODE_APP_ROOTS[@]}"; do
         [[ -d "$app_root" ]] || continue
         for candidate_app in "$app_root"/Xcode*.app; do
             [[ -d "$candidate_app" ]] || continue
@@ -1101,14 +1101,14 @@ _resolve_simctl_developer_dir() {
     fi
 
     if [[ ${#candidates[@]} -eq 1 ]]; then
-        _MOLE_SIMCTL_DEVELOPER_DIR="${candidates[0]}"
-        _MOLE_SIMCTL_RESOLUTION_STATUS="ready"
+        _NORA_SIMCTL_DEVELOPER_DIR="${candidates[0]}"
+        _NORA_SIMCTL_RESOLUTION_STATUS="ready"
         debug_log "Using detected Xcode for simctl: ${candidates[0]%/Contents/Developer}"
         return 0
     fi
 
     if [[ ${#candidates[@]} -gt 1 ]]; then
-        _MOLE_SIMCTL_RESOLUTION_STATUS="ambiguous"
+        _NORA_SIMCTL_RESOLUTION_STATUS="ambiguous"
         for candidate_developer_dir in "${candidates[@]}"; do
             debug_log "simctl Xcode candidate: ${candidate_developer_dir%/Contents/Developer}"
         done
@@ -1121,9 +1121,9 @@ _run_simctl() {
     local timeout_seconds="$1"
     shift
 
-    [[ "$_MOLE_SIMCTL_RESOLUTION_STATUS" == "ready" ]] || return 127
+    [[ "$_NORA_SIMCTL_RESOLUTION_STATUS" == "ready" ]] || return 127
     run_with_timeout "$timeout_seconds" \
-        env "DEVELOPER_DIR=$_MOLE_SIMCTL_DEVELOPER_DIR" xcrun simctl "$@"
+        env "DEVELOPER_DIR=$_NORA_SIMCTL_DEVELOPER_DIR" xcrun simctl "$@"
 }
 
 clean_dev_mobile() {
@@ -1135,13 +1135,13 @@ clean_dev_mobile() {
 
     if command -v xcrun > /dev/null 2>&1; then
         _resolve_simctl_developer_dir || true
-        if [[ "$_MOLE_SIMCTL_RESOLUTION_STATUS" == "ambiguous" ]]; then
+        if [[ "$_NORA_SIMCTL_RESOLUTION_STATUS" == "ambiguous" ]]; then
             echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode unavailable simulators · multiple Xcode apps found; set DEVELOPER_DIR"
             note_activity
-        elif [[ "$_MOLE_SIMCTL_RESOLUTION_STATUS" == "explicit-invalid" ]]; then
+        elif [[ "$_NORA_SIMCTL_RESOLUTION_STATUS" == "explicit-invalid" ]]; then
             echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode unavailable simulators · DEVELOPER_DIR has no simctl"
             note_activity
-        elif [[ "$_MOLE_SIMCTL_RESOLUTION_STATUS" == "ready" ]]; then
+        elif [[ "$_NORA_SIMCTL_RESOLUTION_STATUS" == "ready" ]]; then
             debug_log "Checking for unavailable Xcode simulators"
             local unavailable_before=0
             local unavailable_after=0
@@ -1156,7 +1156,7 @@ clean_dev_mobile() {
             # with a longer timeout. See #890.
             local simctl_available=true
             local simctl_probe_ok=false
-            if _run_simctl "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" list devices > /dev/null 2>&1; then
+            if _run_simctl "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" list devices > /dev/null 2>&1; then
                 simctl_probe_ok=true
             else
                 if _run_simctl 8 list devices > /dev/null 2>&1; then # 8s: simctl retry after warmup, see lib/core/timeouts.sh
@@ -1176,7 +1176,7 @@ clean_dev_mobile() {
             if [[ "$simctl_available" == "true" ]]; then
                 local unavailable_devices_output=""
                 local unavailable_list_exit_code=0
-                unavailable_devices_output=$(_run_simctl "$MOLE_TIMEOUT_PKG_LIST_SEC" list devices unavailable 2> /dev/null) || unavailable_list_exit_code=$?
+                unavailable_devices_output=$(_run_simctl "$NORA_TIMEOUT_PKG_LIST_SEC" list devices unavailable 2> /dev/null) || unavailable_list_exit_code=$?
                 if [[ $unavailable_list_exit_code -ne 0 ]]; then
                     echo -e "  ${GRAY}${ICON_WARNING}${NC} Xcode unavailable simulators · simctl list failed (exit=${unavailable_list_exit_code})"
                     debug_log "simctl list devices unavailable returned $unavailable_list_exit_code"
@@ -1233,12 +1233,12 @@ clean_dev_mobile() {
                         # Capture error output for diagnostics
                         local delete_output
                         local delete_exit_code=0
-                        delete_output=$(_run_simctl "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" delete unavailable 2>&1) || delete_exit_code=$?
+                        delete_output=$(_run_simctl "$NORA_TIMEOUT_PKG_CLEANUP_SEC" delete unavailable 2>&1) || delete_exit_code=$?
 
                         if [[ $delete_exit_code -eq 0 ]]; then
                             stop_section_spinner
                             local recount_exit_code=0
-                            unavailable_devices_output=$(_run_simctl "$MOLE_TIMEOUT_PKG_LIST_SEC" list devices unavailable 2> /dev/null) || recount_exit_code=$?
+                            unavailable_devices_output=$(_run_simctl "$NORA_TIMEOUT_PKG_LIST_SEC" list devices unavailable 2> /dev/null) || recount_exit_code=$?
                             if [[ $recount_exit_code -ne 0 ]]; then
                                 echo -e "  ${YELLOW}${ICON_WARNING}${NC} Xcode unavailable simulators · cleanup completed, unable to verify remaining devices"
                                 debug_log "simctl recount returned $recount_exit_code"
@@ -1320,7 +1320,7 @@ clean_dev_mobile() {
     safe_clean ~/.expo/versions-cache/* "Expo versions cache"
 }
 # JVM ecosystem caches.
-# Gradle: Respects whitelist, cleaned when not protected via: mo clean --whitelist
+# Gradle: Respects whitelist, cleaned when not protected via: nr clean --whitelist
 clean_dev_jvm() {
     # Source Maven cleanup module (requires bash for BASH_SOURCE)
     # shellcheck disable=SC1091
@@ -1346,7 +1346,7 @@ clean_dev_jetbrains_toolbox() {
     local toolbox_root="$HOME/Library/Application Support/JetBrains/Toolbox/apps"
     [[ -d "$toolbox_root" ]] || return 0
 
-    local keep_previous="${MOLE_JETBRAINS_TOOLBOX_KEEP:-1}"
+    local keep_previous="${NORA_JETBRAINS_TOOLBOX_KEEP:-1}"
     [[ "$keep_previous" =~ ^[0-9]+$ ]] || keep_previous=1
 
     # Save and filter whitelist patterns for toolbox path
@@ -1628,7 +1628,7 @@ clean_claude_desktop_bundled_versions() {
 }
 
 clean_dev_ai_agents() {
-    local keep_previous="${MOLE_AI_AGENTS_KEEP:-1}"
+    local keep_previous="${NORA_AI_AGENTS_KEEP:-1}"
     [[ "$keep_previous" =~ ^[0-9]+$ ]] || keep_previous=1
 
     local -a agent_specs=(
@@ -1771,7 +1771,7 @@ codex_sparkle_staging_has_open_files() {
 
     local lsof_output=""
     local lsof_rc=0
-    if lsof_output=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" lsof -Fn +D "$staging_root" 2> /dev/null); then
+    if lsof_output=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" lsof -Fn +D "$staging_root" 2> /dev/null); then
         [[ -n "$lsof_output" ]]
         return
     else
@@ -1832,7 +1832,7 @@ clean_codex_desktop_staging() {
     local stale_entry
     while IFS= read -r -d '' stale_entry; do
         safe_clean "$stale_entry" "Codex Desktop stale update staging"
-    done < <(command find -P "$staging_root" -mindepth 1 -maxdepth 1 -type d -mtime +"$MOLE_ORPHAN_AGE_DAYS" -print0 2> /dev/null)
+    done < <(command find -P "$staging_root" -mindepth 1 -maxdepth 1 -type d -mtime +"$NORA_ORPHAN_AGE_DAYS" -print0 2> /dev/null)
 }
 
 # True when the Codex CLI or the Codex Desktop app is running.
@@ -2094,7 +2094,7 @@ clean_dev_misc() {
     # Codex CLI working-directory caches (~/.codex)
     clean_codex_cli
     # Cursor Agent session logs (versions cleaned separately in clean_dev_ai_agents)
-    [[ -d "$HOME/.local/share/cursor-agent" ]] && safe_find_delete "$HOME/.local/share/cursor-agent" "*.log" "$MOLE_LOG_AGE_DAYS" "f"
+    [[ -d "$HOME/.local/share/cursor-agent" ]] && safe_find_delete "$HOME/.local/share/cursor-agent" "*.log" "$NORA_LOG_AGE_DAYS" "f"
     # Playwright cached browser binaries
     safe_clean ~/Library/Caches/ms-playwright/* "Playwright browsers"
     # Chrome DevTools MCP keeps a Chromium profile; clean only rebuildable caches.

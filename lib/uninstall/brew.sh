@@ -1,14 +1,14 @@
 #!/bin/bash
-# Mole - Homebrew Cask Uninstallation Support
+# Nora - Homebrew Cask Uninstallation Support
 # Detects Homebrew-managed casks via Caskroom linkage and uninstalls them via brew
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_BREW_UNINSTALL_LOADED:-}" ]]; then
+if [[ -n "${NORA_BREW_UNINSTALL_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_BREW_UNINSTALL_LOADED=1
+readonly NORA_BREW_UNINSTALL_LOADED=1
 
 # Resolve a path to its absolute real path (follows symlinks)
 # Args: $1 - path to resolve
@@ -208,7 +208,7 @@ brew_uninstall_cask() {
         uninstall_args+=(--zap)
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         debug_log "[DRY RUN] Would brew ${uninstall_args[*]} $cask_name"
         return 0
     fi

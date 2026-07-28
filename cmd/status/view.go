@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/tw93/mole/internal/units"
+	"github.com/LaVieNguyenn/nora/internal/units"
 )
 
 var (
@@ -42,8 +42,8 @@ const (
 	processWideMinWidth = 46
 )
 
-// Mole body frames (facing right).
-var moleBody = [][]string{
+// Nora body frames (facing right).
+var noraBody = [][]string{
 	{
 		`     /\_/\`,
 		` ___/ o o \`,
@@ -70,8 +70,8 @@ var moleBody = [][]string{
 	},
 }
 
-// Mirror mole body frames (facing left).
-var moleBodyMirror = [][]string{
+// Mirror nora body frames (facing left).
+var noraBodyMirror = [][]string{
 	{
 		`    /\_/\`,
 		`   / o o \___`,
@@ -98,10 +98,10 @@ var moleBodyMirror = [][]string{
 	},
 }
 
-// getMoleFrame renders the animated mole.
-func getMoleFrame(animFrame int, termWidth int) string {
-	moleWidth := 15
-	maxPos := max(termWidth-moleWidth, 0)
+// getNoraFrame renders the animated nora.
+func getNoraFrame(animFrame int, termWidth int) string {
+	noraWidth := 15
+	maxPos := max(termWidth-noraWidth, 0)
 
 	cycleLength := maxPos * 2
 	if cycleLength == 0 {
@@ -116,9 +116,9 @@ func getMoleFrame(animFrame int, termWidth int) string {
 	// Use mirror frames when moving left
 	var frames [][]string
 	if movingLeft {
-		frames = moleBodyMirror
+		frames = noraBodyMirror
 	} else {
-		frames = moleBody
+		frames = noraBody
 	}
 
 	bodyIdx := animFrame % len(frames)
@@ -253,22 +253,22 @@ func renderHeader(m MetricsSnapshot, errMsg string, animFrame int, termWidth int
 		}
 	}
 
-	// Show cat unless hidden - render mole centered below header
-	var mole string
+	// Show cat unless hidden - render nora centered below header
+	var nora string
 	if !catHidden {
-		mole = getMoleFrame(animFrame, termWidth)
+		nora = getNoraFrame(animFrame, termWidth)
 	}
 
 	if errMsg != "" {
-		if mole == "" {
+		if nora == "" {
 			return lipgloss.JoinVertical(lipgloss.Left, headerLine, "", dangerStyle.Render("ERROR: "+errMsg)), ""
 		}
-		return lipgloss.JoinVertical(lipgloss.Left, headerLine, "", mole, dangerStyle.Render("ERROR: "+errMsg)), ""
+		return lipgloss.JoinVertical(lipgloss.Left, headerLine, "", nora, dangerStyle.Render("ERROR: "+errMsg)), ""
 	}
-	if mole == "" {
+	if nora == "" {
 		return headerLine, ""
 	}
-	return headerLine, mole
+	return headerLine, nora
 }
 
 func getScoreStyle(score int) lipgloss.Style {

@@ -43,7 +43,7 @@ is_covered() {
     return 1
 }
 
-echo "Mole bundle drift audit"
+echo "Nora bundle drift audit"
 echo "macOS: $(sw_vers -productVersion 2> /dev/null || echo unknown)"
 echo
 

@@ -3,24 +3,24 @@
 
 set -euo pipefail
 
-if [[ -n "${MOLE_OPTIMIZE_TASKS_LOADED:-}" ]]; then
+if [[ -n "${NORA_OPTIMIZE_TASKS_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_OPTIMIZE_TASKS_LOADED=1
+readonly NORA_OPTIMIZE_TASKS_LOADED=1
 
-_MOLE_OPTIMIZE_TASKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly _MOLE_OPTIMIZE_TASKS_DIR
-source "$_MOLE_OPTIMIZE_TASKS_DIR/catalog.sh"
+_NORA_OPTIMIZE_TASKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly _NORA_OPTIMIZE_TASKS_DIR
+source "$_NORA_OPTIMIZE_TASKS_DIR/catalog.sh"
 
 # Config constants (override via env).
-readonly MOLE_TM_THIN_TIMEOUT=180
-readonly MOLE_TM_THIN_VALUE=9999999999
-readonly MOLE_SQLITE_MAX_SIZE=104857600 # 100MB
+readonly NORA_TM_THIN_TIMEOUT=180
+readonly NORA_TM_THIN_VALUE=9999999999
+readonly NORA_SQLITE_MAX_SIZE=104857600 # 100MB
 
 # Dry-run aware output.
 opt_msg() {
     local message="$1"
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} $message"
     else
         echo -e "  ${GREEN}${ICON_SUCCESS}${NC} $message"
@@ -34,14 +34,14 @@ opt_numeric_kb() {
 
 # Whether the current optimize run can use sudo without re-prompting.
 # Set by bin/optimize.sh after the upfront ensure_sudo_session call.
-# Test-mode env vars hard-deny so ad-hoc task calls under MOLE_TEST_NO_AUTH=1
+# Test-mode env vars hard-deny so ad-hoc task calls under NORA_TEST_NO_AUTH=1
 # (e.g. ./scripts/test.sh, manual repro) cannot reach a real sudo invocation
 # even when this helper is invoked outside the optimize entrypoint.
 optimize_sudo_available() {
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
-    [[ "${MOLE_OPTIMIZE_SUDO_AVAILABLE:-true}" == "true" ]]
+    [[ "${NORA_OPTIMIZE_SUDO_AVAILABLE:-true}" == "true" ]]
 }
 
 opt_existing_path_size_kb() {
@@ -58,12 +58,12 @@ run_launchctl_unload() {
     local plist_file="$1"
     local need_sudo="${2:-false}"
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         return 0
     fi
 
     if [[ "$need_sudo" == "true" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
             return 0
         fi
         if ! optimize_sudo_available; then
@@ -116,7 +116,7 @@ is_memory_pressure_high() {
 }
 
 has_active_vpn_interface() {
-    case "${MOLE_ASSUME_VPN_ACTIVE:-}" in
+    case "${NORA_ASSUME_VPN_ACTIVE:-}" in
         1 | true | TRUE | yes | YES)
             return 0
             ;;
@@ -157,8 +157,8 @@ has_active_vpn_interface() {
 }
 
 flush_dns_cache() {
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
-        MOLE_DNS_FLUSHED=1
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
+        NORA_DNS_FLUSHED=1
         return 0
     fi
 
@@ -167,7 +167,7 @@ flush_dns_cache() {
     fi
 
     if sudo dscacheutil -flushcache 2> /dev/null && sudo killall -HUP mDNSResponder 2> /dev/null; then
-        MOLE_DNS_FLUSHED=1
+        NORA_DNS_FLUSHED=1
         return 0
     fi
     return 1
@@ -204,7 +204,7 @@ opt_cache_refresh() {
         debug_risk_level "LOW" "Caches are automatically rebuilt"
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         qlmanage -r cache > /dev/null 2>&1 || true
         qlmanage -r > /dev/null 2>&1 || true
     fi
@@ -258,7 +258,7 @@ opt_cache_refresh() {
 opt_saved_state_cleanup() {
     if [[ "${MO_DEBUG:-}" == "1" ]]; then
         debug_operation_start "App Saved State Cleanup" "Remove old application saved states"
-        debug_operation_detail "Method" "Find and remove .savedState folders older than $MOLE_SAVED_STATE_AGE_DAYS days"
+        debug_operation_detail "Method" "Find and remove .savedState folders older than $NORA_SAVED_STATE_AGE_DAYS days"
         debug_operation_detail "Location" "$HOME/Library/Saved Application State"
         debug_operation_detail "Expected outcome" "Reduced disk usage, apps start with clean state"
         debug_risk_level "LOW" "Old saved states, apps will create new ones"
@@ -272,7 +272,7 @@ opt_saved_state_cleanup() {
                 continue
             fi
             safe_remove "$state_path" true > /dev/null 2>&1 || true
-        done < <(command find "$state_dir" -type d -name "*.savedState" -mtime "+$MOLE_SAVED_STATE_AGE_DAYS" -print0 2> /dev/null)
+        done < <(command find "$state_dir" -type d -name "*.savedState" -mtime "+$NORA_SAVED_STATE_AGE_DAYS" -print0 2> /dev/null)
     fi
 
     opt_msg "App saved states optimized"
@@ -294,7 +294,7 @@ opt_fix_broken_configs() {
 
     local spinner_started="false"
     if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking preferences..."
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "Checking preferences..."
         spinner_started="true"
     fi
 
@@ -329,7 +329,7 @@ opt_network_optimization() {
         debug_risk_level "LOW" "DNS cache is automatically rebuilt"
     fi
 
-    if [[ "${MOLE_DNS_FLUSHED:-0}" == "1" ]]; then
+    if [[ "${NORA_DNS_FLUSHED:-0}" == "1" ]]; then
         opt_msg "DNS cache already refreshed"
         opt_msg "mDNSResponder already restarted"
         return 0
@@ -372,17 +372,17 @@ opt_quarantine_cleanup() {
 
     # Check if database has any entries worth cleaning.
     local row_count
-    row_count=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" sqlite3 "$quarantine_db" "SELECT COUNT(*) FROM LSQuarantineEvent;" 2> /dev/null || echo "0")
+    row_count=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" sqlite3 "$quarantine_db" "SELECT COUNT(*) FROM LSQuarantineEvent;" 2> /dev/null || echo "0")
 
     if [[ ! "$row_count" =~ ^[0-9]+$ ]] || [[ "$row_count" -eq 0 ]]; then
         opt_msg "Quarantine database already clean"
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         local exit_code=0
         set +e
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" sqlite3 "$quarantine_db" "DELETE FROM LSQuarantineEvent; VACUUM;" 2> /dev/null
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" sqlite3 "$quarantine_db" "DELETE FROM LSQuarantineEvent; VACUUM;" 2> /dev/null
         exit_code=$?
         set -e
 
@@ -426,8 +426,8 @@ opt_sqlite_vacuum() {
     fi
 
     local spinner_started="false"
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" && -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Optimizing databases..."
+    if [[ "${NORA_DRY_RUN:-0}" != "1" && -t 1 ]]; then
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "Optimizing databases..."
         spinner_started="true"
     fi
 
@@ -458,14 +458,14 @@ opt_sqlite_vacuum() {
             # Skip large DBs (>100MB).
             local file_size
             file_size=$(get_file_size "$db_file")
-            if [[ "$file_size" -gt "$MOLE_SQLITE_MAX_SIZE" ]]; then
+            if [[ "$file_size" -gt "$NORA_SQLITE_MAX_SIZE" ]]; then
                 skipped=$((skipped + 1))
                 continue
             fi
 
             # Skip if freelist is tiny (already compact).
             local page_info=""
-            page_info=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" sqlite3 "$db_file" "PRAGMA page_count; PRAGMA freelist_count;" 2> /dev/null || echo "")
+            page_info=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" sqlite3 "$db_file" "PRAGMA page_count; PRAGMA freelist_count;" 2> /dev/null || echo "")
             local page_count=""
             local freelist_count=""
             page_count="${page_info%%$'\n'*}"
@@ -481,10 +481,10 @@ opt_sqlite_vacuum() {
             fi
 
             # Verify integrity before VACUUM.
-            if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+            if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
                 local integrity_check=""
                 set +e
-                integrity_check=$(run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" sqlite3 "$db_file" "PRAGMA integrity_check;" 2> /dev/null)
+                integrity_check=$(run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" sqlite3 "$db_file" "PRAGMA integrity_check;" 2> /dev/null)
                 local integrity_status=$?
                 set -e
 
@@ -495,9 +495,9 @@ opt_sqlite_vacuum() {
             fi
 
             local exit_code=0
-            if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+            if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
                 set +e
-                run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" sqlite3 "$db_file" "VACUUM;" 2> /dev/null
+                run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" sqlite3 "$db_file" "VACUUM;" 2> /dev/null
                 exit_code=$?
                 set -e
 
@@ -551,7 +551,7 @@ opt_launch_services_rebuild() {
     fi
 
     if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Repairing LaunchServices..."
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "Repairing LaunchServices..."
     fi
 
     local lsregister
@@ -560,7 +560,7 @@ opt_launch_services_rebuild() {
     if [[ -n "$lsregister" ]]; then
         local success=0
 
-        if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
             set +e
             "$lsregister" -gc > /dev/null 2>&1 || true
             "$lsregister" -r -f -domain local -domain user -domain system > /dev/null 2>&1
@@ -607,7 +607,7 @@ opt_memory_pressure_relief() {
         debug_risk_level "LOW" "Safe system command, does not affect active processes"
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         if ! is_memory_pressure_high; then
             opt_msg "Memory pressure already optimal"
             return 0
@@ -620,7 +620,7 @@ opt_memory_pressure_relief() {
 
         local spinner_started="false"
         if [[ -t 1 ]]; then
-            MOLE_SPINNER_PREFIX="  " start_inline_spinner "Releasing inactive memory..."
+            NORA_SPINNER_PREFIX="  " start_inline_spinner "Releasing inactive memory..."
             spinner_started="true"
         fi
 
@@ -655,7 +655,7 @@ opt_network_stack_optimize() {
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         local route_ok=true
         local dns_ok=true
 
@@ -714,7 +714,7 @@ opt_disk_permissions_repair() {
     local user_id
     user_id=$(id -u)
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         if ! needs_permissions_repair; then
             opt_msg "User directory permissions already optimal"
             return 0
@@ -753,7 +753,7 @@ opt_disk_permissions_repair() {
 # Spotlight index check/rebuild (only if slow).
 opt_spotlight_index_optimize() {
     local spotlight_status
-    spotlight_status=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" mdutil -s / 2> /dev/null || echo "")
+    spotlight_status=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" mdutil -s / 2> /dev/null || echo "")
 
     if echo "$spotlight_status" | grep -qi "Indexing disabled"; then
         echo -e "  ${GRAY}${ICON_EMPTY}${NC} Spotlight indexing is disabled"
@@ -768,14 +768,14 @@ opt_spotlight_index_optimize() {
             return 0
         fi
 
-        local slow_threshold="${MOLE_OPTIMIZE_SPOTLIGHT_SLOW_SEC:-3}"
+        local slow_threshold="${NORA_OPTIMIZE_SPOTLIGHT_SLOW_SEC:-3}"
         if [[ ! "$slow_threshold" =~ ^-?[0-9]+$ ]]; then
             slow_threshold=3
         fi
 
         local spinner_started="false"
         if [[ -t 1 ]]; then
-            MOLE_SPINNER_PREFIX="  " start_inline_spinner "Checking Spotlight speed..."
+            NORA_SPINNER_PREFIX="  " start_inline_spinner "Checking Spotlight speed..."
             spinner_started="true"
         fi
 
@@ -785,7 +785,7 @@ opt_spotlight_index_optimize() {
             test_start=$(get_epoch_seconds)
             # A timeout counts as slow: an mdfind that cannot answer within
             # the probe ceiling is exactly the sluggishness being measured.
-            run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemFSName == 'Applications'" > /dev/null 2>&1 || true
+            run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemFSName == 'Applications'" > /dev/null 2>&1 || true
             test_end=$(get_epoch_seconds)
             test_duration=$((test_end - test_start))
             if [[ $test_duration -gt $slow_threshold ]]; then
@@ -801,7 +801,7 @@ opt_spotlight_index_optimize() {
         fi
 
         if [[ $slow_count -ge 2 ]]; then
-            if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+            if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
                 if ! optimize_sudo_available; then
                     echo -e "  ${YELLOW}${ICON_WARNING}${NC} Spotlight index rebuild · skipped (admin access required)"
                     return 0
@@ -851,7 +851,7 @@ opt_prune_spotlight_orphan_rules() {
                 # Only act on well-formed bundle ids; bundle_has_installed_app
                 # double-checks with mdfind and a filesystem scan, so a return of
                 # 1 means the app is genuinely gone. Anything else is kept.
-                if mole_is_reverse_dns_bundle_id "$entry" && ! bundle_has_installed_app "$entry"; then
+                if nora_is_reverse_dns_bundle_id "$entry" && ! bundle_has_installed_app "$entry"; then
                     removed+=("$entry")
                 else
                     keep+=("$entry")
@@ -866,7 +866,7 @@ opt_prune_spotlight_orphan_rules() {
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         opt_msg "Would remove ${#removed[@]} orphan Spotlight rule(s)"
         return 0
     fi
@@ -895,7 +895,7 @@ opt_dock_refresh() {
         touch "$dock_plist" 2> /dev/null || true
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         killall Dock 2> /dev/null || true
     fi
 
@@ -920,7 +920,7 @@ opt_prevent_network_dsstore() {
             continue
         fi
 
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             changed=$((changed + 1))
             continue
         fi
@@ -995,7 +995,7 @@ opt_legacy_overrides_audit() {
             opt_msg "Skipped (whitelisted): ${found_labels[$idx]}"
             continue
         fi
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Would remove override: ${found_labels[$idx]}"
             continue
         fi
@@ -1068,7 +1068,7 @@ opt_launch_agents_cleanup() {
 }
 
 # macOS periodic maintenance scripts (daily/weekly/monthly).
-# Log path is configurable via MOLE_PERIODIC_LOG for testing; defaults to /var/log/daily.out.
+# Log path is configurable via NORA_PERIODIC_LOG for testing; defaults to /var/log/daily.out.
 # A missing log file is treated as stale and triggers maintenance.
 opt_periodic_maintenance() {
     # Check if periodic command exists (removed in macOS 26+)
@@ -1077,7 +1077,7 @@ opt_periodic_maintenance() {
         return 0
     fi
 
-    local daily_log="${MOLE_PERIODIC_LOG:-/var/log/daily.out}"
+    local daily_log="${NORA_PERIODIC_LOG:-/var/log/daily.out}"
     local stale_days=7
 
     if [[ -f "$daily_log" ]]; then
@@ -1092,8 +1092,8 @@ opt_periodic_maintenance() {
         fi
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]] || ! optimize_sudo_available; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
+        if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]] || ! optimize_sudo_available; then
             opt_msg "Periodic maintenance skipped (requires sudo)"
             return 0
         fi
@@ -1128,7 +1128,7 @@ opt_shared_file_list_repair() {
         # Skip recent-documents list (user data, not a cache)
         [[ "$sfl_file" == *"ApplicationRecentDocuments"* ]] && continue
         if ! plutil -lint "$sfl_file" > /dev/null 2>&1; then
-            if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+            if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
                 safe_remove "$sfl_file" true > /dev/null 2>&1 || true
             fi
             repaired=$((repaired + 1))
@@ -1162,7 +1162,7 @@ opt_notification_cleanup() {
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         if command -v sqlite3 > /dev/null 2>&1; then
             local sql_ok=0
             sqlite3 "$nc_db" \
@@ -1185,23 +1185,23 @@ opt_notification_cleanup() {
 # Verify filesystem integrity via diskutil.
 # Disabled by default: diskutil verifyVolume triggers kernel-level I/O that
 # cannot be interrupted by SIGKILL when the volume has APFS inconsistencies,
-# causing the system to freeze. Set MOLE_ENABLE_DISK_VERIFY=1 to opt in.
+# causing the system to freeze. Set NORA_ENABLE_DISK_VERIFY=1 to opt in.
 opt_disk_verify() {
-    if [[ "${MOLE_ENABLE_DISK_VERIFY:-0}" != "1" ]]; then
-        opt_msg "Disk verify skipped (set MOLE_ENABLE_DISK_VERIFY=1 to enable)"
+    if [[ "${NORA_ENABLE_DISK_VERIFY:-0}" != "1" ]]; then
+        opt_msg "Disk verify skipped (set NORA_ENABLE_DISK_VERIFY=1 to enable)"
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         opt_msg "Disk verify · skipped in dry-run"
         return 0
     fi
 
     if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Verifying disk filesystem..."
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "Verifying disk filesystem..."
     fi
     local output
-    output=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" diskutil verifyVolume / 2>&1 || true)
+    output=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" diskutil verifyVolume / 2>&1 || true)
     if [[ -t 1 ]]; then
         stop_inline_spinner
     fi
@@ -1236,7 +1236,7 @@ opt_coreduet_cleanup() {
     done
 
     if [[ ${#knowledge_files[@]} -gt 0 ]]; then
-        total_size=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" du -skcP "${knowledge_files[@]}" 2> /dev/null | awk 'END {print $1 + 0}' || echo "0")
+        total_size=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" du -skcP "${knowledge_files[@]}" 2> /dev/null | awk 'END {print $1 + 0}' || echo "0")
         total_size=$(opt_numeric_kb "$total_size")
     fi
 
@@ -1246,7 +1246,7 @@ opt_coreduet_cleanup() {
         return 0
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
         # Remove WAL and SHM files safely (auto-regenerated by SQLite)
         for f in "$wal_file" "$shm_file"; do
             [[ -f "$f" ]] && safe_remove "$f" true > /dev/null 2>&1 || true
@@ -1420,7 +1420,7 @@ _login_item_app_exists() {
     #    make changes" admin-password dialog, so without an active sudo
     #    session this fallback is skipped rather than prompting.
     local btm_path=""
-    if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]] && sudo -n true 2> /dev/null; then
+    if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]] && sudo -n true 2> /dev/null; then
         btm_path=$(sudo -n sfltool dumpbtm 2> /dev/null | awk -v item="$name" '
         BEGIN { IGNORECASE = 1 }
         index($0, item) {
@@ -1440,7 +1440,7 @@ _login_item_app_exists() {
 }
 
 opt_login_items_audit() {
-    if [[ "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         opt_msg "Login items audit · skipped in test mode"
         return 0
     fi

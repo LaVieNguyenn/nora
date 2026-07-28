@@ -129,7 +129,7 @@ get_lsregister_path() { printf '%s\n' "$LSREGISTER_BIN"; }
 run_with_timeout() { shift; "$@"; }
 note_activity() { printf 'activity\n'; }
 DRY_RUN=false
-MOLE_DRY_RUN=0
+NORA_DRY_RUN=0
 clean_stale_launch_services_registrations
 EOF
 
@@ -246,7 +246,7 @@ get_lsregister_path() { printf '%s\n' "$LSREGISTER_BIN"; }
 run_with_timeout() { shift; "$@"; }
 note_activity() { printf 'activity\n'; }
 DRY_RUN=false
-MOLE_DRY_RUN=0
+NORA_DRY_RUN=0
 clean_stale_launch_services_registrations
 EOF
 

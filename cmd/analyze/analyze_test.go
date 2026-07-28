@@ -750,7 +750,7 @@ func TestPruneAnalyzerCacheDirEnforcesByteCap(t *testing.T) {
 	}
 }
 
-// The legacy flat store shares `~/.cache/mole` with shell-side state, so the
+// The legacy flat store shares `~/.cache/nora` with shell-side state, so the
 // sweep is scoped to the two names the analyzer ever wrote there.
 func TestSweepLegacyAnalyzerCacheRemovesOnlyAnalyzerFiles(t *testing.T) {
 	root := t.TempDir()
@@ -1187,9 +1187,9 @@ func TestGetCacheDirIsAnalyzerScoped(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	root, err := getMoleCacheRoot()
+	root, err := getNoraCacheRoot()
 	if err != nil {
-		t.Fatalf("getMoleCacheRoot: %v", err)
+		t.Fatalf("getNoraCacheRoot: %v", err)
 	}
 	cacheDir, err := getCacheDir()
 	if err != nil {
@@ -1252,7 +1252,7 @@ func TestScanPathConcurrentWarmsChildDirectoryCache(t *testing.T) {
 
 // A cache file costs a 4KB block plus an inode to memoize what one readdir
 // returns, so cheap subtrees must not get one. Unbounded admission is what grew
-// ~/.cache/mole to 1.88M files / 7.82GB on a user's Mac.
+// ~/.cache/nora to 1.88M files / 7.82GB on a user's Mac.
 func TestScanPathConcurrentSkipsCacheForCheapSubdir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

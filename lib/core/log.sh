@@ -1,29 +1,29 @@
 #!/bin/bash
-# Mole - Logging System
+# Nora - Logging System
 # Centralized logging with rotation support
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_LOG_LOADED:-}" ]]; then
+if [[ -n "${NORA_LOG_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_LOG_LOADED=1
+readonly NORA_LOG_LOADED=1
 
 # Ensure base.sh is loaded for colors and icons
-if [[ -z "${MOLE_BASE_LOADED:-}" ]]; then
-    _MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${NORA_BASE_LOADED:-}" ]]; then
+    _NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     # shellcheck source=lib/core/base.sh
-    source "$_MOLE_CORE_DIR/base.sh"
+    source "$_NORA_CORE_DIR/base.sh"
 fi
 
 # ============================================================================
 # Logging Configuration
 # ============================================================================
 
-readonly LOG_FILE="${HOME}/Library/Logs/mole/mole.log"
-readonly DEBUG_LOG_FILE="${HOME}/Library/Logs/mole/mole_debug_session.log"
-readonly OPERATIONS_LOG_FILE="${HOME}/Library/Logs/mole/operations.log"
+readonly LOG_FILE="${HOME}/Library/Logs/nora/nora.log"
+readonly DEBUG_LOG_FILE="${HOME}/Library/Logs/nora/nora_debug_session.log"
+readonly OPERATIONS_LOG_FILE="${HOME}/Library/Logs/nora/operations.log"
 readonly LOG_MAX_SIZE_DEFAULT=1048576   # 1MB
 readonly OPLOG_MAX_SIZE_DEFAULT=5242880 # 5MB
 
@@ -56,8 +56,8 @@ append_log_lines() {
 # Rotate log file if it exceeds maximum size
 rotate_log_once() {
     # Skip if already checked this session
-    [[ -n "${MOLE_LOG_ROTATED:-}" ]] && return 0
-    export MOLE_LOG_ROTATED=1
+    [[ -n "${NORA_LOG_ROTATED:-}" ]] && return 0
+    export NORA_LOG_ROTATED=1
 
     local max_size="$LOG_MAX_SIZE_DEFAULT"
     if [[ -f "$LOG_FILE" ]]; then
@@ -229,7 +229,7 @@ log_operation() {
 log_operation_session_start() {
     oplog_enabled || return 0
 
-    local command="${1:-mole}"
+    local command="${1:-nora}"
     local timestamp
     timestamp=$(get_timestamp)
 
@@ -243,7 +243,7 @@ log_operation_session_start() {
 log_operation_session_end() {
     oplog_enabled || return 0
 
-    local command="${1:-mole}"
+    local command="${1:-nora}"
     local items="${2:-0}"
     local size="${3:-0}"
     local timestamp
@@ -345,8 +345,8 @@ debug_risk_level() {
 # Log system information for debugging
 log_system_info() {
     # Only allow once per session
-    [[ -n "${MOLE_SYS_INFO_LOGGED:-}" ]] && return 0
-    export MOLE_SYS_INFO_LOGGED=1
+    [[ -n "${NORA_SYS_INFO_LOGGED:-}" ]] && return 0
+    export NORA_SYS_INFO_LOGGED=1
 
     # Reset debug log file for this new session
     ensure_user_file "$DEBUG_LOG_FILE"
@@ -357,7 +357,7 @@ log_system_info() {
     # Start block in debug log file
     {
         echo "----------------------------------------------------------------------"
-        echo "Mole Debug Session, $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "Nora Debug Session, $(date '+%Y-%m-%d %H:%M:%S')"
         echo "----------------------------------------------------------------------"
         echo "User: $USER"
         echo "Hostname: $(hostname)"
@@ -369,7 +369,7 @@ log_system_info() {
         echo "Shell: ${SHELL:-unknown}, ${TERM:-unknown}"
 
         # Check sudo status non-interactively (skip in test mode)
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+        if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
             echo "Sudo Access: Skipped (test mode)"
         elif sudo -n true 2> /dev/null; then
             echo "Sudo Access: Active"

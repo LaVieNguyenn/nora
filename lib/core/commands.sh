@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Shared command list for help text and completions.
-MOLE_COMMANDS=(
+NORA_COMMANDS=(
     "clean:Free up disk space"
     "uninstall:Remove apps completely"
     "optimize:Refresh caches and services"
@@ -13,7 +13,7 @@ MOLE_COMMANDS=(
     "touchid:Configure Touch ID for sudo"
     "completion:Setup shell tab completion"
     "update:Update to latest version"
-    "remove:Remove Mole from system"
+    "remove:Remove Nora from system"
     "help:Show help"
     "version:Show version"
 )

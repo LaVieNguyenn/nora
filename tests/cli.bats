@@ -21,9 +21,9 @@ setup_file() {
 	CLI_OWNS_GO_HELPERS=0
 	export CLI_OWNS_GO_HELPERS
 
-	if [[ -x "${MOLE_TEST_ANALYZE_BIN:-}" && -x "${MOLE_TEST_STATUS_BIN:-}" ]]; then
-		ANALYZE_BIN="$MOLE_TEST_ANALYZE_BIN"
-		STATUS_BIN="$MOLE_TEST_STATUS_BIN"
+	if [[ -x "${NORA_TEST_ANALYZE_BIN:-}" && -x "${NORA_TEST_STATUS_BIN:-}" ]]; then
+		ANALYZE_BIN="$NORA_TEST_ANALYZE_BIN"
+		STATUS_BIN="$NORA_TEST_STATUS_BIN"
 		export ANALYZE_BIN STATUS_BIN
 	elif command -v go > /dev/null 2>&1; then
 		# Build Go binaries from current source for JSON tests.
@@ -44,7 +44,7 @@ setup_file() {
 
 teardown_file() {
 	if [[ "$HOME" == "${BATS_TEST_DIRNAME}/tmp-"* ]]; then
-		rm -rf "$HOME/.config/mole"
+		rm -rf "$HOME/.config/nora"
 		rm -rf "$HOME"
 	fi
 	if [[ -n "${ORIGINAL_HOME:-}" ]]; then
@@ -103,30 +103,30 @@ setup() {
 		printf 'FATAL: HOME is not a test temp dir: %s\n' "$HOME" >&2
 		return 1
 	fi
-	rm -rf "$HOME/.config/mole"
-	mkdir -p "$HOME/.config/mole"
+	rm -rf "$HOME/.config/nora"
+	mkdir -p "$HOME/.config/nora"
 }
 
-@test "mole --help prints command overview" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --help
+@test "nora --help prints command overview" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"mo clean"* ]] || return 1
-	[[ "$output" == *"mo optimize"* ]] || return 1
-	[[ "$output" == *"mo analyze"* ]] || return 1
-	[[ "$output" != *"mo optimise"* ]]
+	[[ "$output" == *"nr clean"* ]] || return 1
+	[[ "$output" == *"nr optimize"* ]] || return 1
+	[[ "$output" == *"nr analyze"* ]] || return 1
+	[[ "$output" != *"nr optimise"* ]]
 }
 
-@test "mole --version reports script version" {
-	expected_version="$(grep '^VERSION=' "$PROJECT_ROOT/mole" | head -1 | sed 's/VERSION=\"\(.*\)\"/\1/')"
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --version
+@test "nora --version reports script version" {
+	expected_version="$(grep '^VERSION=' "$PROJECT_ROOT/nora" | head -1 | sed 's/VERSION=\"\(.*\)\"/\1/')"
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --version
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"$expected_version"* ]]
 }
 
-@test "mole --version does not hang on slow Homebrew detection" {
+@test "nora --version does not hang on slow Homebrew detection" {
 	local fake_bin
 	fake_bin="$(mktemp -d "${BATS_TEST_TMPDIR}/fake-bin.XXXXXX")"
-	ln -s "$PROJECT_ROOT/mole" "$fake_bin/mole"
+	ln -s "$PROJECT_ROOT/nora" "$fake_bin/nora"
 	cat > "$fake_bin/brew" <<'SCRIPT'
 #!/usr/bin/env bash
 sleep 3
@@ -134,62 +134,62 @@ exit 1
 SCRIPT
 	chmod +x "$fake_bin/brew"
 
-	run env HOME="$HOME" PATH="$fake_bin:$PATH" MOLE_HOMEBREW_DETECT_TIMEOUT=1 "$PROJECT_ROOT/mole" --version
+	run env HOME="$HOME" PATH="$fake_bin:$PATH" NORA_HOMEBREW_DETECT_TIMEOUT=1 "$PROJECT_ROOT/nora" --version
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Install: Manual"* ]]
 }
 
-@test "mole --version shows nightly channel metadata" {
-	expected_version="$(grep '^VERSION=' "$PROJECT_ROOT/mole" | head -1 | sed 's/VERSION=\"\(.*\)\"/\1/')"
-	mkdir -p "$HOME/.config/mole"
-	cat > "$HOME/.config/mole/install_channel" <<'EOF'
+@test "nora --version shows nightly channel metadata" {
+	expected_version="$(grep '^VERSION=' "$PROJECT_ROOT/nora" | head -1 | sed 's/VERSION=\"\(.*\)\"/\1/')"
+	mkdir -p "$HOME/.config/nora"
+	cat > "$HOME/.config/nora/install_channel" <<'EOF'
 CHANNEL=nightly
 EOF
 
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --version
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --version
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Mole version $expected_version"* ]] || return 1
+	[[ "$output" == *"Nora version $expected_version"* ]] || return 1
 	[[ "$output" == *"Channel: Nightly"* ]]
 }
 
-@test "mole unknown command returns error" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" unknown-command
+@test "nora unknown command returns error" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" unknown-command
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Unknown command: unknown-command"* ]]
 }
 
-@test "mole --help does not list check command" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --help
+@test "nora --help does not list check command" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --help
 	[ "$status" -eq 0 ]
-	[[ "$output" != *"mo check"* ]]
+	[[ "$output" != *"nr check"* ]]
 }
 
-@test "mole --help documents history command" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --help
+@test "nora --help documents history command" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"mo history"* ]]
+	[[ "$output" == *"nr history"* ]]
 }
 
-@test "mole check is not a public command" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" check --help
+@test "nora check is not a public command" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" check --help
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Unknown command: check"* ]]
 }
 
-@test "mole doctor is not a public command" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" doctor --help
+@test "nora doctor is not a public command" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" doctor --help
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Unknown command: doctor"* ]]
 }
 
-@test "mole optimize --check is not a public option" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" optimize --check
+@test "nora optimize --check is not a public option" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" optimize --check
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Unknown optimize option: --check"* ]]
 }
 
-@test "mole uninstall --whitelist returns unsupported option error" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" uninstall --whitelist
+@test "nora uninstall --whitelist returns unsupported option error" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" uninstall --whitelist
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Unknown uninstall option: --whitelist"* ]]
 }
@@ -198,16 +198,16 @@ EOF
 	# The controls line is rendered only under a tty, so test the pure builder
 	# directly. Both the negative and positive cases run so the assertion
 	# cannot pass vacuously.
-	run /bin/bash --noprofile --norc -c "MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/mole'; _main_menu_controls_line true false"
+	run /bin/bash --noprofile --norc -c "NORA_TEST_MODE=1 NORA_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/nora'; _main_menu_controls_line true false"
 	[ "$status" -eq 0 ] || return 1
 	[[ "$output" != *"U Update"* ]] || return 1
 
-	run /bin/bash --noprofile --norc -c "MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/mole'; _main_menu_controls_line true true"
+	run /bin/bash --noprofile --norc -c "NORA_TEST_MODE=1 NORA_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/nora'; _main_menu_controls_line true true"
 	[ "$status" -eq 0 ] || return 1
 	[[ "$output" == *"U Update"* ]] || return 1
 
 	# TouchID setup takes precedence: no update shortcut even if one is ready.
-	run /bin/bash --noprofile --norc -c "MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/mole'; _main_menu_controls_line false true"
+	run /bin/bash --noprofile --norc -c "NORA_TEST_MODE=1 NORA_SKIP_MAIN=1 HOME=\"\$(mktemp -d)\" source '$PROJECT_ROOT/nora'; _main_menu_controls_line false true"
 	[ "$status" -eq 0 ] || return 1
 	[[ "$output" == *"T TouchID"* ]] || return 1
 	[[ "$output" != *"U Update"* ]] || return 1
@@ -217,8 +217,8 @@ EOF
 	run /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 HOME="$(mktemp -d)"
-export HOME MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1
-source "$PROJECT_ROOT/mole"
+export HOME NORA_TEST_MODE=1 NORA_SKIP_MAIN=1
+source "$PROJECT_ROOT/nora"
 show_brand_banner() { printf 'banner\n'; }
 show_menu_option() { printf '%s\n' "$2"; }
 MAIN_MENU_BANNER=""
@@ -237,14 +237,14 @@ EOF
 	run /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 HOME="$(mktemp -d)"
-export HOME MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1
-source "$PROJECT_ROOT/mole"
+export HOME NORA_TEST_MODE=1 NORA_SKIP_MAIN=1
+source "$PROJECT_ROOT/nora"
 show_brand_banner() { :; }
 show_main_menu() { :; }
 hide_cursor() { :; }
 show_cursor() { :; }
 clear() { :; }
-update_mole() { echo "UPDATE_CALLED"; }
+update_nora() { echo "UPDATE_CALLED"; }
 state_file="$HOME/read_key_state"
 read_key() {
     if [[ ! -f "$state_file" ]]; then
@@ -265,12 +265,12 @@ EOF
 	run /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 HOME="$(mktemp -d)"
-export HOME MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1
-mkdir -p "$HOME/.cache/mole"
-msg_cache="$HOME/.cache/mole/update_message"
-printf 'Update 1.43.0 available, run mo update\n' > "$msg_cache"
+export HOME NORA_TEST_MODE=1 NORA_SKIP_MAIN=1
+mkdir -p "$HOME/.cache/nora"
+msg_cache="$HOME/.cache/nora/update_message"
+printf 'Update 1.43.0 available, run nr update\n' > "$msg_cache"
 touch -t 200001010000 "$msg_cache"
-source "$PROJECT_ROOT/mole"
+source "$PROJECT_ROOT/nora"
 message="$(read_update_message_cache "$msg_cache")"
 [[ -z "$message" ]] || exit 1
 [[ ! -s "$msg_cache" ]] || exit 1
@@ -283,16 +283,16 @@ EOF
 	run /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 HOME="$(mktemp -d)"
-export HOME MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1
-mkdir -p "$HOME/.cache/mole"
-printf 'update available\n' > "$HOME/.cache/mole/update_message"
-source "$PROJECT_ROOT/mole"
+export HOME NORA_TEST_MODE=1 NORA_SKIP_MAIN=1
+mkdir -p "$HOME/.cache/nora"
+printf 'update available\n' > "$HOME/.cache/nora/update_message"
+source "$PROJECT_ROOT/nora"
 show_brand_banner() { :; }
 show_main_menu() { :; }
 hide_cursor() { :; }
 show_cursor() { :; }
 clear() { :; }
-update_mole() { echo "UPDATE_CALLED"; }
+update_nora() { echo "UPDATE_CALLED"; }
 read_key() { echo "UPDATE"; }
 interactive_main_menu
 EOF
@@ -305,10 +305,10 @@ EOF
 	run /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 HOME="$(mktemp -d)"
-export HOME MOLE_TEST_MODE=1 MOLE_SKIP_MAIN=1
-source "$PROJECT_ROOT/mole"
+export HOME NORA_TEST_MODE=1 NORA_SKIP_MAIN=1
+source "$PROJECT_ROOT/nora"
 
-fake_root="$HOME/fake-mole"
+fake_root="$HOME/fake-nora"
 mkdir -p "$fake_root/bin"
 cat > "$fake_root/bin/uninstall.sh" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -339,17 +339,17 @@ EOF
 }
 
 @test "touchid status reports current configuration" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" touchid status
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" touchid status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Touch ID"* ]]
 }
 
-@test "mo optimize command is recognized" {
-	run /bin/bash -c "grep -Eq '\"optimi[sz]e\"[[:space:]]*\\|[[:space:]]*\"optimi[sz]e\"' '$PROJECT_ROOT/mole'"
+@test "nr optimize command is recognized" {
+	run /bin/bash -c "grep -Eq '\"optimi[sz]e\"[[:space:]]*\\|[[:space:]]*\"optimi[sz]e\"' '$PROJECT_ROOT/nora'"
 	[ "$status" -eq 0 ]
 }
 
-@test "mo analyze binary is valid" {
+@test "nr analyze binary is valid" {
 	if [[ -f "$PROJECT_ROOT/bin/analyze-go" ]]; then
 		[ -x "$PROJECT_ROOT/bin/analyze-go" ]
 		run file "$PROJECT_ROOT/bin/analyze-go"
@@ -359,35 +359,35 @@ EOF
 	fi
 }
 
-@test "mo clean --debug creates debug log file" {
-	mkdir -p "$HOME/.config/mole"
-	run env HOME="$HOME" TERM="xterm-256color" MOLE_TEST_MODE=1 MO_DEBUG=1 "$PROJECT_ROOT/mole" clean --dry-run
+@test "nr clean --debug creates debug log file" {
+	mkdir -p "$HOME/.config/nora"
+	run env HOME="$HOME" TERM="xterm-256color" NORA_TEST_MODE=1 MO_DEBUG=1 "$PROJECT_ROOT/nora" clean --dry-run
 	[ "$status" -eq 0 ]
-	MOLE_OUTPUT="$output"
+	NORA_OUTPUT="$output"
 
-	DEBUG_LOG="$HOME/Library/Logs/mole/mole_debug_session.log"
+	DEBUG_LOG="$HOME/Library/Logs/nora/nora_debug_session.log"
 	[ -f "$DEBUG_LOG" ]
 
-	run grep "Mole Debug Session" "$DEBUG_LOG"
+	run grep "Nora Debug Session" "$DEBUG_LOG"
 	[ "$status" -eq 0 ]
 
-	[[ "$MOLE_OUTPUT" =~ "Debug session log saved to" ]]
+	[[ "$NORA_OUTPUT" =~ "Debug session log saved to" ]]
 }
 
-@test "mo clean without debug does not show debug log path" {
-	mkdir -p "$HOME/.config/mole"
-	run env HOME="$HOME" TERM="xterm-256color" MOLE_TEST_MODE=1 MO_DEBUG=0 "$PROJECT_ROOT/mole" clean --dry-run
+@test "nr clean without debug does not show debug log path" {
+	mkdir -p "$HOME/.config/nora"
+	run env HOME="$HOME" TERM="xterm-256color" NORA_TEST_MODE=1 MO_DEBUG=0 "$PROJECT_ROOT/nora" clean --dry-run
 	[ "$status" -eq 0 ]
 
 	[[ "$output" != *"Debug session log saved to"* ]]
 }
 
-@test "mo clean --debug logs system info" {
-	mkdir -p "$HOME/.config/mole"
-	run env HOME="$HOME" TERM="xterm-256color" MOLE_TEST_MODE=1 MO_DEBUG=1 "$PROJECT_ROOT/mole" clean --dry-run
+@test "nr clean --debug logs system info" {
+	mkdir -p "$HOME/.config/nora"
+	run env HOME="$HOME" TERM="xterm-256color" NORA_TEST_MODE=1 MO_DEBUG=1 "$PROJECT_ROOT/nora" clean --dry-run
 	[ "$status" -eq 0 ]
 
-	DEBUG_LOG="$HOME/Library/Logs/mole/mole_debug_session.log"
+	DEBUG_LOG="$HOME/Library/Logs/nora/nora_debug_session.log"
 
 	run grep "User:" "$DEBUG_LOG"
 	[ "$status" -eq 0 ]
@@ -396,20 +396,20 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "mo clean --help includes external volume option" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" clean --help
+@test "nr clean --help includes external volume option" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" clean --help
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"--external PATH"* ]] || return 1
 	[[ "$output" == *"already-uninstalled apps"* ]]
 }
 
-@test "mo uninstall --help directs leftover-only cleanup to clean" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" uninstall --help
+@test "nr uninstall --help directs leftover-only cleanup to clean" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" uninstall --help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"already gone, use mo clean"* ]]
+	[[ "$output" == *"already gone, use nr clean"* ]]
 }
 
-@test "mo clean --external accepts canonicalized custom root" {
+@test "nr clean --external accepts canonicalized custom root" {
 	real_root="$(mktemp -d "$HOME/ext-real.XXXXXX")"
 	link_root="$HOME/ext-link"
 	ln -s "$real_root" "$link_root"
@@ -424,8 +424,8 @@ exit 0
 EOF
 	chmod +x "$mock_bin/diskutil"
 
-	run env HOME="$HOME" PATH="$mock_bin:$PATH" MOLE_EXTERNAL_VOLUMES_ROOT="$link_root" \
-		MOLE_TEST_NO_AUTH=1 "$PROJECT_ROOT/mole" clean --external "$link_root/USB" --dry-run
+	run env HOME="$HOME" PATH="$mock_bin:$PATH" NORA_EXTERNAL_VOLUMES_ROOT="$link_root" \
+		NORA_TEST_NO_AUTH=1 "$PROJECT_ROOT/nora" clean --external "$link_root/USB" --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Clean External Volume"* ]] || return 1
 	[[ "$output" == *"External volume cleanup"* ]]
@@ -437,7 +437,7 @@ EOF
 auth       sufficient     pam_opendirectory.so
 EOF
 
-	run env MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" status
+	run env NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"not configured"* ]] || return 1
 
@@ -445,7 +445,7 @@ EOF
 auth       sufficient     pam_tid.so
 EOF
 
-	run env MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" status
+	run env NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"enabled"* ]]
 }
@@ -459,10 +459,10 @@ EOF
 	fake_bin="$HOME/fake-bin"
 	create_fake_utils "$fake_bin"
 
-	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable
+	run env PATH="$fake_bin:$PATH" NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable
 	[ "$status" -eq 0 ]
 	grep -q "pam_tid.so" "$pam_file"
-	[[ -f "${pam_file}.mole-backup" ]]
+	[[ -f "${pam_file}.nora-backup" ]]
 }
 
 @test "disable_touchid removes pam_tid line" {
@@ -475,7 +475,7 @@ EOF
 	fake_bin="$HOME/fake-bin-disable"
 	create_fake_utils "$fake_bin"
 
-	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" disable
+	run env PATH="$fake_bin:$PATH" NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" disable
 	[ "$status" -eq 0 ]
 	run grep "pam_tid.so" "$pam_file"
 	[ "$status" -ne 0 ]
@@ -487,7 +487,7 @@ EOF
 auth       sufficient     pam_opendirectory.so
 EOF
 
-	run env MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable --dry-run
+	run env NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"DRY RUN MODE"* ]] || return 1
 
@@ -504,7 +504,7 @@ EOF
 	fake_bin="$HOME/fake-bin-perms-enable"
 	create_fake_utils "$fake_bin"
 
-	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable
+	run env PATH="$fake_bin:$PATH" NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" enable
 	[ "$status" -eq 0 ]
 	grep -q "pam_tid.so" "$pam_file"
 
@@ -523,7 +523,7 @@ EOF
 	fake_bin="$HOME/fake-bin-perms-disable"
 	create_fake_utils "$fake_bin"
 
-	run env PATH="$fake_bin:$PATH" MOLE_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" disable
+	run env PATH="$fake_bin:$PATH" NORA_PAM_SUDO_FILE="$pam_file" "$PROJECT_ROOT/bin/touchid.sh" disable
 	[ "$status" -eq 0 ]
 
 	local perms
@@ -544,8 +544,8 @@ EOF
 	create_fake_utils "$fake_bin"
 
 	run env PATH="$fake_bin:$PATH" \
-		MOLE_PAM_SUDO_FILE="$pam_file" \
-		MOLE_PAM_SUDO_LOCAL_FILE="$pam_local" \
+		NORA_PAM_SUDO_FILE="$pam_file" \
+		NORA_PAM_SUDO_LOCAL_FILE="$pam_local" \
 		"$PROJECT_ROOT/bin/touchid.sh" enable
 	[ "$status" -eq 0 ]
 	grep -q "pam_tid.so" "$pam_local"
@@ -557,7 +557,7 @@ EOF
 
 # --- JSON output mode tests ---
 
-@test "mo analyze --json outputs valid JSON with expected fields" {
+@test "nr analyze --json outputs valid JSON with expected fields" {
 	if [[ ! -x "${ANALYZE_BIN:-}" ]]; then
 		skip "analyze binary not available (go not installed?)"
 	fi
@@ -581,7 +581,7 @@ assert isinstance(data['entries'], list), 'entries is not a list'
 "
 }
 
-@test "mo analyze --json entries contain required fields" {
+@test "nr analyze --json entries contain required fields" {
 	if [[ ! -x "${ANALYZE_BIN:-}" ]]; then
 		skip "analyze binary not available (go not installed?)"
 	fi
@@ -601,7 +601,7 @@ for entry in data['entries']:
 "
 }
 
-@test "mo analyze --json path reflects target directory" {
+@test "nr analyze --json path reflects target directory" {
 	if [[ ! -x "${ANALYZE_BIN:-}" ]]; then
 		skip "analyze binary not available (go not installed?)"
 	fi
@@ -617,7 +617,7 @@ assert data['path'] == '/tmp' or data['path'] == '/private/tmp', \
 "
 }
 
-@test "mo status --json outputs valid JSON with expected fields" {
+@test "nr status --json outputs valid JSON with expected fields" {
 	if [[ ! -x "${STATUS_BIN:-}" ]]; then
 		skip "status binary not available (go not installed?)"
 	fi
@@ -637,7 +637,7 @@ for key in ['cpu', 'memory', 'disks', 'health_score', 'host', 'uptime']:
 "
 }
 
-@test "mo status --json cpu section has expected structure" {
+@test "nr status --json cpu section has expected structure" {
 	if [[ ! -x "${STATUS_BIN:-}" ]]; then
 		skip "status binary not available (go not installed?)"
 	fi
@@ -655,7 +655,7 @@ assert isinstance(cpu['usage'], (int, float)), 'cpu usage is not a number'
 "
 }
 
-@test "mo status --json memory section has expected structure" {
+@test "nr status --json memory section has expected structure" {
 	if [[ ! -x "${STATUS_BIN:-}" ]]; then
 		skip "status binary not available (go not installed?)"
 	fi
@@ -674,7 +674,7 @@ assert mem['total'] > 0, 'memory total should be positive'
 "
 }
 
-@test "mo status --json piped to stdout auto-detects JSON mode" {
+@test "nr status --json piped to stdout auto-detects JSON mode" {
 	if [[ ! -x "${STATUS_BIN:-}" ]]; then
 		skip "status binary not available (go not installed?)"
 	fi
@@ -684,7 +684,7 @@ assert mem['total'] > 0, 'memory total should be positive'
 	echo "$output" | python3 -c "import sys, json; json.load(sys.stdin)"
 }
 
-@test "mo status --watch streams newline-delimited JSON" {
+@test "nr status --watch streams newline-delimited JSON" {
 	if [[ ! -x "${STATUS_BIN:-}" ]]; then
 		skip "status binary not available (go not installed?)"
 	fi

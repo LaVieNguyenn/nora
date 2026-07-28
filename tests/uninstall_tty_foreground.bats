@@ -18,7 +18,7 @@ setup_file() {
 }
 
 @test "completed uninstall checks tty ownership before countdown input" {
-	run grep -n 'if ! mole_tty_is_foreground; then' "$PROJECT_ROOT/bin/uninstall.sh"
+	run grep -n 'if ! nora_tty_is_foreground; then' "$PROJECT_ROOT/bin/uninstall.sh"
 
 	[ "$status" -eq 0 ]
 }
@@ -27,7 +27,7 @@ setup_file() {
 	run /bin/bash -c '
         set -euo pipefail
         source "$1/lib/core/timeout.sh"
-        mole_tty_is_foreground
+        nora_tty_is_foreground
     ' _ "$PROJECT_ROOT"
 
 	[ "$status" -eq 0 ]

@@ -1,0 +1,60 @@
+Nora
+====
+
+Nora is a modified version of Mole (https://github.com/tw93/Mole), copyright
+its respective authors, distributed under the GNU General Public License
+version 3. Nora is likewise distributed under GPL-3.0; see LICENSE for the
+full text.
+
+This project is NOT affiliated with, endorsed by, or sponsored by the Mole
+project. The "Mole" name and logo are trademarks of the Mole project and are
+not used here; per Mole's trademark policy, this fork carries its own name.
+
+
+Statement of modifications (GPL-3.0 section 5a)
+-----------------------------------------------
+
+Changes made to the original work:
+
+1. Renamed throughout from "Mole" to "Nora", including the command name
+   (`mo` -> `nr`, `mole` -> `nora`), environment variable prefixes, install
+   paths, and all user-visible strings.
+
+2. Added a macOS menubar application (`app/`). This is new work, not present
+   upstream. It is a front end only: it executes the CLI as a subprocess and
+   contains no cleanup or deletion logic of its own.
+
+3. Performance changes to the CLI and its Go helpers:
+
+   - lib/core/timeout.sh — the Perl timeout fallback polled with a fixed
+     0.1s sleep, rounding every wrapped command up to at least 100ms. macOS
+     ships no timeout(1), so all 127 call sites take this path. Replaced with
+     an exponential backoff starting at 2ms.
+
+   - nora (entrypoint) — subcommands that are only ever exec'd into now
+     dispatch before the shared libraries are sourced. The target re-sources
+     the same set in its own process, so the first load was discarded.
+
+   - lib/clean/launch_services.sh — stale registrations were unregistered one
+     `lsregister` call at a time. Now batched, with a per-path retry so the
+     success and failure counts stay exact.
+
+   - cmd/status/ — four caches (Bluetooth, power, trash size, GPU usage) had
+     TTLs at or below the interval of their only caller, so none ever
+     returned a cached value. Raised to match how fast the underlying data
+     actually changes. powermetrics is no longer invoked when not running as
+     root, where it can only fail.
+
+   - cmd/analyze/scanner.go — folded directories (node_modules, .git, Caches,
+     DerivedData and similar) bypassed the cache layer entirely and were
+     re-measured with `du` on every scan. They now use the same cache, with
+     the same freshness rules, as every other subtree.
+
+4. Bug fix in cmd/status/metrics_battery.go — the `pmset` call passed
+   context.Background(), making it the only unbounded subprocess in the
+   collector; a wedged pmset would stall an entire snapshot. Now bounded.
+
+5. Removed files specific to the upstream project and not applicable to a
+   personal fork: release workflows and runbooks, contribution and security
+   policy documents, contributor assets, agent configuration directories,
+   and the tests covering that removed infrastructure.

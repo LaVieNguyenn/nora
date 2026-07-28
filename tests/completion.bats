@@ -55,15 +55,15 @@ setup() {
 @test "completion --help shows usage" {
 	run "$PROJECT_ROOT/bin/completion.sh" --help
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"Usage: mole completion"* ]] || return 1
+	[[ "$output" == *"Usage: nora completion"* ]] || return 1
 	[[ "$output" == *"Auto-install"* ]]
 }
 
 @test "completion bash generates valid bash script" {
 	run "$PROJECT_ROOT/bin/completion.sh" bash
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"_mole_completions"* ]] || return 1
-	[[ "$output" == *"complete -F _mole_completions mole mo"* ]]
+	[[ "$output" == *"_nora_completions"* ]] || return 1
+	[[ "$output" == *"complete -F _nora_completions nora nr"* ]]
 }
 
 @test "completion bash script includes all commands" {
@@ -80,10 +80,10 @@ setup() {
 	[[ "$output" == *"completion"* ]]
 }
 
-@test "completion bash script supports mo command" {
+@test "completion bash script supports nr command" {
 	run "$PROJECT_ROOT/bin/completion.sh" bash
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"complete -F _mole_completions mole mo"* ]]
+	[[ "$output" == *"complete -F _nora_completions nora nr"* ]]
 }
 
 @test "completion bash includes current clean, analyze, history, and purge options only" {
@@ -99,16 +99,16 @@ setup() {
 }
 
 @test "completion bash can be loaded in bash" {
-	run /bin/bash -c "eval \"\$(\"$PROJECT_ROOT/bin/completion.sh\" bash)\" && complete -p mole"
+	run /bin/bash -c "eval \"\$(\"$PROJECT_ROOT/bin/completion.sh\" bash)\" && complete -p nora"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"_mole_completions"* ]]
+	[[ "$output" == *"_nora_completions"* ]]
 }
 
 @test "completion zsh generates valid zsh script" {
 	run "$PROJECT_ROOT/bin/completion.sh" zsh
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"#compdef mole mo"* ]] || return 1
-	[[ "$output" == *"_mole()"* ]]
+	[[ "$output" == *"#compdef nora nr"* ]] || return 1
+	[[ "$output" == *"_nora()"* ]]
 }
 
 @test "completion zsh includes command descriptions" {
@@ -136,16 +136,16 @@ setup() {
 @test "completion fish generates valid fish script" {
 	run "$PROJECT_ROOT/bin/completion.sh" fish
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"complete -f -c mole"* ]] || return 1
-	[[ "$output" == *"complete -f -c mo"* ]]
+	[[ "$output" == *"complete -f -c nora"* ]] || return 1
+	[[ "$output" == *"complete -f -c nr"* ]]
 }
 
-@test "completion fish includes both mole and mo commands" {
+@test "completion fish includes both nora and nr commands" {
 	output="$("$PROJECT_ROOT/bin/completion.sh" fish)"
-	mole_count=$(echo "$output" | grep -c "complete -f -c mole")
-	mo_count=$(echo "$output" | grep -c "complete -f -c mo")
+	nora_count=$(echo "$output" | grep -c "complete -f -c nora")
+	mo_count=$(echo "$output" | grep -c "complete -f -c nr")
 
-	[ "$mole_count" -gt 0 ]
+	[ "$nora_count" -gt 0 ]
 	[ "$mo_count" -gt 0 ]
 }
 
@@ -176,14 +176,14 @@ setup() {
 
 	[ -f "$HOME/.zshrc" ] || skip "Auto-install didn't create .zshrc"
 
-	run grep -E "mole[[:space:]]+completion" "$HOME/.zshrc"
+	run grep -E "nora[[:space:]]+completion" "$HOME/.zshrc"
 	[ "$status" -eq 0 ]
 }
 
 @test "completion auto-install detects already installed" {
 	mkdir -p "$HOME"
 	# shellcheck disable=SC2016
-	echo 'eval "$(mole completion zsh)"' >"$HOME/.zshrc"
+	echo 'eval "$(nora completion zsh)"' >"$HOME/.zshrc"
 
 	run env SHELL=/bin/zsh "$PROJECT_ROOT/bin/completion.sh"
 	[ "$status" -eq 0 ]

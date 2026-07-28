@@ -90,7 +90,7 @@ PLIST
 	# and display name are the conditions the awk classifier and
 	# use_cached_scan_metadata require for the cached branch to "stick".
 	app_mtime="$(stat -f %m "$apps_root/TestApp.app")"
-	cache_dir="$HOME/.cache/mole"
+	cache_dir="$HOME/.cache/nora"
 	mkdir -p "$cache_dir"
 	printf '%s|%s|4|0|0|com.test.TestApp|TestApp\n' \
 		"$apps_root/TestApp.app" "$app_mtime" \
@@ -106,7 +106,7 @@ PLIST
 	# the whole bats run.
 	(
 		env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-			MOLE_TEST_NO_AUTH=1 \
+			NORA_TEST_NO_AUTH=1 \
 			APPS_ROOT="$apps_root" SRC_PATH="$src" \
 			/bin/bash --noprofile --norc <<'EOF' > "$HOME/scan.out" 2> "$HOME/scan.err"
 set -euo pipefail
@@ -167,9 +167,9 @@ EOF
 	create_test_app_bundle "$app_path" "com.example.SizedApp" "SizedApp"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
-		MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -203,10 +203,10 @@ EOF
 	create_test_app_bundle "$app_path" "com.example.DuApp" "DuApp"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
-		MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC=0 \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC=0 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -236,11 +236,11 @@ EOF
 	create_test_app_bundle "$app_path" "com.example.CapApp" "CapApp"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
-		MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC=0 \
-		MOLE_UNINSTALL_INLINE_DU_MAX_COLD_ROWS=0 \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC=0 \
+		NORA_UNINSTALL_INLINE_DU_MAX_COLD_ROWS=0 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -281,7 +281,7 @@ EOF
 PLIST
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -311,7 +311,7 @@ EOF
 	create_test_app_bundle "$nested_helper" "com.example.Helper" "Helper" true
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -342,7 +342,7 @@ EOF
 	create_test_app_bundle "$backup_app" "com.example.Dupe" "Dupe"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" BACKUP_ROOT="$backup_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" BACKUP_ROOT="$backup_root" SRC_PATH="$src" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -371,7 +371,7 @@ EOF
 	create_test_app_bundle "$beta_app" "com.apple.dt.Xcode" "Xcode"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -398,7 +398,7 @@ EOF
 	create_test_app_bundle "$backup_app" "com.example.OnlyThere" "OnlyThere"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 BACKUP_ROOT="$backup_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 BACKUP_ROOT="$backup_root" SRC_PATH="$src" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 
@@ -468,7 +468,7 @@ SH
 	chmod +x "$stub_dir/stat"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
+		NORA_TEST_NO_AUTH=1 APPS_ROOT="$apps_root" SRC_PATH="$src" \
 		PATH="$stub_dir:$PATH" \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail

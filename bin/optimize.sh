@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mole - Optimize command.
+# Nora - Optimize command.
 # Runs system maintenance tasks.
 # Supports dry-run where applicable.
 
@@ -55,7 +55,7 @@ show_optimization_summary() {
     local -a summary_details=()
     local total_applied=$safe_count
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         summary_title="Dry Run Complete, No Changes Made"
         summary_details+=("Would apply ${YELLOW}${total_applied:-0}${NC} optimizations")
         summary_details+=("Run without ${YELLOW}--dry-run${NC} to apply these changes")
@@ -159,7 +159,7 @@ handle_interrupt() {
 
 main() {
     # Set current command for operation logging
-    export MOLE_CURRENT_COMMAND="optimize"
+    export NORA_CURRENT_COMMAND="optimize"
 
     local health_json
     for arg in "$@"; do
@@ -172,7 +172,7 @@ main() {
                 export MO_DEBUG=1
                 ;;
             "--dry-run")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             "--whitelist")
                 manage_whitelist "optimize"
@@ -180,7 +180,7 @@ main() {
                 ;;
             *)
                 echo "Unknown optimize option: $arg"
-                echo "Use 'mo optimize --help' for supported options."
+                echo "Use 'nr optimize --help' for supported options."
                 exit 1
                 ;;
         esac
@@ -197,7 +197,7 @@ main() {
     print_header
 
     # Dry-run indicator.
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, No files will be modified\n"
     fi
 
@@ -255,11 +255,11 @@ main() {
     # access was denied. Without this, every sudo task re-prompts for the
     # password and half-runs after a refusal. Default true in dry-run so the
     # task list still expands fully for inspection.
-    export MOLE_OPTIMIZE_SUDO_AVAILABLE="false"
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
-        MOLE_OPTIMIZE_SUDO_AVAILABLE="true"
+    export NORA_OPTIMIZE_SUDO_AVAILABLE="false"
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
+        NORA_OPTIMIZE_SUDO_AVAILABLE="true"
     elif ensure_sudo_session "System optimization requires admin access"; then
-        MOLE_OPTIMIZE_SUDO_AVAILABLE="true"
+        NORA_OPTIMIZE_SUDO_AVAILABLE="true"
     else
         opt_msg "Skipping sudo-required optimizations: admin access not granted"
     fi
@@ -267,9 +267,9 @@ main() {
     export FIRST_ACTION=true
     local safe_count=0
     local index action health_name
-    for ((index = 0; index < ${#MOLE_OPTIMIZE_ACTIONS[@]}; index++)); do
-        action=${MOLE_OPTIMIZE_ACTIONS[$index]}
-        health_name=${MOLE_OPTIMIZE_HEALTH_NAMES[$index]}
+    for ((index = 0; index < ${#NORA_OPTIMIZE_ACTIONS[@]}; index++)); do
+        action=${NORA_OPTIMIZE_ACTIONS[$index]}
+        health_name=${NORA_OPTIMIZE_HEALTH_NAMES[$index]}
         safe_count=$((safe_count + 1))
         if command -v is_whitelisted > /dev/null && is_whitelisted "$action"; then
             opt_msg "Skipped (whitelisted): $health_name"

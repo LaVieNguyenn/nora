@@ -1,4 +1,4 @@
-# Makefile for Mole
+# Makefile for Nora
 
 .PHONY: all build clean check format test test-go verify release release-amd64 release-arm64 mod-download
 
@@ -50,7 +50,7 @@ format:
 	./scripts/check.sh --format
 
 test:
-	MOLE_TEST_NO_AUTH=1 ./scripts/test.sh
+	NORA_TEST_NO_AUTH=1 ./scripts/test.sh
 
 test-go:
 	$(GO) test ./...

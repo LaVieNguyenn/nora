@@ -1,14 +1,14 @@
 #!/bin/bash
-# Mole - Base Definitions and Utilities
+# Nora - Base Definitions and Utilities
 # Core definitions, constants, and basic utility functions used by all modules
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_BASE_LOADED:-}" ]]; then
+if [[ -n "${NORA_BASE_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_BASE_LOADED=1
+readonly NORA_BASE_LOADED=1
 
 # Cleanup libraries read "$DRY_RUN" in 70+ places without a default, and only the
 # command entry points (bin/clean.sh and friends) assign it. Anything that sources
@@ -69,13 +69,13 @@ readonly ICON_INFO="ℹ"
 # ============================================================================
 
 # Locate the lsregister binary (path varies across macOS versions).
-# MOLE_LSREGISTER_PATH overrides the lookup when it is set, including when it
+# NORA_LSREGISTER_PATH overrides the lookup when it is set, including when it
 # is set empty, which disables every lsregister-backed scan. Tests use the
 # empty form to keep a multi-second LaunchServices dump out of assertions that
 # have nothing to do with launch services.
 get_lsregister_path() {
-    if [[ -n "${MOLE_LSREGISTER_PATH+x}" ]]; then
-        echo "$MOLE_LSREGISTER_PATH"
+    if [[ -n "${NORA_LSREGISTER_PATH+x}" ]]; then
+        echo "$NORA_LSREGISTER_PATH"
         return 0
     fi
 
@@ -97,21 +97,21 @@ get_lsregister_path() {
 # ============================================================================
 # Global Configuration Constants
 # ============================================================================
-readonly MOLE_TEMP_FILE_AGE_DAYS=7       # Temp file retention (days)
-readonly MOLE_ORPHAN_AGE_DAYS=30         # Orphaned data retention (days)
-readonly MOLE_DOTDIR_ORPHAN_AGE_DAYS=60  # Orphan dotfile hint threshold (days)
-readonly MOLE_MAX_PARALLEL_JOBS=15       # Parallel job limit
-readonly MOLE_MAIL_DOWNLOADS_MIN_KB=5120 # Mail attachment size threshold
-readonly MOLE_MAIL_AGE_DAYS=30           # Mail attachment retention (days)
-readonly MOLE_LOG_AGE_DAYS=7             # Log retention (days)
-readonly MOLE_CRASH_REPORT_AGE_DAYS=7    # Crash report retention (days)
-readonly MOLE_SAVED_STATE_AGE_DAYS=30    # Saved state retention (days) - increased for safety
-readonly MOLE_GPU_CACHE_AGE_DAYS=1       # Rebuildable GPU cache retention (days)
-readonly MOLE_TM_BACKUP_SAFE_HOURS=48    # TM backup safety window (hours)
-readonly MOLE_MAX_DS_STORE_FILES=500     # Max .DS_Store files to clean per scan
-readonly MOLE_MAX_ORPHAN_ITERATIONS=100  # Max iterations for orphaned app data scan
-readonly MOLE_ONE_GIB_KB=$((1024 * 1024))
-readonly MOLE_ONE_GB_BYTES=1000000000
+readonly NORA_TEMP_FILE_AGE_DAYS=7       # Temp file retention (days)
+readonly NORA_ORPHAN_AGE_DAYS=30         # Orphaned data retention (days)
+readonly NORA_DOTDIR_ORPHAN_AGE_DAYS=60  # Orphan dotfile hint threshold (days)
+readonly NORA_MAX_PARALLEL_JOBS=15       # Parallel job limit
+readonly NORA_MAIL_DOWNLOADS_MIN_KB=5120 # Mail attachment size threshold
+readonly NORA_MAIL_AGE_DAYS=30           # Mail attachment retention (days)
+readonly NORA_LOG_AGE_DAYS=7             # Log retention (days)
+readonly NORA_CRASH_REPORT_AGE_DAYS=7    # Crash report retention (days)
+readonly NORA_SAVED_STATE_AGE_DAYS=30    # Saved state retention (days) - increased for safety
+readonly NORA_GPU_CACHE_AGE_DAYS=1       # Rebuildable GPU cache retention (days)
+readonly NORA_TM_BACKUP_SAFE_HOURS=48    # TM backup safety window (hours)
+readonly NORA_MAX_DS_STORE_FILES=500     # Max .DS_Store files to clean per scan
+readonly NORA_MAX_ORPHAN_ITERATIONS=100  # Max iterations for orphaned app data scan
+readonly NORA_ONE_GIB_KB=$((1024 * 1024))
+readonly NORA_ONE_GB_BYTES=1000000000
 
 # ============================================================================
 # Whitelist Configuration
@@ -206,17 +206,17 @@ get_file_owner() {
 # Detect CPU architecture
 # Returns: "Apple Silicon" or "Intel"
 detect_architecture() {
-    if [[ -n "${MOLE_ARCH_CACHE:-}" ]]; then
-        echo "$MOLE_ARCH_CACHE"
+    if [[ -n "${NORA_ARCH_CACHE:-}" ]]; then
+        echo "$NORA_ARCH_CACHE"
         return 0
     fi
 
     if [[ "$(uname -m)" == "arm64" ]]; then
-        export MOLE_ARCH_CACHE="Apple Silicon"
+        export NORA_ARCH_CACHE="Apple Silicon"
     else
-        export MOLE_ARCH_CACHE="Intel"
+        export NORA_ARCH_CACHE="Intel"
     fi
-    echo "$MOLE_ARCH_CACHE"
+    echo "$NORA_ARCH_CACHE"
 }
 
 get_free_space_target() {
@@ -268,10 +268,10 @@ get_free_space() {
 # Get optimal parallel jobs for operation type (scan|io|compute|default)
 get_optimal_parallel_jobs() {
     local operation_type="${1:-default}"
-    if [[ -z "${MOLE_CPU_CORES_CACHE:-}" ]]; then
-        export MOLE_CPU_CORES_CACHE=$(sysctl -n hw.ncpu 2> /dev/null || echo 4)
+    if [[ -z "${NORA_CPU_CORES_CACHE:-}" ]]; then
+        export NORA_CPU_CORES_CACHE=$(sysctl -n hw.ncpu 2> /dev/null || echo 4)
     fi
-    local cpu_cores="$MOLE_CPU_CORES_CACHE"
+    local cpu_cores="$NORA_CPU_CORES_CACHE"
     case "$operation_type" in
         scan | io)
             echo $((cpu_cores * 2))
@@ -513,28 +513,28 @@ format_free_space_delta_kb() {
     printf '%s%s\n' "$sign" "$(bytes_to_human_kb "$abs_kb")"
 }
 
-mole_is_reverse_dns_bundle_id() {
+nora_is_reverse_dns_bundle_id() {
     local bundle_id="${1:-}"
 
     [[ -n "$bundle_id" && "$bundle_id" != "unknown" ]] || return 1
     [[ "$bundle_id" =~ ^[A-Za-z0-9][-A-Za-z0-9]*(\.[A-Za-z0-9][-A-Za-z0-9]*)+$ ]]
 }
 
-mole_name_starts_with_bundle_id_boundary() {
+nora_name_starts_with_bundle_id_boundary() {
     local name="${1##*/}"
     local bundle_id="${2:-}"
 
-    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    nora_is_reverse_dns_bundle_id "$bundle_id" || return 1
     [[ "$name" == "$bundle_id" ||
         "$name" == "$bundle_id".* ]]
 }
 
-mole_name_has_bundle_id_boundary() {
+nora_name_has_bundle_id_boundary() {
     local name="${1##*/}"
     local bundle_id="${2:-}"
 
-    mole_name_starts_with_bundle_id_boundary "$name" "$bundle_id" && return 0
-    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    nora_name_starts_with_bundle_id_boundary "$name" "$bundle_id" && return 0
+    nora_is_reverse_dns_bundle_id "$bundle_id" || return 1
     [[ "$name" == *."$bundle_id" ||
         "$name" == *."$bundle_id".* ]]
 }
@@ -607,8 +607,8 @@ format_path_link() {
 # ============================================================================
 
 # Tracked temporary files and directories
-declare -a MOLE_TEMP_FILES=()
-declare -a MOLE_TEMP_DIRS=()
+declare -a NORA_TEMP_FILES=()
+declare -a NORA_TEMP_DIRS=()
 
 normalize_temp_root() {
     local path="${1:-}"
@@ -640,34 +640,34 @@ probe_temp_root() {
 
     [[ -d "$path" ]] || return 1
 
-    probe=$(mktemp "$path/mole.probe.XXXXXX" 2> /dev/null) || return 1
+    probe=$(mktemp "$path/nora.probe.XXXXXX" 2> /dev/null) || return 1
     rm -f "$probe" 2> /dev/null || true
 
     printf '%s\n' "$path"
 }
 
-# Remove abandoned files only from Mole's dedicated fallback temp directory.
+# Remove abandoned files only from Nora's dedicated fallback temp directory.
 # Persistent cache files live one level above this directory and are never
 # included. A one-day grace period avoids racing with concurrent long-running
-# Mole processes while bounding leftovers from interrupted runs.
-prune_stale_mole_temp_files() {
+# Nora processes while bounding leftovers from interrupted runs.
+prune_stale_nora_temp_files() {
     local root="${1:-}"
     local invoking_home=""
-    local max_age_minutes="${MOLE_TEMP_STALE_MINUTES:-1440}"
+    local max_age_minutes="${NORA_TEMP_STALE_MINUTES:-1440}"
 
     [[ "$max_age_minutes" =~ ^[0-9]+$ ]] || max_age_minutes=1440
     [[ -n "$root" && -d "$root" && ! -L "$root" ]] || return 0
 
     if is_root_user; then
-        [[ "$root" == "/private/var/root/.cache/mole/tmp" ]] || return 0
+        [[ "$root" == "/private/var/root/.cache/nora/tmp" ]] || return 0
     else
         invoking_home=$(get_invoking_home)
         [[ -n "$invoking_home" ]] || return 0
-        [[ "$root" == "${invoking_home%/}/.cache/mole/tmp" ]] || return 0
+        [[ "$root" == "${invoking_home%/}/.cache/nora/tmp" ]] || return 0
     fi
 
     find "$root" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
-        -mmin "+$max_age_minutes" -exec rm -f -- {} + 2> /dev/null || true # SAFE: dedicated Mole temp root only
+        -mmin "+$max_age_minutes" -exec rm -f -- {} + 2> /dev/null || true # SAFE: dedicated Nora temp root only
 
     # Spinner control directories contain only flat control files. Remove
     # their contents without recursive deletion, then rmdir the now-empty
@@ -675,50 +675,50 @@ prune_stale_mole_temp_files() {
     local stale_dir
     while IFS= read -r -d '' stale_dir; do
         case "$stale_dir" in
-            "$root"/.mole-spinner.*) ;;
+            "$root"/.nora-spinner.*) ;;
             *) continue ;;
         esac
         [[ -d "$stale_dir" && ! -L "$stale_dir" && -O "$stale_dir" ]] || continue
         find "$stale_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type l \) \
             -exec rm -f -- {} + 2> /dev/null || true # SAFE: validated spinner control dir only
         rmdir "$stale_dir" 2> /dev/null || true
-    done < <(find "$root" -mindepth 1 -maxdepth 1 -type d -name '.mole-spinner.*' \
+    done < <(find "$root" -mindepth 1 -maxdepth 1 -type d -name '.nora-spinner.*' \
         -mmin "+$max_age_minutes" -print0 2> /dev/null)
 }
 
-initialize_mole_temp_registry_path() {
-    [[ -n "${MOLE_RESOLVED_TMPDIR:-}" ]] || return 1
+initialize_nora_temp_registry_path() {
+    [[ -n "${NORA_RESOLVED_TMPDIR:-}" ]] || return 1
 
     # Bash keeps $$ stable inside command substitutions and across exec, so the
     # parent, its subshells, and an exec'd bin/*.sh all derive the same registry
     # path. A forked child gets a different $$: the registry is exported, so an
     # inherited value that no longer matches belongs to the parent process, and
     # adopting it would make the child's exit cleanup delete the parent's live
-    # temp files. `mo update` lost its downloaded installer exactly this way,
-    # because install.sh runs the freshly installed `mole --version`.
-    local owned="${MOLE_RESOLVED_TMPDIR%/}/mole.registry.$$"
-    [[ "${MOLE_TEMP_REGISTRY_FILE:-}" == "$owned" ]] && return 0
+    # temp files. `nr update` lost its downloaded installer exactly this way,
+    # because install.sh runs the freshly installed `nora --version`.
+    local owned="${NORA_RESOLVED_TMPDIR%/}/nora.registry.$$"
+    [[ "${NORA_TEMP_REGISTRY_FILE:-}" == "$owned" ]] && return 0
 
-    MOLE_TEMP_REGISTRY_FILE="$owned"
-    export MOLE_TEMP_REGISTRY_FILE
+    NORA_TEMP_REGISTRY_FILE="$owned"
+    export NORA_TEMP_REGISTRY_FILE
 }
 
-ensure_mole_temp_registry_file() {
-    initialize_mole_temp_registry_path || return 1
+ensure_nora_temp_registry_file() {
+    initialize_nora_temp_registry_path || return 1
 
-    case "$MOLE_TEMP_REGISTRY_FILE" in
-        "${MOLE_RESOLVED_TMPDIR%/}"/mole.registry.*) ;;
+    case "$NORA_TEMP_REGISTRY_FILE" in
+        "${NORA_RESOLVED_TMPDIR%/}"/nora.registry.*) ;;
         *) return 1 ;;
     esac
 
-    if [[ ! -e "$MOLE_TEMP_REGISTRY_FILE" ]]; then
-        (umask 077 && set -C && : > "$MOLE_TEMP_REGISTRY_FILE") 2> /dev/null || true
+    if [[ ! -e "$NORA_TEMP_REGISTRY_FILE" ]]; then
+        (umask 077 && set -C && : > "$NORA_TEMP_REGISTRY_FILE") 2> /dev/null || true
     fi
 
-    [[ -f "$MOLE_TEMP_REGISTRY_FILE" && ! -L "$MOLE_TEMP_REGISTRY_FILE" && -O "$MOLE_TEMP_REGISTRY_FILE" ]]
+    [[ -f "$NORA_TEMP_REGISTRY_FILE" && ! -L "$NORA_TEMP_REGISTRY_FILE" && -O "$NORA_TEMP_REGISTRY_FILE" ]]
 }
 
-ensure_mole_temp_root() {
+ensure_nora_temp_root() {
     if is_root_user; then
         # Whole-command sudo must not reuse TMPDIR or the invoking user's cache
         # for root-written registries and command output. Keep all root temp
@@ -728,25 +728,25 @@ ensure_mole_temp_root() {
         [[ -d "$root_home" && ! -L "$root_home" && -O "$root_home" ]] || root_home="/var/root"
         [[ -d "$root_home" && ! -L "$root_home" && -O "$root_home" ]] || return 1
 
-        local root_temp="$root_home/.cache/mole/tmp"
+        local root_temp="$root_home/.cache/nora/tmp"
         mkdir -p "$root_temp" 2> /dev/null || return 1
-        chmod 700 "$root_home/.cache" "$root_home/.cache/mole" "$root_temp" 2> /dev/null || true
+        chmod 700 "$root_home/.cache" "$root_home/.cache/nora" "$root_temp" 2> /dev/null || true
         root_temp=$(cd -P "$root_temp" 2> /dev/null && pwd) || return 1
-        [[ "$root_temp" == "$root_home/.cache/mole/tmp" && -d "$root_temp" && ! -L "$root_temp" && -O "$root_temp" ]] || return 1
+        [[ "$root_temp" == "$root_home/.cache/nora/tmp" && -d "$root_temp" && ! -L "$root_temp" && -O "$root_temp" ]] || return 1
 
-        MOLE_RESOLVED_TMPDIR="$root_temp"
-        export MOLE_RESOLVED_TMPDIR
-        prune_stale_mole_temp_files "$MOLE_RESOLVED_TMPDIR"
-        case "${MOLE_TEMP_REGISTRY_FILE:-}" in
-            "$root_temp"/mole.registry.*) ;;
-            *) unset MOLE_TEMP_REGISTRY_FILE ;;
+        NORA_RESOLVED_TMPDIR="$root_temp"
+        export NORA_RESOLVED_TMPDIR
+        prune_stale_nora_temp_files "$NORA_RESOLVED_TMPDIR"
+        case "${NORA_TEMP_REGISTRY_FILE:-}" in
+            "$root_temp"/nora.registry.*) ;;
+            *) unset NORA_TEMP_REGISTRY_FILE ;;
         esac
-        initialize_mole_temp_registry_path || true
+        initialize_nora_temp_registry_path || true
         return 0
     fi
 
-    if [[ -n "${MOLE_RESOLVED_TMPDIR:-}" ]]; then
-        initialize_mole_temp_registry_path || true
+    if [[ -n "${NORA_RESOLVED_TMPDIR:-}" ]]; then
+        initialize_nora_temp_registry_path || true
         return 0
     fi
 
@@ -761,7 +761,7 @@ ensure_mole_temp_root() {
     if [[ -z "$resolved" ]]; then
         invoking_home=$(get_invoking_home)
         if [[ -n "$invoking_home" ]]; then
-            resolved=$(probe_temp_root "$invoking_home/.cache/mole/tmp" true || true)
+            resolved=$(probe_temp_root "$invoking_home/.cache/nora/tmp" true || true)
         fi
     fi
 
@@ -770,29 +770,29 @@ ensure_mole_temp_root() {
     fi
 
     [[ -n "$resolved" ]] || resolved="/tmp"
-    MOLE_RESOLVED_TMPDIR="$resolved"
-    export MOLE_RESOLVED_TMPDIR
-    initialize_mole_temp_registry_path || true
-    prune_stale_mole_temp_files "$MOLE_RESOLVED_TMPDIR"
+    NORA_RESOLVED_TMPDIR="$resolved"
+    export NORA_RESOLVED_TMPDIR
+    initialize_nora_temp_registry_path || true
+    prune_stale_nora_temp_files "$NORA_RESOLVED_TMPDIR"
 }
 
-prepare_mole_tmpdir() {
-    ensure_mole_temp_root
-    export TMPDIR="$MOLE_RESOLVED_TMPDIR"
-    printf '%s\n' "$MOLE_RESOLVED_TMPDIR"
+prepare_nora_tmpdir() {
+    ensure_nora_temp_root
+    export TMPDIR="$NORA_RESOLVED_TMPDIR"
+    printf '%s\n' "$NORA_RESOLVED_TMPDIR"
 }
 
-mole_temp_path_template() {
-    local prefix="${1:-mole}"
-    ensure_mole_temp_root
-    printf '%s/%s.XXXXXX\n' "$MOLE_RESOLVED_TMPDIR" "$prefix"
+nora_temp_path_template() {
+    local prefix="${1:-nora}"
+    ensure_nora_temp_root
+    printf '%s/%s.XXXXXX\n' "$NORA_RESOLVED_TMPDIR" "$prefix"
 }
 
 # Create tracked temporary file
 create_temp_file() {
     local temp
-    ensure_mole_temp_root
-    temp=$(mktemp "$MOLE_RESOLVED_TMPDIR/mole.XXXXXX") || return 1
+    ensure_nora_temp_root
+    temp=$(mktemp "$NORA_RESOLVED_TMPDIR/nora.XXXXXX") || return 1
     register_temp_file "$temp"
     echo "$temp"
 }
@@ -800,36 +800,36 @@ create_temp_file() {
 # Create tracked temporary directory
 create_temp_dir() {
     local temp
-    ensure_mole_temp_root
-    temp=$(mktemp -d "$MOLE_RESOLVED_TMPDIR/mole.XXXXXX") || return 1
+    ensure_nora_temp_root
+    temp=$(mktemp -d "$NORA_RESOLVED_TMPDIR/nora.XXXXXX") || return 1
     register_temp_dir "$temp"
     echo "$temp"
 }
 
 # Register existing file for cleanup
 register_temp_file() {
-    MOLE_TEMP_FILES+=("$1")
-    if ensure_mole_temp_registry_file; then
-        printf '%s\n' "$1" >> "$MOLE_TEMP_REGISTRY_FILE" 2> /dev/null || true
+    NORA_TEMP_FILES+=("$1")
+    if ensure_nora_temp_registry_file; then
+        printf '%s\n' "$1" >> "$NORA_TEMP_REGISTRY_FILE" 2> /dev/null || true
     fi
 }
 
 # Register existing directory for cleanup
 register_temp_dir() {
-    MOLE_TEMP_DIRS+=("$1")
-    if ensure_mole_temp_registry_file; then
-        printf '%s\n' "$1" >> "$MOLE_TEMP_REGISTRY_FILE" 2> /dev/null || true
+    NORA_TEMP_DIRS+=("$1")
+    if ensure_nora_temp_registry_file; then
+        printf '%s\n' "$1" >> "$NORA_TEMP_REGISTRY_FILE" 2> /dev/null || true
     fi
 }
 
 # Create temp file with prefix (for analyze.sh compatibility)
 # Compatible with both BSD mktemp (macOS default) and GNU mktemp (coreutils)
 mktemp_file() {
-    local prefix="${1:-mole}"
+    local prefix="${1:-nora}"
     local temp
     local error_msg
     # Add .XXXXXX suffix to work with both BSD and GNU mktemp
-    if ! error_msg=$(mktemp "$(mole_temp_path_template "$prefix")" 2>&1); then
+    if ! error_msg=$(mktemp "$(nora_temp_path_template "$prefix")" 2>&1); then
         echo "Error: Failed to create temporary file: $error_msg" >&2
         return 1
     fi
@@ -844,14 +844,14 @@ cleanup_temp_files() {
         stop_inline_spinner || true
     fi
     local file
-    if [[ ${#MOLE_TEMP_FILES[@]} -gt 0 ]]; then
-        for file in "${MOLE_TEMP_FILES[@]}"; do
+    if [[ ${#NORA_TEMP_FILES[@]} -gt 0 ]]; then
+        for file in "${NORA_TEMP_FILES[@]}"; do
             [[ -f "$file" ]] && rm -f "$file" 2> /dev/null || true
         done
     fi
 
-    if [[ ${#MOLE_TEMP_DIRS[@]} -gt 0 ]]; then
-        for file in "${MOLE_TEMP_DIRS[@]}"; do
+    if [[ ${#NORA_TEMP_DIRS[@]} -gt 0 ]]; then
+        for file in "${NORA_TEMP_DIRS[@]}"; do
             [[ -d "$file" ]] && rm -rf "$file" 2> /dev/null || true # SAFE: cleanup_temp_files
         done
     fi
@@ -859,24 +859,24 @@ cleanup_temp_files() {
     # Command substitutions run mktemp_file/create_temp_* in a child shell, so
     # their in-memory array updates cannot reach this parent. The registry is
     # shared across those shells and closes that cleanup gap. See #1203.
-    if ensure_mole_temp_registry_file; then
+    if ensure_nora_temp_registry_file; then
         local registered_path
         while IFS= read -r registered_path; do
             [[ -n "$registered_path" ]] || continue
-            [[ "$registered_path" == "${MOLE_RESOLVED_TMPDIR%/}/"* ]] || continue
+            [[ "$registered_path" == "${NORA_RESOLVED_TMPDIR%/}/"* ]] || continue
             [[ ! "$registered_path" =~ (^|/)\.\.(\/|$) ]] || continue
 
             if [[ -d "$registered_path" && ! -L "$registered_path" ]]; then
-                rm -rf "$registered_path" 2> /dev/null || true # SAFE: mktemp dir registered under resolved Mole temp root
+                rm -rf "$registered_path" 2> /dev/null || true # SAFE: mktemp dir registered under resolved Nora temp root
             else
                 rm -f "$registered_path" 2> /dev/null || true
             fi
-        done < "$MOLE_TEMP_REGISTRY_FILE"
-        rm -f "$MOLE_TEMP_REGISTRY_FILE" 2> /dev/null || true
+        done < "$NORA_TEMP_REGISTRY_FILE"
+        rm -f "$NORA_TEMP_REGISTRY_FILE" 2> /dev/null || true
     fi
 
-    MOLE_TEMP_FILES=()
-    MOLE_TEMP_DIRS=()
+    NORA_TEMP_FILES=()
+    NORA_TEMP_DIRS=()
 }
 
 # ============================================================================
@@ -944,7 +944,7 @@ start_section_spinner() {
             return 0
         fi
         stop_inline_spinner || true
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "$message"
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "$message"
     else
         stop_inline_spinner || true
     fi
@@ -1040,30 +1040,30 @@ update_progress_if_needed() {
 # Usage: is_ansi_supported
 # Returns: 0 if supported, 1 if not
 is_ansi_supported() {
-    if [[ -n "${MOLE_ANSI_SUPPORTED_CACHE:-}" ]]; then
-        return "$MOLE_ANSI_SUPPORTED_CACHE"
+    if [[ -n "${NORA_ANSI_SUPPORTED_CACHE:-}" ]]; then
+        return "$NORA_ANSI_SUPPORTED_CACHE"
     fi
 
     # Check if running in interactive terminal
     if ! [[ -t 1 ]]; then
-        export MOLE_ANSI_SUPPORTED_CACHE=1
+        export NORA_ANSI_SUPPORTED_CACHE=1
         return 1
     fi
 
     # Check TERM variable
     if [[ -z "${TERM:-}" ]]; then
-        export MOLE_ANSI_SUPPORTED_CACHE=1
+        export NORA_ANSI_SUPPORTED_CACHE=1
         return 1
     fi
 
     # Check for known ANSI-compatible terminals
     case "$TERM" in
         xterm* | vt100 | vt220 | screen* | tmux* | ansi | linux | rxvt* | konsole*)
-            export MOLE_ANSI_SUPPORTED_CACHE=0
+            export NORA_ANSI_SUPPORTED_CACHE=0
             return 0
             ;;
         dumb | unknown)
-            export MOLE_ANSI_SUPPORTED_CACHE=1
+            export NORA_ANSI_SUPPORTED_CACHE=1
             return 1
             ;;
         *)
@@ -1072,11 +1072,11 @@ is_ansi_supported() {
                 # Test if terminal supports colors (good proxy for ANSI support)
                 local colors=$(tput colors 2> /dev/null || echo "0")
                 if [[ "$colors" -ge 8 ]]; then
-                    export MOLE_ANSI_SUPPORTED_CACHE=0
+                    export NORA_ANSI_SUPPORTED_CACHE=0
                     return 0
                 fi
             fi
-            export MOLE_ANSI_SUPPORTED_CACHE=1
+            export NORA_ANSI_SUPPORTED_CACHE=1
             return 1
             ;;
     esac

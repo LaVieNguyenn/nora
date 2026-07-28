@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mole - Touch ID command.
+# Nora - Touch ID command.
 # Configures sudo with Touch ID.
 # Guided toggle with safety checks.
 
@@ -16,8 +16,8 @@ source "$LIB_DIR/core/common.sh"
 # Set up global cleanup trap
 trap cleanup_temp_files EXIT INT TERM
 
-PAM_SUDO_FILE="${MOLE_PAM_SUDO_FILE:-/etc/pam.d/sudo}"
-PAM_SUDO_LOCAL_FILE="${MOLE_PAM_SUDO_LOCAL_FILE:-$(dirname "$PAM_SUDO_FILE")/sudo_local}"
+PAM_SUDO_FILE="${NORA_PAM_SUDO_FILE:-/etc/pam.d/sudo}"
+PAM_SUDO_LOCAL_FILE="${NORA_PAM_SUDO_LOCAL_FILE:-$(dirname "$PAM_SUDO_FILE")/sudo_local}"
 readonly PAM_SUDO_FILE
 readonly PAM_SUDO_LOCAL_FILE
 readonly PAM_TID_LINE="auth       sufficient     pam_tid.so"
@@ -66,7 +66,7 @@ supports_touchid() {
 }
 
 touchid_dry_run_enabled() {
-    [[ "${MOLE_DRY_RUN:-0}" == "1" ]]
+    [[ "${NORA_DRY_RUN:-0}" == "1" ]]
 }
 
 # Show current Touch ID status
@@ -176,8 +176,8 @@ enable_touchid() {
     fi
 
     # Create backup only if it doesn't exist to preserve original state
-    if [[ ! -f "${PAM_SUDO_FILE}.mole-backup" ]]; then
-        if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2> /dev/null; then
+    if [[ ! -f "${PAM_SUDO_FILE}.nora-backup" ]]; then
+        if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.nora-backup" 2> /dev/null; then
             log_error "Failed to create backup"
             return 1
         fi
@@ -258,8 +258,8 @@ disable_touchid() {
     # Fallback to sudo file (legacy)
     if grep -q "pam_tid.so" "$PAM_SUDO_FILE"; then
         # Create backup only if it doesn't exist
-        if [[ ! -f "${PAM_SUDO_FILE}.mole-backup" ]]; then
-            if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.mole-backup" 2> /dev/null; then
+        if [[ ! -f "${PAM_SUDO_FILE}.nora-backup" ]]; then
+            if ! sudo cp "$PAM_SUDO_FILE" "${PAM_SUDO_FILE}.nora-backup" 2> /dev/null; then
                 log_error "Failed to create backup"
                 return 1
             fi
@@ -336,7 +336,7 @@ main() {
     for arg in "$@"; do
         case "$arg" in
             "--dry-run" | "-n")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             "--help" | "-h")
                 show_touchid_help

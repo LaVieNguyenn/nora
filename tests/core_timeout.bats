@@ -178,11 +178,11 @@ setup() {
     [[ "$result" == "loaded" ]]
 }
 
-@test "timeout.sh: sets MOLE_TIMEOUT_LOADED flag" {
+@test "timeout.sh: sets NORA_TIMEOUT_LOADED flag" {
     result=$(/bin/bash -c "
         set -euo pipefail
         source '$PROJECT_ROOT/lib/core/timeout.sh'
-        echo \"\$MOLE_TIMEOUT_LOADED\"
+        echo \"\$NORA_TIMEOUT_LOADED\"
     ")
     [[ "$result" == "1" ]]
 }

@@ -23,7 +23,7 @@ setup() {
 
 # Background scan workers never read the terminal. Leaving the tty on their
 # stdin let their timeout helpers take the terminal away from the foreground
-# prompt, which is what suspended `mo uninstall <app>` before it removed
+# prompt, which is what suspended `nr uninstall <app>` before it removed
 # anything (issue #1222).
 @test "uninstall: background metadata workers detach stdin from the terminal (#1222)" {
 	run grep -nE '^[[:space:]]*\) < /dev/null &' "$PROJECT_ROOT/bin/uninstall.sh"

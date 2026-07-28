@@ -2,8 +2,8 @@
 # Application Data Cleanup Module
 set -euo pipefail
 
-readonly ORPHAN_AGE_THRESHOLD=${ORPHAN_AGE_THRESHOLD:-${MOLE_ORPHAN_AGE_DAYS:-30}}
-readonly CLAUDE_VM_ORPHAN_AGE_THRESHOLD=${MOLE_CLAUDE_VM_ORPHAN_AGE_DAYS:-7}
+readonly ORPHAN_AGE_THRESHOLD=${ORPHAN_AGE_THRESHOLD:-${NORA_ORPHAN_AGE_DAYS:-30}}
+readonly CLAUDE_VM_ORPHAN_AGE_THRESHOLD=${NORA_CLAUDE_VM_ORPHAN_AGE_DAYS:-7}
 # Args: $1=target_dir, $2=label
 clean_ds_store_tree() {
     local target="$1"
@@ -13,7 +13,7 @@ clean_ds_store_tree() {
     local total_bytes=0
     local spinner_active="false"
     if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  "
+        NORA_SPINNER_PREFIX="  "
         start_inline_spinner "Cleaning Finder metadata..."
         spinner_active="true"
     fi
@@ -42,7 +42,7 @@ clean_ds_store_tree() {
         if [[ "$DRY_RUN" != "true" ]]; then
             safe_remove "$ds_file" true 2> /dev/null || true
         fi
-        if [[ $file_count -ge $MOLE_MAX_DS_STORE_FILES ]]; then
+        if [[ $file_count -ge $NORA_MAX_DS_STORE_FILES ]]; then
             break
         fi
     done < <("${find_cmd[@]}" 2> /dev/null || true)
@@ -71,7 +71,7 @@ clean_ds_store_tree() {
 scan_installed_apps() {
     local installed_bundles="$1"
     # Cache installed app scan briefly to speed repeated runs.
-    local cache_file="$HOME/.cache/mole/installed_apps_cache"
+    local cache_file="$HOME/.cache/nora/installed_apps_cache"
     local cache_age_seconds=300 # 5 minutes
     if [[ -f "$cache_file" ]]; then
         local cache_mtime=$(get_file_mtime "$cache_file")
@@ -130,18 +130,18 @@ scan_installed_apps() {
     # Collect running apps and LaunchAgents to avoid false orphan cleanup.
     (
         # Skip AppleScript during tests to avoid permission dialogs
-        if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
-            local running_apps=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2> /dev/null || echo "")
+        if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]]; then
+            local running_apps=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" osascript -e 'tell application "System Events" to get bundle identifier of every application process' 2> /dev/null || echo "")
             echo "$running_apps" | tr ',' '\n' | sed -e 's/^ *//;s/ *$//' -e '/^$/d' -e '/^missing value$/d' > "$scan_tmp_dir/running.txt"
         fi
         # Fallback: lsappinfo is more reliable than osascript
         if command -v lsappinfo > /dev/null 2>&1; then
-            run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" lsappinfo list 2> /dev/null | grep -o '"CFBundleIdentifier"="[^"]*"' | cut -d'"' -f4 >> "$scan_tmp_dir/running.txt" 2> /dev/null || true
+            run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" lsappinfo list 2> /dev/null | grep -o '"CFBundleIdentifier"="[^"]*"' | cut -d'"' -f4 >> "$scan_tmp_dir/running.txt" 2> /dev/null || true
         fi
     ) < /dev/null &
     pids+=($!)
     (
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" find ~/Library/LaunchAgents /Library/LaunchAgents \
+        run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" find ~/Library/LaunchAgents /Library/LaunchAgents \
             -name "*.plist" -type f 2> /dev/null |
             xargs -I {} basename {} .plist > "$scan_tmp_dir/agents.txt" 2> /dev/null || true
     ) < /dev/null &
@@ -177,16 +177,16 @@ readonly ORPHAN_NEVER_DELETE_PATTERNS=(
 
 # In-memory mdfind result cache (Bash 3.2 compatible, no associative arrays).
 # Newline-delimited strings checked via case glob, no subprocess per lookup.
-_MOLE_MDFIND_FOUND=""
-_MOLE_MDFIND_NOTFOUND=""
+_NORA_MDFIND_FOUND=""
+_NORA_MDFIND_NOTFOUND=""
 
 _mdfind_cache_check() {
     local bundle_id="$1"
     local _nl=$'\n'
-    case "${_nl}${_MOLE_MDFIND_FOUND}${_nl}" in
+    case "${_nl}${_NORA_MDFIND_FOUND}${_nl}" in
         *"${_nl}${bundle_id}${_nl}"*) return 0 ;;
     esac
-    case "${_nl}${_MOLE_MDFIND_NOTFOUND}${_nl}" in
+    case "${_nl}${_NORA_MDFIND_NOTFOUND}${_nl}" in
         *"${_nl}${bundle_id}${_nl}"*) return 1 ;;
     esac
     return 2
@@ -196,10 +196,10 @@ _mdfind_cache_store() {
     local bundle_id="$1"
     local found="$2"
     if [[ "$found" == "true" ]]; then
-        _MOLE_MDFIND_FOUND="${_MOLE_MDFIND_FOUND:+${_MOLE_MDFIND_FOUND}
+        _NORA_MDFIND_FOUND="${_NORA_MDFIND_FOUND:+${_NORA_MDFIND_FOUND}
 }${bundle_id}"
     else
-        _MOLE_MDFIND_NOTFOUND="${_MOLE_MDFIND_NOTFOUND:+${_MOLE_MDFIND_NOTFOUND}
+        _NORA_MDFIND_NOTFOUND="${_NORA_MDFIND_NOTFOUND:+${_NORA_MDFIND_NOTFOUND}
 }${bundle_id}"
     fi
 }
@@ -250,7 +250,7 @@ is_bundle_orphaned() {
 
     # 6. Slow path: mdfind fallback with in-memory caching (Bash 3.2 compatible)
     # This catches apps installed in non-standard locations
-    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    if nora_is_reverse_dns_bundle_id "$bundle_id"; then
         local _cache_rc=0
         _mdfind_cache_check "$bundle_id" || _cache_rc=$?
         if [[ $_cache_rc -eq 0 ]]; then
@@ -262,7 +262,7 @@ is_bundle_orphaned() {
             # an orphan and deleted its data. On timeout/error, keep the app
             # and do not poison the cache.
             local app_exists _mdfind_rc=0
-            app_exists=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
+            app_exists=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
             if [[ $_mdfind_rc -ne 0 ]]; then
                 return 1
             elif [[ -n "$app_exists" ]]; then
@@ -312,7 +312,7 @@ is_claude_vm_bundle_orphaned() {
     elif [[ $_cache_rc -eq 2 ]]; then
         # On mdfind timeout/error keep the app (see is_bundle_orphaned).
         local app_exists _mdfind_rc=0
-        app_exists=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$claude_bundle_id'" 2> /dev/null) || _mdfind_rc=$?
+        app_exists=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$claude_bundle_id'" 2> /dev/null) || _mdfind_rc=$?
         if [[ $_mdfind_rc -ne 0 ]]; then
             return 1
         elif [[ -n "$app_exists" ]]; then
@@ -404,7 +404,7 @@ clean_orphaned_app_data() {
                 for match in "${matches[@]}"; do
                     [[ -e "$match" ]] || continue
                     iteration_count=$((iteration_count + 1))
-                    if [[ $iteration_count -gt $MOLE_MAX_ORPHAN_ITERATIONS ]]; then
+                    if [[ $iteration_count -gt $NORA_MAX_ORPHAN_ITERATIONS ]]; then
                         break
                     fi
                     local bundle_id=$(basename "$match")
@@ -470,7 +470,7 @@ _privileged_helper_bundle_id_from_binary() {
 # These are left behind when apps are uninstalled but their system services remain
 clean_orphaned_system_services() {
     # Requires sudo
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]] || ! sudo -n true 2> /dev/null; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]] || ! sudo -n true 2> /dev/null; then
         return 0
     fi
 
@@ -550,7 +550,7 @@ clean_orphaned_system_services() {
             esac
         done
 
-        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+        if nora_is_reverse_dns_bundle_id "$bundle_id"; then
             local _cache_rc=0
             _mdfind_cache_check "$bundle_id" || _cache_rc=$?
             if [[ $_cache_rc -eq 0 ]]; then
@@ -560,7 +560,7 @@ clean_orphaned_system_services() {
                 # installed here) so a transient Spotlight stall never flags a
                 # live app's service/container as an orphan; do not cache.
                 local app_found _mdfind_rc=0
-                app_found=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
+                app_found=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
                 if [[ $_mdfind_rc -ne 0 ]]; then
                     return 0
                 elif [[ -n "$app_found" ]]; then
@@ -806,9 +806,9 @@ clean_orphaned_system_services() {
             # Orphans were already verified to have no installed parent app, so
             # bypass the data-protection filename check (which would otherwise block
             # legitimately orphaned files like Docker helpers) for this single call.
-            # MOLE_UNINSTALL_MODE is scoped to the call and never leaks to later
+            # NORA_UNINSTALL_MODE is scoped to the call and never leaks to later
             # cleanup sections; SYSTEM_CRITICAL_BUNDLES stay protected. See #1082.
-            if MOLE_UNINSTALL_MODE=1 should_protect_path "$orphan_file"; then
+            if NORA_UNINSTALL_MODE=1 should_protect_path "$orphan_file"; then
                 debug_log "Skipping protected orphaned service: $orphan_file"
                 skipped_protected_count=$((skipped_protected_count + 1))
                 continue
@@ -816,7 +816,7 @@ clean_orphaned_system_services() {
             if [[ "$DRY_RUN" == "true" ]]; then
                 debug_log "[DRY RUN] Would remove orphaned service: $orphan_file"
                 local orphan_size_kb
-                orphan_size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$orphan_file" 2> /dev/null | awk '{print $1}' || echo "0")
+                orphan_size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$orphan_file" 2> /dev/null | awk '{print $1}' || echo "0")
                 [[ -n "$orphan_size_kb" ]] || orphan_size_kb=0
                 if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
                     record_dry_run_cleanup_target "$orphan_file" "$orphan_size_kb" 1 true || continue
@@ -826,7 +826,7 @@ clean_orphaned_system_services() {
                 fi
             else
                 local file_size_kb
-                file_size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$orphan_file" 2> /dev/null | awk '{print $1}' || echo "0")
+                file_size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$orphan_file" 2> /dev/null | awk '{print $1}' || echo "0")
 
                 # Unload if it's a LaunchDaemon/LaunchAgent
                 if [[ "$orphan_file" == *.plist ]]; then
@@ -838,7 +838,7 @@ clean_orphaned_system_services() {
                     debug_log "Removed orphaned service: $orphan_file"
                     removed_count=$((removed_count + 1))
                     removed_kb=$((removed_kb + file_size_kb))
-                elif [[ $remove_rc -eq $MOLE_ERR_PROTECTED_PATH ]]; then
+                elif [[ $remove_rc -eq $NORA_ERR_PROTECTED_PATH ]]; then
                     debug_log "Skipping protected orphaned service: $orphan_file"
                     skipped_protected_count=$((skipped_protected_count + 1))
                 else
@@ -877,7 +877,7 @@ clean_orphaned_system_services() {
 
 }
 
-# Policy: mo clean does NOT touch user LaunchAgents (~/Library/LaunchAgents),
+# Policy: nr clean does NOT touch user LaunchAgents (~/Library/LaunchAgents),
 # they are user-owned automation and not generic cleanup targets.
 
 # ============================================================================
@@ -956,7 +956,7 @@ clean_orphaned_container_stubs() {
                 ;;
         esac
 
-        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+        if nora_is_reverse_dns_bundle_id "$bundle_id"; then
             local _cache_rc=0
             _mdfind_cache_check "$bundle_id" || _cache_rc=$?
             if [[ $_cache_rc -eq 0 ]]; then
@@ -966,7 +966,7 @@ clean_orphaned_container_stubs() {
                 # installed here) so a transient Spotlight stall never flags a
                 # live app's service/container as an orphan; do not cache.
                 local app_found _mdfind_rc=0
-                app_found=$(run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
+                app_found=$(run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2> /dev/null) || _mdfind_rc=$?
                 if [[ $_mdfind_rc -ne 0 ]]; then
                     return 0
                 elif [[ -n "$app_found" ]]; then
@@ -1011,11 +1011,11 @@ clean_orphaned_container_stubs() {
                 # so any new content that appears before deletion is preserved.
                 if _remove_verified_container_stub "$container_dir" "$metadata_plist" > /dev/null 2>&1; then
                     removed_count=$((removed_count + 1))
-                    log_operation "${MOLE_CURRENT_COMMAND:-clean}" "REMOVED" "$container_dir" "stub-container"
+                    log_operation "${NORA_CURRENT_COMMAND:-clean}" "REMOVED" "$container_dir" "stub-container"
                 else
                     debug_log "Failed to remove stub container: $container_dir"
                     failed_count=$((failed_count + 1))
-                    log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$container_dir" "stub-container"
+                    log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$container_dir" "stub-container"
                 fi
             else
                 if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
@@ -1025,7 +1025,7 @@ clean_orphaned_container_stubs() {
                     record_dry_run_cleanup_target "$container_dir" "$stub_size_kb" 1 true || continue
                 fi
                 removed_count=$((removed_count + 1))
-                log_operation "${MOLE_CURRENT_COMMAND:-clean}" "SKIPPED" "$container_dir" "dry-run stub-container"
+                log_operation "${NORA_CURRENT_COMMAND:-clean}" "SKIPPED" "$container_dir" "dry-run stub-container"
             fi
         done
     done

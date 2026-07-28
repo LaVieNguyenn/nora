@@ -21,8 +21,8 @@ stty() { :; }
 tput() { :; }
 clear() { :; }
 printf_at() { :; }
-export MOLE_MANAGED_ALT_SCREEN=1
-export MOLE_READ_KEY_FORCE_CHAR=1
+export NORA_MANAGED_ALT_SCREEN=1
+export NORA_READ_KEY_FORCE_CHAR=1
 
 # Arm an outer EXIT trap exactly like bin/uninstall.sh does.
 trap 'echo OUTER_EXIT_MARKER' EXIT
@@ -52,8 +52,8 @@ enter_alt_screen() { :; }
 leave_alt_screen() { :; }
 stty() { :; }
 tput() { :; }
-export MOLE_MANAGED_ALT_SCREEN=1
-export MOLE_READ_KEY_FORCE_CHAR=1
+export NORA_MANAGED_ALT_SCREEN=1
+export NORA_READ_KEY_FORCE_CHAR=1
 
 # Feed input via redirection, NOT a pipe: a pipe would run the menu in a
 # subshell and hide its trap manipulation from this shell.
@@ -78,7 +78,7 @@ enter_alt_screen() { :; }
 leave_alt_screen() { :; }
 stty() { :; }
 tput() { :; }
-export MOLE_MANAGED_ALT_SCREEN=1
+export NORA_MANAGED_ALT_SCREEN=1
 
 cleanup() { echo OUTER_CLEANUP_MARKER; }
 trap cleanup EXIT

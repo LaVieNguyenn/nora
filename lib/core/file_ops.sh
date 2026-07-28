@@ -1,35 +1,35 @@
 #!/bin/bash
-# Mole - File Operations
+# Nora - File Operations
 # Safe file and directory manipulation with validation
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_FILE_OPS_LOADED:-}" ]]; then
+if [[ -n "${NORA_FILE_OPS_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_FILE_OPS_LOADED=1
+readonly NORA_FILE_OPS_LOADED=1
 
 # Error codes for removal operations
-readonly MOLE_ERR_SIP_PROTECTED=10
-readonly MOLE_ERR_AUTH_FAILED=11
-readonly MOLE_ERR_READONLY_FS=12
-readonly MOLE_ERR_PROTECTED_PATH=13
-readonly MOLE_ERR_PRIVACY_DENIED=14
+readonly NORA_ERR_SIP_PROTECTED=10
+readonly NORA_ERR_AUTH_FAILED=11
+readonly NORA_ERR_READONLY_FS=12
+readonly NORA_ERR_PROTECTED_PATH=13
+readonly NORA_ERR_PRIVACY_DENIED=14
 
 # Ensure dependencies are loaded
-_MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -z "${MOLE_BASE_LOADED:-}" ]]; then
+_NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${NORA_BASE_LOADED:-}" ]]; then
     # shellcheck source=lib/core/base.sh
-    source "$_MOLE_CORE_DIR/base.sh"
+    source "$_NORA_CORE_DIR/base.sh"
 fi
-if [[ -z "${MOLE_LOG_LOADED:-}" ]]; then
+if [[ -z "${NORA_LOG_LOADED:-}" ]]; then
     # shellcheck source=lib/core/log.sh
-    source "$_MOLE_CORE_DIR/log.sh"
+    source "$_NORA_CORE_DIR/log.sh"
 fi
-if [[ -z "${MOLE_TIMEOUT_LOADED:-}" ]]; then
+if [[ -z "${NORA_TIMEOUT_LOADED:-}" ]]; then
     # shellcheck source=lib/core/timeout.sh
-    source "$_MOLE_CORE_DIR/timeout.sh"
+    source "$_NORA_CORE_DIR/timeout.sh"
 fi
 
 # ============================================================================
@@ -65,7 +65,7 @@ format_duration_human() {
 # Path Validation
 # ============================================================================
 
-_mole_normalize_deletion_policy_path() {
+_nora_normalize_deletion_policy_path() {
     local path="$1"
     local slash="/"
     local double_slash="//"
@@ -78,20 +78,20 @@ _mole_normalize_deletion_policy_path() {
     [[ -n "$trimmed" ]] && printf '%s\n' "$trimmed" || printf '%s\n' "$path"
 }
 
-_mole_path_is_same_existing_file() {
+_nora_path_is_same_existing_file() {
     local path="$1"
     local protected_path="$2"
     [[ -e "$path" && -e "$protected_path" && "$path" -ef "$protected_path" ]]
 }
 
-_mole_path_is_within_existing_root() {
+_nora_path_is_within_existing_root() {
     local path="$1"
     local protected_root="$2"
     [[ -e "$protected_root" ]] || return 1
 
     local probe="$path"
     while [[ "$probe" == /* ]]; do
-        if _mole_path_is_same_existing_file "$probe" "$protected_root"; then
+        if _nora_path_is_same_existing_file "$probe" "$protected_root"; then
             return 0
         fi
         [[ "$probe" == "/" ]] && break
@@ -102,7 +102,7 @@ _mole_path_is_within_existing_root() {
 }
 
 # Deletion policy only. App/data protection stays in app_protection.sh.
-_mole_is_critical_deletion_path() {
+_nora_is_critical_deletion_path() {
     local path="$1"
 
     case "$path" in
@@ -162,7 +162,7 @@ _mole_is_critical_deletion_path() {
         /private/var/folders /Users /opt /opt/homebrew
     )
     for protected_root in "${exact_roots[@]}"; do
-        if _mole_path_is_same_existing_file "$path" "$protected_root"; then
+        if _nora_path_is_same_existing_file "$path" "$protected_root"; then
             return 0
         fi
     done
@@ -173,7 +173,7 @@ _mole_is_critical_deletion_path() {
         /Library/Keychains /Applications/Finder.app /Applications/Safari.app
     )
     for protected_root in "${protected_trees[@]}"; do
-        if _mole_path_is_within_existing_root "$path" "$protected_root"; then
+        if _nora_path_is_within_existing_root "$path" "$protected_root"; then
             return 0
         fi
     done
@@ -182,7 +182,7 @@ _mole_is_critical_deletion_path() {
     # casing (for example /USERS/SHARED on a case-insensitive volume).
     local parent_path="${path%/*}"
     [[ -n "$parent_path" ]] || parent_path="/"
-    if _mole_path_is_same_existing_file "$parent_path" "/Users"; then
+    if _nora_path_is_same_existing_file "$parent_path" "/Users"; then
         return 0
     fi
 
@@ -220,7 +220,7 @@ validate_path_for_deletion() {
     fi
 
     local policy_path
-    policy_path=$(_mole_normalize_deletion_policy_path "$path")
+    policy_path=$(_nora_normalize_deletion_policy_path "$path")
 
     # Check symlink target if path is a symbolic link
     if [[ -L "$path" ]]; then
@@ -240,8 +240,8 @@ validate_path_for_deletion() {
 
         # Validate resolved target against protected paths
         if [[ -n "$resolved_target" ]]; then
-            resolved_target=$(_mole_normalize_deletion_policy_path "$resolved_target")
-            if _mole_is_critical_deletion_path "$resolved_target"; then
+            resolved_target=$(_nora_normalize_deletion_policy_path "$resolved_target")
+            if _nora_is_critical_deletion_path "$resolved_target"; then
                 log_error "Symlink points to protected system path: $path -> $resolved_target"
                 return 1
             fi
@@ -282,8 +282,8 @@ validate_path_for_deletion() {
         resolved_parent=$(cd -P "$parent_dir" 2> /dev/null && pwd -P) || resolved_parent=""
         if [[ -n "$resolved_parent" && "$resolved_parent" != "$parent_dir" ]]; then
             local resolved_path
-            resolved_path=$(_mole_normalize_deletion_policy_path "${resolved_parent}/${policy_path##*/}")
-            if _mole_is_critical_deletion_path "$resolved_path"; then
+            resolved_path=$(_nora_normalize_deletion_policy_path "${resolved_parent}/${policy_path##*/}")
+            if _nora_is_critical_deletion_path "$resolved_path"; then
                 log_error "Path validation failed: resolves into a critical system path: $path -> $resolved_path"
                 return 1
             fi
@@ -331,7 +331,7 @@ validate_path_for_deletion() {
     esac
 
     # Check path isn't critical system directory
-    if _mole_is_critical_deletion_path "$policy_path"; then
+    if _nora_is_critical_deletion_path "$policy_path"; then
         log_error "Path validation failed: critical system path: $path"
         return 1
     fi
@@ -396,7 +396,7 @@ safe_remove() {
     # a no-op when the whitelist is empty, and uninstall does not route
     # through safe_remove, so this stays scoped to clean/optimize. See #710.
     if declare -f is_path_whitelisted > /dev/null 2>&1 && is_path_whitelisted "$path"; then
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
         return 1
     fi
 
@@ -406,7 +406,7 @@ safe_remove() {
     fi
 
     # Dry-run mode: log but don't delete
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         _record_file_ops_dry_run_target "$path" "$precomputed_size_kb"
         if [[ "${MO_DEBUG:-}" == "1" ]]; then
             local file_type="file"
@@ -471,19 +471,19 @@ safe_remove() {
 
     if [[ $rm_exit -eq 0 ]]; then
         # Log successful removal
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "$size_human"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "$size_human"
         return 0
     else
         # Check if it's a permission error
         if [[ "$error_msg" == *"Permission denied"* ]] || [[ "$error_msg" == *"Operation not permitted"* ]]; then
-            MOLE_PERMISSION_DENIED_COUNT=${MOLE_PERMISSION_DENIED_COUNT:-0}
-            MOLE_PERMISSION_DENIED_COUNT=$((MOLE_PERMISSION_DENIED_COUNT + 1))
-            export MOLE_PERMISSION_DENIED_COUNT
+            NORA_PERMISSION_DENIED_COUNT=${NORA_PERMISSION_DENIED_COUNT:-0}
+            NORA_PERMISSION_DENIED_COUNT=$((NORA_PERMISSION_DENIED_COUNT + 1))
+            export NORA_PERMISSION_DENIED_COUNT
             debug_log "Permission denied: $path, may need Full Disk Access"
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "permission denied"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "permission denied"
         else
             [[ "$silent" != "true" ]] && log_error "Failed to remove: $path"
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "error"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "error"
         fi
         return 1
     fi
@@ -504,11 +504,11 @@ safe_remove_symlink() {
 
     if declare -f is_path_whitelisted > /dev/null 2>&1 && is_path_whitelisted "$path"; then
         debug_log "Skipped symlink removal for whitelisted path: $path"
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
         return 1
     fi
 
-    if [[ "$use_sudo" == "true" ]] && _mole_privileged_path_has_mutable_ancestor "$path"; then
+    if [[ "$use_sudo" == "true" ]] && _nora_privileged_path_has_mutable_ancestor "$path"; then
         if [[ ${EUID:-0} -ne 0 ]]; then
             use_sudo=false
         else
@@ -517,7 +517,7 @@ safe_remove_symlink() {
         fi
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         _record_file_ops_dry_run_target "$path"
         debug_log "[DRY RUN] Would remove symlink: $path"
         return 0
@@ -525,8 +525,8 @@ safe_remove_symlink() {
 
     local rm_exit=0
     if [[ "$use_sudo" == "true" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
+        if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
             return 1
         fi
         sudo -n rm "$path" 2> /dev/null || rm_exit=$?
@@ -535,10 +535,10 @@ safe_remove_symlink() {
     fi
 
     if [[ $rm_exit -eq 0 ]]; then
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "symlink"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "symlink"
         return 0
     else
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "symlink removal failed"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "symlink removal failed"
         return 1
     fi
 }
@@ -548,7 +548,7 @@ safe_remove_symlink() {
 # directory owner can chmod a 0555 parent after validation, replace a component,
 # and redirect a later sudo rm/mv. Fail closed on non-root ownership, writable
 # mode bits, symlinks, unreadable metadata, and effective ACL write access.
-_mole_privileged_path_has_mutable_ancestor() {
+_nora_privileged_path_has_mutable_ancestor() {
     local path="$1"
     local probe="${path%/*}"
     local invoking_uid=""
@@ -575,7 +575,7 @@ _mole_privileged_path_has_mutable_ancestor() {
             if [[ ${EUID:-0} -eq "$invoking_uid" ]]; then
                 [[ -w "$probe" ]] && return 0
             elif [[ ${EUID:-0} -eq 0 ]]; then
-                # Under `sudo mo`, the shell's -w probe reflects root rather
+                # Under `sudo nr`, the shell's -w probe reflects root rather
                 # than the invoking user. Drop authority for the ACL check so
                 # immutable system parents do not become false positives.
                 sudo -n -u "#$invoking_uid" /usr/bin/test -w "$probe" 2> /dev/null && return 0
@@ -598,7 +598,7 @@ safe_sudo_remove() {
     if ! validate_path_for_deletion "$path"; then
         if declare -f should_protect_path > /dev/null 2>&1 && should_protect_path "$path"; then
             debug_log "Skipped sudo remove for protected path: $path"
-            return "$MOLE_ERR_PROTECTED_PATH"
+            return "$NORA_ERR_PROTECTED_PATH"
         else
             log_error "Path validation failed for sudo remove: $path"
         fi
@@ -616,11 +616,11 @@ safe_sudo_remove() {
 
     if declare -f is_path_whitelisted > /dev/null 2>&1 && is_path_whitelisted "$path"; then
         debug_log "Skipped sudo remove for whitelisted path: $path"
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "SKIPPED" "$path" "whitelist"
         return 1
     fi
 
-    if _mole_privileged_path_has_mutable_ancestor "$path"; then
+    if _nora_privileged_path_has_mutable_ancestor "$path"; then
         if [[ ${EUID:-0} -ne 0 ]]; then
             debug_log "Downgrading sudo remove below mutable parent: $path"
             safe_remove "$path" true
@@ -630,20 +630,20 @@ safe_sudo_remove() {
         return 1
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         _record_file_ops_dry_run_target "$path"
     fi
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             log_info "[DRY-RUN] Would sudo remove: $path"
             return 0
         fi
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo blocked in test mode"
         return 1
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         if [[ "${MO_DEBUG:-}" == "1" ]]; then
             local file_type="file"
             [[ -d "$path" ]] && file_type="directory"
@@ -653,7 +653,7 @@ safe_sudo_remove() {
 
             if sudo -n test -e "$path" 2> /dev/null; then
                 local size_kb
-                size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+                size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
                 if [[ "$size_kb" -gt 0 ]]; then
                     file_size=$(bytes_to_human "$((size_kb * 1024))")
                 fi
@@ -683,7 +683,7 @@ safe_sudo_remove() {
     local size_human=""
     if oplog_enabled; then
         if sudo -n test -e "$path" 2> /dev/null; then
-            size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
+            size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1}' || echo "0")
             if [[ "$size_kb" =~ ^[0-9]+$ ]] && [[ "$size_kb" -gt 0 ]]; then
                 size_human=$(bytes_to_human "$((size_kb * 1024))" 2> /dev/null || echo "${size_kb}KB")
             fi
@@ -695,30 +695,30 @@ safe_sudo_remove() {
     output=$(sudo -n rm -rf "$path" 2>&1) || ret=$? # safe_remove
 
     if [[ $ret -eq 0 ]]; then
-        log_operation "${MOLE_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "$size_human"
+        log_operation "${NORA_CURRENT_COMMAND:-clean}" "REMOVED" "$path" "$size_human"
         return 0
     fi
 
     case "$output" in
         *"a password is required"* | *"a terminal is required"* | *"Password:"*)
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "auth required"
-            return "$MOLE_ERR_AUTH_FAILED"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "auth required"
+            return "$NORA_ERR_AUTH_FAILED"
             ;;
         *"Operation not permitted"*)
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sip/mdm protected"
-            return "$MOLE_ERR_SIP_PROTECTED"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sip/mdm protected"
+            return "$NORA_ERR_SIP_PROTECTED"
             ;;
         *"Read-only file system"*)
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "readonly filesystem"
-            return "$MOLE_ERR_READONLY_FS"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "readonly filesystem"
+            return "$NORA_ERR_READONLY_FS"
             ;;
         *"Sorry, try again"* | *"incorrect passphrase"* | *"incorrect credentials"*)
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "auth failed"
-            return "$MOLE_ERR_AUTH_FAILED"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "auth failed"
+            return "$NORA_ERR_AUTH_FAILED"
             ;;
         *)
             log_error "Failed to remove, sudo: $path"
-            log_operation "${MOLE_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo error"
+            log_operation "${NORA_CURRENT_COMMAND:-clean}" "FAILED" "$path" "sudo error"
             return 1
             ;;
     esac
@@ -732,36 +732,36 @@ safe_sudo_remove() {
 # every call for forensic review. Designed for destructive paths where undo
 # matters (e.g. uninstall). Not used by cache-clean paths.
 #
-# Usage: mole_delete <path> [needs_sudo=false]
+# Usage: nora_delete <path> [needs_sudo=false]
 #
 # Environment:
-#   MOLE_DELETE_MODE      "permanent" (default) or "trash"; other values fail
-#   MOLE_DRY_RUN=1        Log intent, do not delete
-#   MOLE_TEST_TRASH_DIR   Test-only override; Trash moves go here via `mv`
+#   NORA_DELETE_MODE      "permanent" (default) or "trash"; other values fail
+#   NORA_DRY_RUN=1        Log intent, do not delete
+#   NORA_TEST_TRASH_DIR   Test-only override; Trash moves go here via `mv`
 #                         instead of Finder/trash CLI. Required for bats.
-#   MOLE_DELETE_LOG       Override the log file path (default:
-#                         ~/Library/Logs/mole/deletions.log)
+#   NORA_DELETE_LOG       Override the log file path (default:
+#                         ~/Library/Logs/nora/deletions.log)
 #
 # Returns 0 on success, 1 on failure. Always appends a tab-separated line to
 # the deletions log: <iso_ts>\t<mode>\t<size_kb>\t<status>\t<path>.
 # size_kb is "unknown" when du could not measure the path (permission denied,
 # disappeared mid-call); never silently coerced to 0KB so post-hoc forensics
 # can tell measured-zero from measurement-failure.
-mole_delete() {
+nora_delete() {
     local path="$1"
     local needs_sudo="${2:-false}"
-    local mode="${MOLE_DELETE_MODE:-permanent}"
+    local mode="${NORA_DELETE_MODE:-permanent}"
 
     [[ -z "$path" ]] && return 1
 
     case "$mode" in
         permanent | trash) ;;
         *)
-            _mole_delete_log "$mode" "unknown" "invalid-mode" "$path"
-            if [[ -z "${_MOLE_INVALID_MODE_WARNED:-}" ]]; then
-                _MOLE_INVALID_MODE_WARNED=1
-                export _MOLE_INVALID_MODE_WARNED
-                printf 'Error: invalid MOLE_DELETE_MODE: %s (expected "permanent" or "trash")\n' "$mode" >&2
+            _nora_delete_log "$mode" "unknown" "invalid-mode" "$path"
+            if [[ -z "${_NORA_INVALID_MODE_WARNED:-}" ]]; then
+                _NORA_INVALID_MODE_WARNED=1
+                export _NORA_INVALID_MODE_WARNED
+                printf 'Error: invalid NORA_DELETE_MODE: %s (expected "permanent" or "trash")\n' "$mode" >&2
             fi
             return 1
             ;;
@@ -779,16 +779,16 @@ mole_delete() {
     # The rejection itself is recorded in the forensic log so audit trails
     # can distinguish refused-by-policy from never-attempted.
     if ! validate_path_for_deletion "$path"; then
-        _mole_delete_log "$mode" "0" "rejected" "$path"
+        _nora_delete_log "$mode" "0" "rejected" "$path"
         return 1
     fi
 
-    if [[ "$needs_sudo" == "true" ]] && _mole_privileged_path_has_mutable_ancestor "$path"; then
+    if [[ "$needs_sudo" == "true" ]] && _nora_privileged_path_has_mutable_ancestor "$path"; then
         if [[ ${EUID:-0} -ne 0 ]]; then
             debug_log "Downgrading privileged delete below mutable parent: $path"
             needs_sudo=false
         else
-            _mole_delete_log "$mode" "unknown" "mutable-parent" "$path"
+            _nora_delete_log "$mode" "unknown" "mutable-parent" "$path"
             debug_log "Refusing privileged delete below mutable parent: $path"
             return 1
         fi
@@ -802,10 +802,10 @@ mole_delete() {
         local raw_size=""
         local du_rc=0
         if [[ "$needs_sudo" == "true" ]]; then
-            if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+            if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
                 du_rc=1
             else
-                raw_size=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1; exit}')
+                raw_size=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$path" 2> /dev/null | awk '{print $1; exit}')
                 du_rc=${PIPESTATUS[0]}
             fi
         else
@@ -816,20 +816,20 @@ mole_delete() {
         fi
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         if [[ "$size_kb" =~ ^[0-9]+$ ]]; then
             _record_file_ops_dry_run_target "$path" "$size_kb"
         else
             _record_file_ops_dry_run_target "$path"
         fi
         debug_log "[DRY RUN] Would delete ($mode): $path"
-        _mole_delete_log "$mode" "$size_kb" "dry-run" "$path"
+        _nora_delete_log "$mode" "$size_kb" "dry-run" "$path"
         return 0
     fi
 
     if [[ "$needs_sudo" == "true" ]]; then
-        if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-            _mole_delete_log "$mode" "$size_kb" "sudo-blocked-test-mode" "$path"
+        if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+            _nora_delete_log "$mode" "$size_kb" "sudo-blocked-test-mode" "$path"
             return 1
         fi
     fi
@@ -838,28 +838,28 @@ mole_delete() {
     # fail closed instead of silently switching to permanent removal.
     if [[ "$mode" == "trash" ]]; then
         local trash_rc=0
-        _mole_move_to_trash "$path" "$needs_sudo" || trash_rc=$?
+        _nora_move_to_trash "$path" "$needs_sudo" || trash_rc=$?
         if [[ $trash_rc -eq 0 ]]; then
-            _mole_delete_log "trash" "$size_kb" "ok" "$path"
-            log_operation "${MOLE_CURRENT_COMMAND:-uninstall}" "TRASHED" "$path" "${size_kb}KB"
+            _nora_delete_log "trash" "$size_kb" "ok" "$path"
+            log_operation "${NORA_CURRENT_COMMAND:-uninstall}" "TRASHED" "$path" "${size_kb}KB"
             return 0
         fi
-        if [[ $trash_rc -eq $MOLE_ERR_PRIVACY_DENIED ]]; then
-            _mole_delete_log "trash" "$size_kb" "privacy-denied" "$path"
-            log_operation "${MOLE_CURRENT_COMMAND:-uninstall}" "SKIPPED" "$path" "privacy permission denied"
-            if [[ -z "${_MOLE_PRIVACY_DENIED_WARNED:-}" ]]; then
-                _MOLE_PRIVACY_DENIED_WARNED=1
-                export _MOLE_PRIVACY_DENIED_WARNED
+        if [[ $trash_rc -eq $NORA_ERR_PRIVACY_DENIED ]]; then
+            _nora_delete_log "trash" "$size_kb" "privacy-denied" "$path"
+            log_operation "${NORA_CURRENT_COMMAND:-uninstall}" "SKIPPED" "$path" "privacy permission denied"
+            if [[ -z "${_NORA_PRIVACY_DENIED_WARNED:-}" ]]; then
+                _NORA_PRIVACY_DENIED_WARNED=1
+                export _NORA_PRIVACY_DENIED_WARNED
                 printf 'Error: macOS denied Trash access. Grant App Data or Full Disk Access to your terminal in System Settings, then retry.\n' >&2
             fi
             debug_log "macOS privacy permission denied while moving to Trash: $path"
-            return "$MOLE_ERR_PRIVACY_DENIED"
+            return "$NORA_ERR_PRIVACY_DENIED"
         fi
-        _mole_delete_log "trash" "$size_kb" "trash-failed" "$path"
-        log_operation "${MOLE_CURRENT_COMMAND:-uninstall}" "SKIPPED" "$path" "trash-failed"
-        if [[ -z "${_MOLE_TRASH_UNAVAILABLE_WARNED:-}" ]]; then
-            _MOLE_TRASH_UNAVAILABLE_WARNED=1
-            export _MOLE_TRASH_UNAVAILABLE_WARNED
+        _nora_delete_log "trash" "$size_kb" "trash-failed" "$path"
+        log_operation "${NORA_CURRENT_COMMAND:-uninstall}" "SKIPPED" "$path" "trash-failed"
+        if [[ -z "${_NORA_TRASH_UNAVAILABLE_WARNED:-}" ]]; then
+            _NORA_TRASH_UNAVAILABLE_WARNED=1
+            export _NORA_TRASH_UNAVAILABLE_WARNED
             printf 'Error: Trash unavailable; refusing permanent delete. Use --permanent to delete immediately.\n' >&2
         fi
         debug_log "Trash move failed, refusing permanent delete: $path"
@@ -880,16 +880,16 @@ mole_delete() {
 
     local status_label="ok"
     [[ $rc -ne 0 ]] && status_label="error"
-    _mole_delete_log "$mode" "$size_kb" "$status_label" "$path"
+    _nora_delete_log "$mode" "$size_kb" "$status_label" "$path"
     return "$rc"
 }
 
-_mole_valid_invoking_home() {
+_nora_valid_invoking_home() {
     local user_home=""
     if declare -f get_invoking_home > /dev/null 2>&1; then
         user_home=$(get_invoking_home)
     else
-        user_home="${MOLE_USER_HOME:-${HOME:-}}"
+        user_home="${NORA_USER_HOME:-${HOME:-}}"
     fi
 
     if [[ -z "$user_home" || "$user_home" != /* || "$user_home" == "/" || "$user_home" == "/var/root" ]]; then
@@ -900,7 +900,7 @@ _mole_valid_invoking_home() {
     printf '%s\n' "${user_home%/}"
 }
 
-_mole_path_is_immediate_child_of() {
+_nora_path_is_immediate_child_of() {
     local path="${1%/}"
     local parent="${2%/}"
     [[ "$path" == "$parent/"* ]] || return 1
@@ -912,41 +912,41 @@ _mole_path_is_immediate_child_of() {
 # Finder and third-party Trash helpers can fail on app bundles and TCC-managed
 # app data even after authentication. Route only these exact one-level targets
 # through the direct, recoverable Trash mover.
-_mole_path_requires_direct_trash() {
+_nora_path_requires_direct_trash() {
     local path="${1%/}"
-    if _mole_path_is_immediate_child_of "$path" "/Applications" &&
+    if _nora_path_is_immediate_child_of "$path" "/Applications" &&
         [[ "${path##*/}" == *.app ]]; then
         return 0
     fi
 
     local user_home
-    user_home=$(_mole_valid_invoking_home) || return 1
-    _mole_path_is_immediate_child_of "$path" "$user_home/Library/Containers" && return 0
-    _mole_path_is_immediate_child_of "$path" "$user_home/Library/Group Containers" && return 0
-    _mole_path_is_immediate_child_of "$path" "$user_home/Library/Application Scripts" && return 0
+    user_home=$(_nora_valid_invoking_home) || return 1
+    _nora_path_is_immediate_child_of "$path" "$user_home/Library/Containers" && return 0
+    _nora_path_is_immediate_child_of "$path" "$user_home/Library/Group Containers" && return 0
+    _nora_path_is_immediate_child_of "$path" "$user_home/Library/Application Scripts" && return 0
     return 1
 }
 
-# Move a path to the macOS Trash. Test harnesses set MOLE_TEST_TRASH_DIR to
+# Move a path to the macOS Trash. Test harnesses set NORA_TEST_TRASH_DIR to
 # redirect the move to a tmpdir, avoiding any Finder/osascript interaction.
-_mole_move_to_trash() {
+_nora_move_to_trash() {
     local path="$1"
     local needs_sudo="${2:-false}"
 
-    if [[ -n "${MOLE_TEST_TRASH_DIR:-}" ]]; then
-        mkdir -p "$MOLE_TEST_TRASH_DIR" 2> /dev/null || return 1
-        local dest="$MOLE_TEST_TRASH_DIR/$(basename "$path").$$.$(date +%s 2> /dev/null || echo 0)"
+    if [[ -n "${NORA_TEST_TRASH_DIR:-}" ]]; then
+        mkdir -p "$NORA_TEST_TRASH_DIR" 2> /dev/null || return 1
+        local dest="$NORA_TEST_TRASH_DIR/$(basename "$path").$$.$(date +%s 2> /dev/null || echo 0)"
         mv "$path" "$dest" 2> /dev/null
         return $?
     fi
 
     # Blocked in test mode so uninstall tests never hit Finder/AppleScript.
-    if [[ "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
-    if [[ "$needs_sudo" == "true" ]] || _mole_path_requires_direct_trash "$path"; then
-        _mole_move_path_to_user_trash "$path" "$needs_sudo"
+    if [[ "$needs_sudo" == "true" ]] || _nora_path_requires_direct_trash "$path"; then
+        _nora_move_path_to_user_trash "$path" "$needs_sudo"
         return $?
     fi
 
@@ -974,13 +974,13 @@ APPLESCRIPT
 #
 # Takes the root as an argument so the concurrency behaviour is reachable from a
 # test without a real /Library write.
-_mole_prepare_privileged_trash_stage_root() {
+_nora_prepare_privileged_trash_stage_root() {
     local stage_root="$1"
 
     # Refuse an existing symlink before any ownership or mode operation. Only
     # root can mutate /Library, but a stale privileged symlink must not make
     # chown/chmod follow into an unrelated tree. Then mkdir -p rather than
-    # test-then-mkdir: two concurrent Mole processes can both see a missing root,
+    # test-then-mkdir: two concurrent Nora processes can both see a missing root,
     # and the loser of a plain mkdir would abort a Trash move that was safe.
     # Tolerating EEXIST costs nothing, because the verification below is what
     # actually decides whether this root can anchor the operation.
@@ -1001,17 +1001,17 @@ _mole_prepare_privileged_trash_stage_root() {
     fi
 }
 
-_mole_create_privileged_trash_stage() {
-    local stage_root="/Library/MoleTrashStaging"
+_nora_create_privileged_trash_stage() {
+    local stage_root="/Library/NoraTrashStaging"
     local stage_dir=""
 
-    _mole_prepare_privileged_trash_stage_root "$stage_root" || return 1
+    _nora_prepare_privileged_trash_stage_root "$stage_root" || return 1
 
     stage_dir=$(sudo -n /usr/bin/mktemp -d "$stage_root/item.XXXXXX" 2> /dev/null) || return 1
     if [[ "$stage_dir" != "$stage_root"/item.* || ! -d "$stage_dir" || -L "$stage_dir" ]]; then
         return 1
     fi
-    if _mole_privileged_path_has_mutable_ancestor "$stage_dir/item"; then
+    if _nora_privileged_path_has_mutable_ancestor "$stage_dir/item"; then
         sudo -n /bin/rm -rf "$stage_dir" 2> /dev/null || true # SAFE: exact empty staging directory created by mktemp above
         return 1
     fi
@@ -1019,32 +1019,32 @@ _mole_create_privileged_trash_stage() {
 }
 
 # The staging root is deliberately persistent. Removing it when it looked empty
-# raced with a concurrent Mole process that had just validated it and was about
+# raced with a concurrent Nora process that had just validated it and was about
 # to mktemp inside, turning a safe Trash move into a spurious failure.
 #
-# `mo remove` deliberately leaves it behind too. It is an empty root-owned
+# `nr remove` deliberately leaves it behind too. It is an empty root-owned
 # directory, and removing it would add a privileged step to an uninstall that
 # may need no privileges at all: a ~/.local-only install would meet a sudo
 # prompt for nothing. Any non-empty state is a payload a failed Trash move
 # preserved for the user, which uninstall must not touch either.
 
-_mole_move_path_to_user_trash() {
+_nora_move_path_to_user_trash() {
     local path="$1"
     local needs_sudo="${2:-false}"
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
     local user_home
-    user_home=$(_mole_valid_invoking_home) || return 1
+    user_home=$(_nora_valid_invoking_home) || return 1
 
     if [[ -z "$path" ]] || [[ ! -e "$path" && ! -L "$path" ]]; then
         debug_log "Refusing direct Trash move: path does not exist: ${path:-<empty>}"
         return 1
     fi
 
-    if [[ "$needs_sudo" == "true" ]] && _mole_privileged_path_has_mutable_ancestor "$path"; then
+    if [[ "$needs_sudo" == "true" ]] && _nora_privileged_path_has_mutable_ancestor "$path"; then
         if [[ ${EUID:-0} -ne 0 ]]; then
             debug_log "Downgrading Trash move below mutable parent: $path"
             needs_sudo=false
@@ -1108,7 +1108,7 @@ _mole_move_path_to_user_trash() {
     base=$(basename "$path")
     base="${base//:/__}"
     base="${base//\//__}"
-    [[ -n "$base" && "$base" != "." && "$base" != ".." ]] || base="mole-trash-item"
+    [[ -n "$base" && "$base" != "." && "$base" != ".." ]] || base="nora-trash-item"
 
     local dest="$trash_dir/$base"
     local ts suffix
@@ -1134,7 +1134,7 @@ _mole_move_path_to_user_trash() {
         # only the invoking user's authority.
         local stage_dir=""
         local stage_path=""
-        stage_dir=$(_mole_create_privileged_trash_stage) || {
+        stage_dir=$(_nora_create_privileged_trash_stage) || {
             debug_log "Failed to create immutable Trash staging directory"
             return 1
         }
@@ -1200,7 +1200,7 @@ _mole_move_path_to_user_trash() {
         case "$move_output" in
             *"Operation not permitted"* | *"operation not permitted"* | \
                 *"Permission denied"* | *"permission denied"*)
-                return "$MOLE_ERR_PRIVACY_DENIED"
+                return "$NORA_ERR_PRIVACY_DENIED"
                 ;;
         esac
         return 1
@@ -1219,23 +1219,23 @@ _mole_move_path_to_user_trash() {
 # (100 files * ~1s each). Returns 0 only when the entire batch landed in the
 # Trash; callers must fall back to the per-file path on non-zero so nothing
 # is silently skipped.
-_mole_move_to_trash_batch() {
+_nora_move_to_trash_batch() {
     local -a paths=("$@")
     [[ ${#paths[@]} -eq 0 ]] && return 0
 
-    if [[ -n "${MOLE_TEST_TRASH_DIR:-}" ]]; then
-        mkdir -p "$MOLE_TEST_TRASH_DIR" 2> /dev/null || return 1
+    if [[ -n "${NORA_TEST_TRASH_DIR:-}" ]]; then
+        mkdir -p "$NORA_TEST_TRASH_DIR" 2> /dev/null || return 1
         local ts
         ts=$(date +%s 2> /dev/null || echo 0)
         local p dest
         for p in "${paths[@]}"; do
-            dest="$MOLE_TEST_TRASH_DIR/$(basename "$p").$$.${ts}.$RANDOM"
+            dest="$NORA_TEST_TRASH_DIR/$(basename "$p").$$.${ts}.$RANDOM"
             mv "$p" "$dest" 2> /dev/null || return 1
         done
         return 0
     fi
 
-    if [[ "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
@@ -1255,13 +1255,13 @@ end run
 APPLESCRIPT
 }
 
-_mole_delete_log() {
+_nora_delete_log() {
     local mode="$1"
     local size_kb="$2"
     local status="$3"
     local target="$4"
 
-    local log_file="${MOLE_DELETE_LOG:-$HOME/Library/Logs/mole/deletions.log}"
+    local log_file="${NORA_DELETE_LOG:-$HOME/Library/Logs/nora/deletions.log}"
     local log_dir
     log_dir=$(dirname "$log_file")
 
@@ -1270,7 +1270,7 @@ _mole_delete_log() {
     # log dir is unwritable (root-owned from prior sudo, ENOSPC, read-only
     # volume) defeats the design.
     if ! mkdir -p "$log_dir" 2> /dev/null; then
-        _mole_warn_log_broken "create directory: $log_dir"
+        _nora_warn_log_broken "create directory: $log_dir"
         return 0
     fi
 
@@ -1280,14 +1280,14 @@ _mole_delete_log() {
     if ! printf '%s\t%s\t%s\t%s\t%s\n' \
         "$ts" "$mode" "$size_kb" "$status" "$target" \
         >> "$log_file" 2> /dev/null; then
-        _mole_warn_log_broken "write to: $log_file"
+        _nora_warn_log_broken "write to: $log_file"
     fi
 }
 
-_mole_warn_log_broken() {
-    [[ -n "${_MOLE_DELETE_LOG_WARNED:-}" ]] && return 0
-    _MOLE_DELETE_LOG_WARNED=1
-    export _MOLE_DELETE_LOG_WARNED
+_nora_warn_log_broken() {
+    [[ -n "${_NORA_DELETE_LOG_WARNED:-}" ]] && return 0
+    _NORA_DELETE_LOG_WARNED=1
+    export _NORA_DELETE_LOG_WARNED
     printf 'Warning: deletions audit log unavailable (%s). Forensic trail incomplete this session.\n' "$1" >&2
 }
 
@@ -1337,7 +1337,7 @@ safe_find_delete() {
         if declare -f is_path_whitelisted > /dev/null && is_path_whitelisted "$match"; then
             continue
         fi
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]] && declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]] && declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
             local match_size_kb
             match_size_kb=$(get_path_size_kb "$match" 2> /dev/null || echo "0")
             [[ "$match_size_kb" =~ ^[0-9]+$ ]] || match_size_kb=0
@@ -1356,7 +1356,7 @@ safe_sudo_find_delete() {
     local age_days="${3:-7}"
     local type_filter="${4:-f}"
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         debug_log "Skipping sudo find/delete in test mode: $base_dir"
         return 0
     fi
@@ -1433,7 +1433,7 @@ safe_sudo_find_delete() {
         if declare -f is_path_whitelisted > /dev/null && is_path_whitelisted "$match"; then
             continue
         fi
-        if _mole_privileged_path_has_mutable_ancestor "$match"; then
+        if _nora_privileged_path_has_mutable_ancestor "$match"; then
             # A privileged path-based delete cannot safely cross a directory
             # the invoking user can rename or replace. Delete only with the
             # caller's own permissions; root invocations skip the path because
@@ -1445,11 +1445,11 @@ safe_sudo_find_delete() {
             fi
             continue
         fi
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]] && declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]] && declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
             local match_size_kb=0
             local match_size_known=false
             local raw_match_size=""
-            if raw_match_size=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$match" 2> /dev/null | awk '{print $1; exit}'); then
+            if raw_match_size=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" sudo -n du -skP "$match" 2> /dev/null | awk '{print $1; exit}'); then
                 if [[ "$raw_match_size" =~ ^[0-9]+$ ]]; then
                     match_size_kb="$raw_match_size"
                     match_size_known=true
@@ -1459,7 +1459,7 @@ safe_sudo_find_delete() {
         fi
         # -type f never emits symlinks; a path that is one now was swapped
         # after find saw it, and the single-file path refuses those.
-        if [[ "$type_filter" == "f" && "${MOLE_DRY_RUN:-0}" != "1" && ! -L "$match" ]]; then
+        if [[ "$type_filter" == "f" && "${NORA_DRY_RUN:-0}" != "1" && ! -L "$match" ]]; then
             if validate_path_for_deletion "$match"; then
                 batch_files+=("$match")
             fi
@@ -1497,7 +1497,7 @@ safe_sudo_find_delete() {
                 # classified and logged exactly as before.
                 safe_sudo_remove "$batch_file" || true
             elif [[ -n "$batch_ts" ]]; then
-                removed_lines+=("[$batch_ts] [${MOLE_CURRENT_COMMAND:-clean}] REMOVED $batch_file (batch)")
+                removed_lines+=("[$batch_ts] [${NORA_CURRENT_COMMAND:-clean}] REMOVED $batch_file (batch)")
             fi
         done
         if [[ ${#removed_lines[@]} -gt 0 ]]; then
@@ -1562,7 +1562,7 @@ get_path_size_kb() {
     # stalled SMB/FUSE mount. On timeout the size reads 0, which only
     # affects display/accounting, never deletion decisions.
     local size
-    size=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" du -skP "$path" 2> /dev/null | awk 'NR==1 {print $1; exit}' || true)
+    size=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" du -skP "$path" 2> /dev/null | awk 'NR==1 {print $1; exit}' || true)
 
     if [[ "$size" =~ ^[0-9]+$ ]]; then
         echo "$size"
@@ -1622,25 +1622,25 @@ diagnose_removal_failure() {
     local touchid_file="/etc/pam.d/sudo"
 
     case "$exit_code" in
-        "$MOLE_ERR_SIP_PROTECTED")
+        "$NORA_ERR_SIP_PROTECTED")
             reason="protected by macOS (SIP/MDM)"
             ;;
-        "$MOLE_ERR_AUTH_FAILED")
+        "$NORA_ERR_AUTH_FAILED")
             reason="authentication failed"
             if [[ -f "$touchid_file" ]] && grep -q "pam_tid.so" "$touchid_file" 2> /dev/null; then
                 suggestion="Check your credentials or restart Terminal"
             else
-                suggestion="Try 'mole touchid' to enable fingerprint auth"
+                suggestion="Try 'nora touchid' to enable fingerprint auth"
             fi
             ;;
-        "$MOLE_ERR_READONLY_FS")
+        "$NORA_ERR_READONLY_FS")
             reason="filesystem is read-only"
             suggestion="Check if disk needs repair"
             ;;
-        "$MOLE_ERR_PROTECTED_PATH")
-            reason="protected by Mole safety rules"
+        "$NORA_ERR_PROTECTED_PATH")
+            reason="protected by Nora safety rules"
             ;;
-        "$MOLE_ERR_PRIVACY_DENIED")
+        "$NORA_ERR_PRIVACY_DENIED")
             reason="macOS privacy permission denied"
             suggestion="Grant App Data or Full Disk Access to your terminal in System Settings"
             ;;
@@ -1649,7 +1649,7 @@ diagnose_removal_failure() {
             if [[ -f "$touchid_file" ]] && grep -q "pam_tid.so" "$touchid_file" 2> /dev/null; then
                 suggestion="Try running again or check file ownership"
             else
-                suggestion="Try 'mole touchid' or check with 'ls -l'"
+                suggestion="Try 'nora touchid' or check with 'ls -l'"
             fi
             ;;
     esac

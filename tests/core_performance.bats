@@ -18,7 +18,7 @@ setup() {
 
 @test "bytes_to_human handles large values efficiently" {
     local start end elapsed
-    local limit_ms="${MOLE_PERF_BYTES_TO_HUMAN_LIMIT_MS:-4000}"
+    local limit_ms="${NORA_PERF_BYTES_TO_HUMAN_LIMIT_MS:-4000}"
 
     bytes_to_human 1073741824 > /dev/null
 
@@ -75,7 +75,7 @@ setup() {
     dd if=/dev/zero of="$test_file" bs=1024 count=100 2> /dev/null
 
     local start end elapsed
-    local limit_ms="${MOLE_PERF_GET_FILE_SIZE_LIMIT_MS:-2000}"
+    local limit_ms="${NORA_PERF_GET_FILE_SIZE_LIMIT_MS:-2000}"
     start=$(date +%s%N)
     for i in {1..50}; do
         get_file_size "$test_file" > /dev/null
@@ -108,9 +108,9 @@ setup() {
 
 @test "create_temp_file and cleanup_temp_files work efficiently" {
     local start end elapsed
-    local limit_ms="${MOLE_PERF_CREATE_TEMP_FILE_LIMIT_MS:-3000}"
+    local limit_ms="${NORA_PERF_CREATE_TEMP_FILE_LIMIT_MS:-3000}"
 
-    declare -a MOLE_TEMP_DIRS=()
+    declare -a NORA_TEMP_DIRS=()
 
     start=$(date +%s%N)
     for i in {1..50}; do
@@ -122,7 +122,7 @@ setup() {
 
     [ "$elapsed" -lt "$limit_ms" ]
 
-    [ "${#MOLE_TEMP_FILES[@]}" -eq 50 ]
+    [ "${#NORA_TEMP_FILES[@]}" -eq 50 ]
 
     start=$(date +%s%N)
     cleanup_temp_files
@@ -131,7 +131,7 @@ setup() {
     elapsed=$(( (end - start) / 1000000 ))
     [ "$elapsed" -lt "$limit_ms" ]
 
-    [ "${#MOLE_TEMP_FILES[@]}" -eq 0 ]
+    [ "${#NORA_TEMP_FILES[@]}" -eq 0 ]
 }
 
 @test "mktemp_file creates files with correct prefix" {
@@ -185,7 +185,7 @@ setup() {
 
     elapsed=$(( (end - start) / 1000000 ))
 
-    local limit_ms="${MOLE_PERF_SECTION_LIMIT_MS:-2000}"
+    local limit_ms="${NORA_PERF_SECTION_LIMIT_MS:-2000}"
     [ "$elapsed" -lt "$limit_ms" ]
 }
 
@@ -207,7 +207,7 @@ setup() {
     # The floor is perl interpreter startup (~5ms); the old fixed 0.1s poll put
     # this at 100ms+. Anything at or above the old tick means the backoff was
     # lost.
-    local limit_ms="${MOLE_PERF_TIMEOUT_LIMIT_MS:-60}"
+    local limit_ms="${NORA_PERF_TIMEOUT_LIMIT_MS:-60}"
     [ "$elapsed" -lt "$limit_ms" ] || {
         echo "run_with_timeout averaged ${elapsed}ms per call (limit ${limit_ms}ms)" >&2
         return 1
@@ -239,18 +239,18 @@ setup() {
 }
 
 @test "entrypoint dispatches exec-only subcommands before sourcing libraries" {
-    # `mole` exec's into bin/<cmd>.sh, and that target re-sources the same
+    # `nora` exec's into bin/<cmd>.sh, and that target re-sources the same
     # library set in its own process. Sourcing first cost ~35ms on every
-    # `mo clean`, `mo status`, and friends for libraries the router then threw
+    # `nr clean`, `nr status`, and friends for libraries the router then threw
     # away by exec'ing.
     #
     # Source invariant rather than a timing check: it pins the ordering, which
     # is the thing that regresses when someone moves the dispatch back into
     # `main`.
-    local entry="$PROJECT_ROOT/mole"
+    local entry="$PROJECT_ROOT/nora"
 
     local dispatch_line source_line
-    dispatch_line=$(grep -n '^mole_dispatch_exec_early "\$@"' "$entry" | head -1 | cut -d: -f1)
+    dispatch_line=$(grep -n '^nora_dispatch_exec_early "\$@"' "$entry" | head -1 | cut -d: -f1)
     source_line=$(grep -n '^source .*lib/core/common.sh' "$entry" | head -1 | cut -d: -f1)
 
     [ -n "$dispatch_line" ] || {
@@ -270,12 +270,12 @@ setup() {
 @test "early exec dispatch covers every subcommand main only exec's" {
     # If a subcommand is added to main's case as a bare exec but not to the
     # early dispatch, it silently keeps paying the sourcing cost.
-    local entry="$PROJECT_ROOT/mole"
+    local entry="$PROJECT_ROOT/nora"
     local cmd missing=""
 
     for cmd in optimize clean uninstall analyze status purge installer touchid completion; do
         grep -q "^        $cmd[)| ]" "$entry" || continue
-        awk '/^mole_dispatch_exec_early\(\)/,/^}/' "$entry" | grep -q "$cmd" || missing="$missing $cmd"
+        awk '/^nora_dispatch_exec_early\(\)/,/^}/' "$entry" | grep -q "$cmd" || missing="$missing $cmd"
     done
 
     [ -z "$missing" ] || {

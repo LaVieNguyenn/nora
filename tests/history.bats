@@ -26,11 +26,11 @@ setup() {
         return 1
     fi
     rm -rf "$HOME/Library"
-    mkdir -p "$HOME/Library/Logs/mole"
+    mkdir -p "$HOME/Library/Logs/nora"
 }
 
 write_history_logs() {
-    cat > "$HOME/Library/Logs/mole/operations.log" <<'EOF'
+    cat > "$HOME/Library/Logs/nora/operations.log" <<'EOF'
 # ========== clean session started at 2026-05-24 10:00:00 ==========
 [2026-05-24 10:00:01] [clean] REMOVED /tmp/cache one (2KB)
 [2026-05-24 10:00:02] [clean] TRASHED /tmp/Old App.app (4KB)
@@ -42,16 +42,16 @@ write_history_logs() {
 # ========== purge session ended at 2026-05-24 11:00:02, 1 items, 10KB ==========
 EOF
 
-    printf '2026-05-24T10:00:02+0000\ttrash\t4\tok\t/tmp/Old App.app\n' > "$HOME/Library/Logs/mole/deletions.log"
-    printf '2026-05-24T11:00:01+0000\tpermanent\t10\tdry-run\t/tmp/build\n' >> "$HOME/Library/Logs/mole/deletions.log"
+    printf '2026-05-24T10:00:02+0000\ttrash\t4\tok\t/tmp/Old App.app\n' > "$HOME/Library/Logs/nora/deletions.log"
+    printf '2026-05-24T11:00:01+0000\tpermanent\t10\tdry-run\t/tmp/build\n' >> "$HOME/Library/Logs/nora/deletions.log"
 }
 
-@test "mo history summarizes operation sessions and deletion audit" {
+@test "nr history summarizes operation sessions and deletion audit" {
     write_history_logs
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Mole History"* ]] || return 1
+    [[ "$output" == *"Nora History"* ]] || return 1
     [[ "$output" == *"purge"* ]] || return 1
     [[ "$output" == *"1 items, 10KB"* ]] || return 1
     [[ "$output" == *"clean"* ]] || return 1
@@ -59,10 +59,10 @@ EOF
     [[ "$output" == *"/tmp/Old App.app"* ]]
 }
 
-@test "mo history --json returns stable parseable fields" {
+@test "nr history --json returns stable parseable fields" {
     write_history_logs
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --json
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --json
     [ "$status" -eq 0 ]
 
     printf '%s\n' "$output" | python3 -c '
@@ -81,12 +81,12 @@ assert data["deletions"][1]["path"] == "/tmp/Old App.app"
 '
 }
 
-@test "mo history --json escapes unusual path characters" {
-    : > "$HOME/Library/Logs/mole/operations.log"
+@test "nr history --json escapes unusual path characters" {
+    : > "$HOME/Library/Logs/nora/operations.log"
     weird_path=$'/tmp/unicode-\xe9\x9b\xaa-quote"slash\\tab\tbackspace\bformfeed\fend'
-    printf '2026-05-24T10:00:02+0000\ttrash\t4\tok\t%s\n' "$weird_path" > "$HOME/Library/Logs/mole/deletions.log"
+    printf '2026-05-24T10:00:02+0000\ttrash\t4\tok\t%s\n' "$weird_path" > "$HOME/Library/Logs/nora/deletions.log"
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --json
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --json
     [ "$status" -eq 0 ]
 
     printf '%s\n' "$output" | python3 -c '
@@ -98,10 +98,10 @@ assert data["deletions"][0]["path"] == "/tmp/unicode-\u96ea-quote\"slash\\tab\tb
 '
 }
 
-@test "mo history --limit caps sessions and deletion entries" {
+@test "nr history --limit caps sessions and deletion entries" {
     write_history_logs
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --limit 1
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --limit 1
     [ "$status" -eq 0 ]
     [[ "$output" == *"purge"* ]] || return 1
     [[ "$output" != *"clean      2026-05-24 10:00:00"* ]] || return 1
@@ -109,92 +109,92 @@ assert data["deletions"][0]["path"] == "/tmp/unicode-\u96ea-quote\"slash\\tab\tb
     [[ "$output" != *"/tmp/Old App.app"* ]]
 }
 
-@test "mo history --limit accepts decimal values with leading zeros" {
+@test "nr history --limit accepts decimal values with leading zeros" {
     write_history_logs
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --limit 0001
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --limit 0001
     [ "$status" -eq 0 ]
     [[ "$output" == *"purge"* ]] || return 1
     [[ "$output" != *"clean      2026-05-24 10:00:00"* ]] || return 1
     [[ "$output" != *"value too great for base"* ]]
 }
 
-@test "mo history handles empty logs" {
-    : > "$HOME/Library/Logs/mole/operations.log"
+@test "nr history handles empty logs" {
+    : > "$HOME/Library/Logs/nora/operations.log"
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history
     [ "$status" -eq 0 ]
     [[ "$output" == *"No operation history yet"* ]] || return 1
     [[ "$output" == *"No deletion audit entries yet"* ]]
 }
 
-@test "mo history tolerates malformed session summaries" {
-    cat > "$HOME/Library/Logs/mole/operations.log" <<'EOF'
+@test "nr history tolerates malformed session summaries" {
+    cat > "$HOME/Library/Logs/nora/operations.log" <<'EOF'
 # ========== clean session started at 2026-05-24 10:00:00 ==========
 [2026-05-24 10:00:01] [clean] REMOVED /tmp/cache (2KB)
 # ========== clean session ended at malformed summary ==========
 EOF
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history
     [ "$status" -eq 0 ]
     [[ "$output" == *"clean      2026-05-24 10:00:00, 0 items, 0B"* ]] || return 1
     [[ "$output" == *"removed 1, ended malformed summary"* ]] || return 1
     [[ "$output" != *"malformed summary items"* ]]
 }
 
-@test "mo history does not create logs when none exist" {
+@test "nr history does not create logs when none exist" {
     rm -rf "$HOME/Library"
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history
     [ "$status" -eq 0 ]
     [[ "$output" == *"No operation history yet"* ]] || return 1
-    [ ! -e "$HOME/Library/Logs/mole/operations.log" ]
-    [ ! -e "$HOME/Library/Logs/mole/mole.log" ]
+    [ ! -e "$HOME/Library/Logs/nora/operations.log" ]
+    [ ! -e "$HOME/Library/Logs/nora/nora.log" ]
 }
 
-@test "mo history early dispatch respects source guard" {
+@test "nr history early dispatch respects source guard" {
     # shellcheck disable=SC2016
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc -c '
 set -euo pipefail
 set -- history
-MOLE_TEST_MODE=1
-MOLE_SKIP_MAIN=1
-source "$PROJECT_ROOT/mole"
+NORA_TEST_MODE=1
+NORA_SKIP_MAIN=1
+source "$PROJECT_ROOT/nora"
 echo sourced
 '
     [ "$status" -eq 0 ]
     [[ "$output" == *"sourced"* ]] || return 1
-    [[ "$output" != *"Mole History"* ]]
+    [[ "$output" != *"Nora History"* ]]
 }
 
-@test "mo history early dispatch keeps global debug flag behavior" {
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" --debug history --limit 0001
+@test "nr history early dispatch keeps global debug flag behavior" {
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" --debug history --limit 0001
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Mole History"* ]] || return 1
+    [[ "$output" == *"Nora History"* ]] || return 1
     [[ "$output" != *"Unknown option"* ]] || return 1
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --debug --limit 0001
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --debug --limit 0001
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Mole History"* ]] || return 1
+    [[ "$output" == *"Nora History"* ]] || return 1
     [[ "$output" != *"Unknown option"* ]]
 }
 
-@test "mo history rejects unknown options" {
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --bad-option
+@test "nr history rejects unknown options" {
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --bad-option
     [ "$status" -eq 1 ]
-    [[ "$output" == *"Unknown option for mo history"* ]]
+    [[ "$output" == *"Unknown option for nr history"* ]]
 }
 
-@test "mo history rejects invalid limit values" {
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --limit nope
+@test "nr history rejects invalid limit values" {
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --limit nope
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid value for --limit"* ]] || return 1
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --limit 500
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --limit 500
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid value for --limit"* ]] || return 1
 
-    run env HOME="$HOME" "$PROJECT_ROOT/mole" history --limit 999999999999999999999999
+    run env HOME="$HOME" "$PROJECT_ROOT/nora" history --limit 999999999999999999999999
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid value for --limit"* ]] || return 1
     [[ "$output" != *"value too great for base"* ]]

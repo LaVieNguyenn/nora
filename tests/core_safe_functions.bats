@@ -157,10 +157,10 @@ teardown() {
     run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/dev'"
     [ "$status" -eq 1 ]
 
-    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/private/tmp/mole-old-artifact'"
+    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/private/tmp/nora-old-artifact'"
     [ "$status" -eq 0 ]
 
-    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/private/var/tmp/mole-old-artifact'"
+    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/private/var/tmp/nora-old-artifact'"
     [ "$status" -eq 0 ]
 
     run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; validate_path_for_deletion '/private/var/folders/test/a/C/com.example.App/cache'"
@@ -390,13 +390,13 @@ EOF
     mkdir -p "$target_dir"
     touch "$target_dir/file"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 
 # This test models a root-owned, immutable system path so it reaches the
 # noninteractive sudo authentication branch.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 sudo() {
     if [[ "${1:-}" != "-n" ]]; then
@@ -436,13 +436,13 @@ SCRIPT
     local target_dir="$TEST_DIR/sudo-expired"
     mkdir -p "$target_dir"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 
 # This test models a root-owned, immutable system path so it reaches the
 # noninteractive sudo authentication branch.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 sudo() {
     if [[ "${1:-}" != "-n" ]]; then
@@ -530,7 +530,7 @@ exit 0
 SCRIPT
     chmod +x "$script"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"RC=0"* ]] || return 1
@@ -553,7 +553,7 @@ TRACE="$TARGET_DIR/sudo.trace"
 > "$TRACE"
 
 # This test models a root-owned, non-user-writable log tree.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 WHITELIST_PATTERNS=("$TARGET_DIR/keep.log")
 
@@ -598,12 +598,12 @@ printf 'RC=%s\n' "$rc"
 printf 'XARGS_CALLS=%s\n' "$(grep -c 'SUDO:-n xargs' "$TRACE" || true)"
 cat "$TRACE"
 echo "--OPLOG--"
-cat "$HOME/Library/Logs/mole/operations.log" 2> /dev/null || true
+cat "$HOME/Library/Logs/nora/operations.log" 2> /dev/null || true
 exit 0
 SCRIPT
     chmod +x "$script"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"RC=0"* ]] || return 1
@@ -628,7 +628,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 
 # This test models a root-owned, non-user-writable log tree.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 # Simulate a credential that dies right after the find: the batch xargs rm
 # fails, and every later sudo probe (true / test / rm) fails for the same
@@ -657,12 +657,12 @@ set -e
 printf 'RC=%s\n' "$rc"
 [[ -e "$TARGET_DIR/a.log" ]] && echo "A_SURVIVED" || echo "A_REMOVED"
 echo "--OPLOG--"
-cat "$HOME/Library/Logs/mole/operations.log" 2> /dev/null || true
+cat "$HOME/Library/Logs/nora/operations.log" 2> /dev/null || true
 exit 0
 SCRIPT
     chmod +x "$script"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"RC=0"* ]] || return 1
@@ -689,7 +689,7 @@ source "$PROJECT_ROOT/lib/core/common.sh"
 echo "DIAG_SOURCED"
 
 # This test models a root-owned, non-user-writable log tree.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 sudo() {
     printf 'MOCK_CALL:%s\n' "$*" >> "$TARGET_DIR/mock.trace" || true
@@ -727,7 +727,7 @@ SCRIPT
     chmod +x "$script"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" \
-        MO_NO_OPLOG=1 MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+        MO_NO_OPLOG=1 NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     # This test is environment-sensitive (errexit active during the call); on
     # failure surface the exit status, captured output, and an xtrace replay
@@ -740,7 +740,7 @@ SCRIPT
         cat "$target_dir/mock.trace" 2> /dev/null || echo "(no mock trace)"
         echo "--- xtrace replay (tail) ---"
         env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" \
-            MO_NO_OPLOG=1 MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 \
+            MO_NO_OPLOG=1 NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 \
             /bin/bash --noprofile --norc -x "$script" 2>&1 | tail -60 || true
         return 1
     fi
@@ -761,7 +761,7 @@ TRACE="$TARGET_DIR/sudo.trace"
 > "$TRACE"
 
 # This test models a root-owned, non-user-writable log tree.
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
 
 sudo() {
     printf 'SUDO:%s\n' "$*" >> "$TRACE"
@@ -806,7 +806,7 @@ exit 0
 SCRIPT
     chmod +x "$script"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"RC=0"* ]] || return 1
@@ -857,7 +857,7 @@ SCRIPT
     chmod +x "$script"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" \
-        MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+        NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"TARGET_REMOVED"* ]] || return 1
@@ -909,7 +909,7 @@ SCRIPT
     chmod +x "$script"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET_DIR="$target_dir" \
-        MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
+        NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc "$script"
     chmod 0755 "$target_dir"
 
     [ "$status" -eq 0 ]
@@ -926,7 +926,7 @@ SCRIPT
 
     # shellcheck disable=SC2016  # The inner bash expands TARGET and PROJECT_ROOT.
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" TARGET="$target" \
-        MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc -c '
+        NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc -c '
             set -euo pipefail
             source "$PROJECT_ROOT/lib/core/common.sh"
             is_path_whitelisted() { [[ "$1" == "$TARGET" ]]; }
@@ -995,16 +995,16 @@ EOF
     [ ! -e "$old_file" ]
 }
 
-@test "MOLE_* constants are defined" {
-    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$MOLE_TEMP_FILE_AGE_DAYS"
+@test "NORA_* constants are defined" {
+    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$NORA_TEMP_FILE_AGE_DAYS"
     [ "$status" -eq 0 ]
     [ "$output" = "7" ]
 
-    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$MOLE_MAX_PARALLEL_JOBS"
+    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$NORA_MAX_PARALLEL_JOBS"
     [ "$status" -eq 0 ]
     [ "$output" = "15" ]
 
-    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$MOLE_TM_BACKUP_SAFE_HOURS"
+    run /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$NORA_TM_BACKUP_SAFE_HOURS"
     [ "$status" -eq 0 ]
     [ "$output" = "48" ]
 }

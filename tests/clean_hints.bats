@@ -28,7 +28,7 @@ setup() {
     fi
     rm -rf "${HOME:?}"/*
     rm -rf "${HOME:?}"/.[!.]* "${HOME:?}"/..?* 2> /dev/null || true
-    mkdir -p "$HOME/.config/mole"
+    mkdir -p "$HOME/.config/nora"
 }
 
 teardown() {
@@ -39,7 +39,7 @@ teardown() {
     local root="$HOME/hints-root"
     mkdir -p "$root/proj/node_modules" "$root/proj/vendor" "$root/proj/bin"
     touch "$root/proj/package.json"
-    printf '%s\n' "$root" > "$HOME/.config/mole/purge_paths"
+    printf '%s\n' "$root" > "$HOME/.config/nora/purge_paths"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'EOT1'
 set -euo pipefail
@@ -80,7 +80,7 @@ EOT2
     [ "$status" -eq 0 ]
     [[ "$output" == *"Build artifacts"* ]] || return 1
     [[ "$output" == *"5+ dirs, 2.00MB+"* ]] || return 1
-    [[ "$output" == *"mo purge"* ]] || return 1
+    [[ "$output" == *"nr purge"* ]] || return 1
 }
 
 @test "show_project_artifact_hint_notice points zero-size samples to include-empty (#869)" {
@@ -104,13 +104,13 @@ EOT2B
 
     [ "$status" -eq 0 ]
     [[ "$output" == *", 0B"* ]] || return 1
-    [[ "$output" == *"mo purge --include-empty"* ]] || return 1
+    [[ "$output" == *"nr purge --include-empty"* ]] || return 1
 }
 
 @test "show_project_artifact_hint_notice reports skipped slow project artifact scans (#1053)" {
     local root="$HOME/Library/CloudStorage"
     mkdir -p "$root"
-    printf '%s\n' "$root" > "$HOME/.config/mole/purge_paths"
+    printf '%s\n' "$root" > "$HOME/.config/nora/purge_paths"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc << 'EOT2C'
 set -euo pipefail
@@ -126,16 +126,16 @@ EOT2C
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Build artifacts · scan skipped"* ]] || return 1
-    [[ "$output" == *"mo purge"* ]] || return 1
+    [[ "$output" == *"nr purge"* ]] || return 1
 }
 
 @test "probe_project_artifact_hints stops at the wall-clock budget (#1053)" {
     local root="$HOME/hints-root"
     mkdir -p "$root/proj/node_modules"
     touch "$root/proj/package.json"
-    printf '%s\n' "$root" > "$HOME/.config/mole/purge_paths"
+    printf '%s\n' "$root" > "$HOME/.config/nora/purge_paths"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TIMEOUT_HINT_SCAN_SEC=0 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TIMEOUT_HINT_SCAN_SEC=0 \
         /bin/bash --noprofile --norc << 'EOT2D'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -168,10 +168,10 @@ EOT2D
     mkdir -p "$root/bigproject/sub1/build"
     mkdir -p "$root/bigproject/sub2/build"
     touch "$root/bigproject/package.json"
-    printf '%s\n' "$root" > "$HOME/.config/mole/purge_paths"
+    printf '%s\n' "$root" > "$HOME/.config/nora/purge_paths"
 
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-        MOLE_TIMEOUT_HINT_SCAN_SEC=1 \
+        NORA_TIMEOUT_HINT_SCAN_SEC=1 \
         HINTS_ROOT="$root" \
         /bin/bash --noprofile --norc << 'EOT_NESTED'
 set -euo pipefail
@@ -651,7 +651,7 @@ run_with_timeout() { shift; "$@"; }
 hint_get_path_size_kb_with_timeout() { echo "100"; }
 brew() { return 0; }
 export -f brew
-_MOLE_DOTDIR_OWNER_APP_ROOTS=("$FAKE_APPS_ROOT")
+_NORA_DOTDIR_OWNER_APP_ROOTS=("$FAKE_APPS_ROOT")
 show_orphan_dotdir_hint_notice
 EOTD
 
@@ -683,7 +683,7 @@ brew() {
     return 0
 }
 export -f brew
-_MOLE_DOTDIR_OWNER_APP_ROOTS=("$EMPTY_APPS_ROOT")
+_NORA_DOTDIR_OWNER_APP_ROOTS=("$EMPTY_APPS_ROOT")
 show_orphan_dotdir_hint_notice
 EOTD
 
@@ -715,7 +715,7 @@ brew() {
     return 0
 }
 export -f brew
-_MOLE_DOTDIR_OWNER_APP_ROOTS=("$EMPTY_APPS_ROOT")
+_NORA_DOTDIR_OWNER_APP_ROOTS=("$EMPTY_APPS_ROOT")
 show_orphan_dotdir_hint_notice
 EOTD
 
@@ -742,7 +742,7 @@ run_with_timeout() { shift; "$@"; }
 hint_get_path_size_kb_with_timeout() { echo "100"; }
 brew() { return 0; }
 export -f brew
-_MOLE_DOTDIR_OWNER_APP_ROOTS=("$FAKE_APPS_ROOT")
+_NORA_DOTDIR_OWNER_APP_ROOTS=("$FAKE_APPS_ROOT")
 show_orphan_dotdir_hint_notice
 EOTD
 

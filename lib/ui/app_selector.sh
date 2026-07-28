@@ -77,7 +77,7 @@ format_app_display() {
 }
 
 # Global variable to store selection result (bash 3.2 compatible)
-MOLE_SELECTION_RESULT=""
+NORA_SELECTION_RESULT=""
 
 # Main app selection function
 # shellcheck disable=SC2154  # apps_data is set by caller
@@ -158,37 +158,37 @@ select_apps_for_uninstall() {
     drain_pending_input 0.2
 
     # Expose metadata for the paginated menu (optional inputs)
-    # - MOLE_MENU_META_EPOCHS: numeric last_used_epoch per item
-    # - MOLE_MENU_META_SIZEKB: numeric size in KB per item
+    # - NORA_MENU_META_EPOCHS: numeric last_used_epoch per item
+    # - NORA_MENU_META_SIZEKB: numeric size in KB per item
     # The menu will gracefully fallback if these are unset or malformed.
     if [[ $has_epoch_metadata == true ]]; then
-        export MOLE_MENU_META_EPOCHS="$epochs_csv"
+        export NORA_MENU_META_EPOCHS="$epochs_csv"
     else
-        unset MOLE_MENU_META_EPOCHS
+        unset NORA_MENU_META_EPOCHS
     fi
     if [[ $has_size_metadata == true ]]; then
-        export MOLE_MENU_META_SIZEKB="$sizekb_csv"
+        export NORA_MENU_META_SIZEKB="$sizekb_csv"
     else
-        unset MOLE_MENU_META_SIZEKB
+        unset NORA_MENU_META_SIZEKB
     fi
-    export MOLE_MENU_FILTER_NAMES="$names_newline"
-    export MOLE_MENU_IGNORE_INITIAL_ENTER=1
+    export NORA_MENU_FILTER_NAMES="$names_newline"
+    export NORA_MENU_IGNORE_INITIAL_ENTER=1
 
-    # Use paginated menu - result will be stored in MOLE_SELECTION_RESULT
+    # Use paginated menu - result will be stored in NORA_SELECTION_RESULT
     # Note: paginated_multi_select enters alternate screen and handles clearing
-    MOLE_SELECTION_RESULT=""
+    NORA_SELECTION_RESULT=""
     paginated_multi_select "Select Apps to Remove" "${menu_options[@]}"
     local exit_code=$?
 
     # Clean env leakage for safety
-    unset MOLE_MENU_META_EPOCHS MOLE_MENU_META_SIZEKB MOLE_MENU_FILTER_NAMES MOLE_MENU_IGNORE_INITIAL_ENTER
-    # leave MOLE_MENU_SORT_DEFAULT untouched if user set it globally
+    unset NORA_MENU_META_EPOCHS NORA_MENU_META_SIZEKB NORA_MENU_FILTER_NAMES NORA_MENU_IGNORE_INITIAL_ENTER
+    # leave NORA_MENU_SORT_DEFAULT untouched if user set it globally
 
     if [[ $exit_code -ne 0 ]]; then
         return 1
     fi
 
-    if [[ -z "$MOLE_SELECTION_RESULT" ]]; then
+    if [[ -z "$NORA_SELECTION_RESULT" ]]; then
         echo "No apps selected"
         return 1
     fi
@@ -197,7 +197,7 @@ select_apps_for_uninstall() {
     selected_apps=()
 
     # Parse indices and build selected apps array
-    IFS=',' read -r -a indices_array <<< "$MOLE_SELECTION_RESULT"
+    IFS=',' read -r -a indices_array <<< "$NORA_SELECTION_RESULT"
 
     for idx in "${indices_array[@]}"; do
         if [[ "$idx" =~ ^[0-9]+$ ]] && [[ $idx -ge 0 ]] && [[ $idx -lt ${#apps_data[@]} ]]; then

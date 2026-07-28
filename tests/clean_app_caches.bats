@@ -11,8 +11,8 @@ setup_file() {
     export HOME
 
     # Prevent AppleScript permission dialogs during tests
-    MOLE_TEST_MODE=1
-    export MOLE_TEST_MODE
+    NORA_TEST_MODE=1
+    export NORA_TEST_MODE
 
     mkdir -p "$HOME"
 }

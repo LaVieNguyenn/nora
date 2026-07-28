@@ -3,19 +3,19 @@
 
 set -euo pipefail
 
-if [[ -n "${MOLE_PURGE_SHARED_LOADED:-}" ]]; then
+if [[ -n "${NORA_PURGE_SHARED_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_PURGE_SHARED_LOADED=1
+readonly NORA_PURGE_SHARED_LOADED=1
 
-MOLE_PURGE_PHYSICAL_HOME="$HOME"
+NORA_PURGE_PHYSICAL_HOME="$HOME"
 if [[ -d "$HOME" ]]; then
-    MOLE_PURGE_PHYSICAL_HOME=$(cd "$HOME" 2> /dev/null && pwd -P) || MOLE_PURGE_PHYSICAL_HOME="$HOME"
+    NORA_PURGE_PHYSICAL_HOME=$(cd "$HOME" 2> /dev/null && pwd -P) || NORA_PURGE_PHYSICAL_HOME="$HOME"
 fi
-readonly MOLE_PURGE_PHYSICAL_HOME
+readonly NORA_PURGE_PHYSICAL_HOME
 
 # Canonical purge targets (heavy project build artifacts).
-readonly MOLE_PURGE_TARGETS=(
+readonly NORA_PURGE_TARGETS=(
     "node_modules"
     "target"            # Rust, Maven
     "build"             # Gradle, various
@@ -52,7 +52,7 @@ readonly MOLE_PURGE_TARGETS=(
     ".build"            # Swift Package Manager
 )
 
-readonly MOLE_PURGE_DEFAULT_SEARCH_PATHS=(
+readonly NORA_PURGE_DEFAULT_SEARCH_PATHS=(
     "$HOME/www"
     "$HOME/dev"
     "$HOME/Projects"
@@ -72,14 +72,14 @@ readonly MOLE_PURGE_DEFAULT_SEARCH_PATHS=(
     "$HOME/.claude/worktrees"
 )
 
-readonly MOLE_PURGE_MONOREPO_INDICATORS=(
+readonly NORA_PURGE_MONOREPO_INDICATORS=(
     "lerna.json"
     "pnpm-workspace.yaml"
     "nx.json"
     "rush.json"
 )
 
-readonly MOLE_PURGE_PROJECT_INDICATORS=(
+readonly NORA_PURGE_PROJECT_INDICATORS=(
     "package.json"
     "Cargo.toml"
     "go.mod"
@@ -98,22 +98,22 @@ readonly MOLE_PURGE_PROJECT_INDICATORS=(
     ".git"
 )
 
-readonly MOLE_CACHEDIR_TAG_NAME="CACHEDIR.TAG"
-readonly MOLE_CACHEDIR_TAG_SIGNATURE="Signature: 8a477f597d28d172789f06886806bc55"
+readonly NORA_CACHEDIR_TAG_NAME="CACHEDIR.TAG"
+readonly NORA_CACHEDIR_TAG_SIGNATURE="Signature: 8a477f597d28d172789f06886806bc55"
 
-# High-noise targets intentionally excluded from quick hint scans in mo clean.
-readonly MOLE_PURGE_QUICK_HINT_EXCLUDED_TARGETS=(
+# High-noise targets intentionally excluded from quick hint scans in nr clean.
+readonly NORA_PURGE_QUICK_HINT_EXCLUDED_TARGETS=(
     "bin"
     "vendor"
 )
 
-mole_purge_is_cloud_synced_path() {
+nora_purge_is_cloud_synced_path() {
     local path="${1:-}"
     [[ -n "$path" ]] || return 1
 
     case "$path" in
         "$HOME/Library/CloudStorage" | "$HOME/Library/CloudStorage/"* | "$HOME/Library/Mobile Documents" | "$HOME/Library/Mobile Documents/"* | \
-            "$MOLE_PURGE_PHYSICAL_HOME/Library/CloudStorage" | "$MOLE_PURGE_PHYSICAL_HOME/Library/CloudStorage/"* | "$MOLE_PURGE_PHYSICAL_HOME/Library/Mobile Documents" | "$MOLE_PURGE_PHYSICAL_HOME/Library/Mobile Documents/"*)
+            "$NORA_PURGE_PHYSICAL_HOME/Library/CloudStorage" | "$NORA_PURGE_PHYSICAL_HOME/Library/CloudStorage/"* | "$NORA_PURGE_PHYSICAL_HOME/Library/Mobile Documents" | "$NORA_PURGE_PHYSICAL_HOME/Library/Mobile Documents/"*)
             return 0
             ;;
     esac
@@ -121,17 +121,17 @@ mole_purge_is_cloud_synced_path() {
     return 1
 }
 
-mole_purge_is_project_root() {
+nora_purge_is_project_root() {
     local dir="$1"
     local indicator
 
-    for indicator in "${MOLE_PURGE_MONOREPO_INDICATORS[@]}"; do
+    for indicator in "${NORA_PURGE_MONOREPO_INDICATORS[@]}"; do
         if [[ -e "$dir/$indicator" ]]; then
             return 0
         fi
     done
 
-    for indicator in "${MOLE_PURGE_PROJECT_INDICATORS[@]}"; do
+    for indicator in "${NORA_PURGE_PROJECT_INDICATORS[@]}"; do
         if [[ -e "$dir/$indicator" ]]; then
             return 0
         fi
@@ -140,24 +140,24 @@ mole_purge_is_project_root() {
     return 1
 }
 
-mole_dir_has_cachedir_tag() {
+nora_dir_has_cachedir_tag() {
     local dir="$1"
-    local tag="$dir/$MOLE_CACHEDIR_TAG_NAME"
+    local tag="$dir/$NORA_CACHEDIR_TAG_NAME"
     [[ -f "$tag" && ! -L "$tag" ]] || return 1
 
     local signature
-    signature=$(LC_ALL=C dd bs=${#MOLE_CACHEDIR_TAG_SIGNATURE} count=1 < "$tag" 2> /dev/null || true)
-    [[ "$signature" == "$MOLE_CACHEDIR_TAG_SIGNATURE" ]]
+    signature=$(LC_ALL=C dd bs=${#NORA_CACHEDIR_TAG_SIGNATURE} count=1 < "$tag" 2> /dev/null || true)
+    [[ "$signature" == "$NORA_CACHEDIR_TAG_SIGNATURE" ]]
 }
 
-mole_purge_quick_hint_target_names() {
+nora_purge_quick_hint_target_names() {
     local target
     local excluded
     local is_excluded
 
-    for target in "${MOLE_PURGE_TARGETS[@]}"; do
+    for target in "${NORA_PURGE_TARGETS[@]}"; do
         is_excluded=false
-        for excluded in "${MOLE_PURGE_QUICK_HINT_EXCLUDED_TARGETS[@]}"; do
+        for excluded in "${NORA_PURGE_QUICK_HINT_EXCLUDED_TARGETS[@]}"; do
             if [[ "$target" == "$excluded" ]]; then
                 is_excluded=true
                 break
@@ -172,7 +172,7 @@ mole_purge_quick_hint_target_names() {
 # On case-insensitive macOS (APFS), ~/Code and ~/code point to the same
 # directory but with different display names.  This function returns the
 # real (on-disk) path so that string comparisons work correctly for dedup.
-mole_purge_resolve_path_case() {
+nora_purge_resolve_path_case() {
     local path="$1"
     if [[ -d "$path" ]]; then
         (cd "$path" 2> /dev/null && pwd -P) || printf '%s\n' "$path"
@@ -181,8 +181,8 @@ mole_purge_resolve_path_case() {
     fi
 }
 
-mole_purge_read_paths_config() {
-    local config_file="${1:-$HOME/.config/mole/purge_paths}"
+nora_purge_read_paths_config() {
+    local config_file="${1:-$HOME/.config/nora/purge_paths}"
     [[ -f "$config_file" ]] || return 0
 
     local line
@@ -191,7 +191,7 @@ mole_purge_read_paths_config() {
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" || "$line" =~ ^# ]] && continue
         line="${line/#\~/$HOME}"
-        line=$(mole_purge_resolve_path_case "$line")
+        line=$(nora_purge_resolve_path_case "$line")
         printf '%s\n' "$line"
     done < "$config_file"
 }

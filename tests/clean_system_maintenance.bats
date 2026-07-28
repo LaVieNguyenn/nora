@@ -11,8 +11,8 @@ setup_file() {
     export HOME
 
     # Prevent AppleScript permission dialogs during tests
-    MOLE_TEST_MODE=1
-    export MOLE_TEST_MODE
+    NORA_TEST_MODE=1
+    export NORA_TEST_MODE
 
     mkdir -p "$HOME"
 }
@@ -492,8 +492,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/brew.sh"
 
-mkdir -p "$HOME/.cache/mole"
-date +%s > "$HOME/.cache/mole/brew_last_cleanup"
+mkdir -p "$HOME/.cache/nora"
+date +%s > "$HOME/.cache/nora/brew_last_cleanup"
 
 brew() { return 0; }
 
@@ -510,8 +510,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/brew.sh"
 
-mkdir -p "$HOME/.cache/mole"
-rm -f "$HOME/.cache/mole/brew_last_cleanup"
+mkdir -p "$HOME/.cache/nora"
+rm -f "$HOME/.cache/nora/brew_last_cleanup"
 
     start_inline_spinner(){ :; }
     stop_inline_spinner(){ :; }
@@ -555,8 +555,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/brew.sh"
 
-mkdir -p "$HOME/.cache/mole" "$HOME/Library/Caches/Homebrew"
-rm -f "$HOME/.cache/mole/brew_last_cleanup"
+mkdir -p "$HOME/.cache/nora" "$HOME/Library/Caches/Homebrew"
+rm -f "$HOME/.cache/nora/brew_last_cleanup"
 calls="$HOME/brew_calls.log"
 : > "$calls"
 
@@ -625,7 +625,7 @@ printf '#!/bin/sh\n' > "$npx_target"
 printf '#!/bin/sh\n' > "$replacement_npx_target"
 ln -s ../Cellar/node/26.4.0/bin/node "$TEST_BREW_PREFIX/bin/node"
 ln -s ../Cellar/node/26.4.0/bin/npx "$TEST_BREW_PREFIX/bin/npx"
-rm -f "$HOME/.cache/mole/brew_last_cleanup"
+rm -f "$HOME/.cache/nora/brew_last_cleanup"
 
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
@@ -678,7 +678,7 @@ node_target="$TEST_BREW_CELLAR/node/26.4.0/bin/node"
 mkdir -p "$TEST_BREW_PREFIX/bin" "$TEST_BREW_CELLAR/node/26.4.0/bin" "$HOME/Library/Caches/Homebrew"
 printf '#!/bin/sh\n' > "$node_target"
 ln -s ../Cellar/node/26.4.0/bin/node "$TEST_BREW_PREFIX/bin/node"
-rm -f "$HOME/.cache/mole/brew_last_cleanup"
+rm -f "$HOME/.cache/nora/brew_last_cleanup"
 
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
@@ -724,7 +724,7 @@ external_target="$HOME/custom-tools/node"
 mkdir -p "$TEST_BREW_PREFIX/bin" "$TEST_BREW_CELLAR" "$(dirname "$external_target")" "$HOME/Library/Caches/Homebrew"
 printf '#!/bin/sh\n' > "$external_target"
 ln -s "$external_target" "$TEST_BREW_PREFIX/bin/node"
-rm -f "$HOME/.cache/mole/brew_last_cleanup"
+rm -f "$HOME/.cache/nora/brew_last_cleanup"
 
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
@@ -1604,7 +1604,7 @@ export -f sudo
 
 # Sudo is mocked above; explicitly opt out of the test-mode short-circuit
 # in optimize_sudo_available so this success-path test reaches the mock.
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 opt_memory_pressure_relief
 EOF
 
@@ -1614,7 +1614,7 @@ EOF
 }
 
 @test "opt_network_stack_optimize skips when network is healthy" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_ASSUME_VPN_ACTIVE=0 /bin/bash --noprofile --norc << 'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_ASSUME_VPN_ACTIVE=0 /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
@@ -1638,7 +1638,7 @@ EOF
 }
 
 @test "opt_network_stack_optimize skips when VPN is active" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_ASSUME_VPN_ACTIVE=1 /bin/bash --noprofile --norc << 'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_ASSUME_VPN_ACTIVE=1 /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
@@ -1665,7 +1665,7 @@ EOF
 }
 
 @test "opt_network_stack_optimize flushes when network has issues" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_ASSUME_VPN_ACTIVE=0 /bin/bash --noprofile --norc << 'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_ASSUME_VPN_ACTIVE=0 /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
@@ -1705,7 +1705,7 @@ export -f dscacheutil
 
 # Sudo is mocked above; explicitly opt out of the test-mode short-circuit
 # in optimize_sudo_available so this success-path test reaches the mock.
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 opt_network_stack_optimize
 EOF
 
@@ -1764,7 +1764,7 @@ export -f start_inline_spinner stop_inline_spinner
 
 # Sudo is mocked above; explicitly opt out of the test-mode short-circuit
 # in optimize_sudo_available so this success-path test reaches the mock.
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 opt_disk_permissions_repair
 EOF
 

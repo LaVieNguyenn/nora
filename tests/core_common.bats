@@ -92,7 +92,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 
 small_kb=1
-large_kb=$(((MOLE_ONE_GB_BYTES * 2) / 1024))
+large_kb=$(((NORA_ONE_GB_BYTES * 2) / 1024))
 
 if [[ "$(cleanup_result_color_kb "$small_kb")" == "$GREEN" ]] &&
     [[ "$(cleanup_result_color_kb "$large_kb")" == "$GREEN" ]]; then
@@ -104,20 +104,20 @@ EOF
     [ "$output" = "ok" ]
 }
 
-@test "mole_is_reverse_dns_bundle_id rejects defaults domains and glob-like ids" {
+@test "nora_is_reverse_dns_bundle_id rejects defaults domains and glob-like ids" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 
 for valid in "com.example.App" "andriiliakh.Artpaper" "dev.zed.Zed-Nightly" "org.keepassxc.KeePassXC"; do
-    mole_is_reverse_dns_bundle_id "$valid" || {
+    nora_is_reverse_dns_bundle_id "$valid" || {
         echo "valid rejected: $valid"
         exit 1
     }
 done
 
 for invalid in "-g" "NSGlobalDomain" "com-example" "com.foo.*" "com.foo.[abc]" "unknown" ""; do
-    if mole_is_reverse_dns_bundle_id "$invalid"; then
+    if nora_is_reverse_dns_bundle_id "$invalid"; then
         echo "invalid accepted: $invalid"
         exit 1
     fi
@@ -127,7 +127,7 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "mole_name_has_bundle_id_boundary rejects sibling bundle prefixes" {
+@test "nora_name_has_bundle_id_boundary rejects sibling bundle prefixes" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -138,7 +138,7 @@ for valid in \
     "com.example.TestApp.plist" \
     "com.example.TestApp.helper.plist" \
     "/tmp/com.example.TestApp.pkg.bom"; do
-    mole_name_starts_with_bundle_id_boundary "$valid" "$bundle_id" || {
+    nora_name_starts_with_bundle_id_boundary "$valid" "$bundle_id" || {
         echo "valid start boundary rejected: $valid"
         exit 1
     }
@@ -148,7 +148,7 @@ for invalid in \
     "group.com.example.TestApp" \
     "TEAM.com.example.TestApp.FileProvider" \
     "com.example.TestApplication.plist"; do
-    if mole_name_starts_with_bundle_id_boundary "$invalid" "$bundle_id"; then
+    if nora_name_starts_with_bundle_id_boundary "$invalid" "$bundle_id"; then
         echo "sibling start boundary accepted: $invalid"
         exit 1
     fi
@@ -160,7 +160,7 @@ for valid in \
     "group.com.example.TestApp" \
     "TEAM.com.example.TestApp.FileProvider" \
     "/tmp/com.example.TestApp.pkg.bom"; do
-    mole_name_has_bundle_id_boundary "$valid" "$bundle_id" || {
+    nora_name_has_bundle_id_boundary "$valid" "$bundle_id" || {
         echo "valid boundary rejected: $valid"
         exit 1
     }
@@ -172,7 +172,7 @@ for invalid in \
     "xcom.example.TestApp" \
     "com.example.TestAppHelper.plist" \
     "com-example-TestApp.plist"; do
-    if mole_name_has_bundle_id_boundary "$invalid" "$bundle_id"; then
+    if nora_name_has_bundle_id_boundary "$invalid" "$bundle_id"; then
         echo "sibling boundary accepted: $invalid"
         exit 1
     fi
@@ -188,7 +188,7 @@ EOF
     stdout_output="$(HOME="$HOME" /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'; log_info '$message'")"
     [[ "$stdout_output" == *"$message"* ]] || return 1
 
-    local log_file="$HOME/Library/Logs/mole/mole.log"
+    local log_file="$HOME/Library/Logs/nora/nora.log"
     [[ -f "$log_file" ]] || return 1
     grep -q "INFO: $message" "$log_file"
 }
@@ -202,7 +202,7 @@ EOF
     [[ -s "$stderr_file" ]] || return 1
     grep -q "$message" "$stderr_file"
 
-    local log_file="$HOME/Library/Logs/mole/mole.log"
+    local log_file="$HOME/Library/Logs/nora/nora.log"
     [[ -f "$log_file" ]] || return 1
     grep -q "ERROR: $message" "$log_file"
 }
@@ -211,26 +211,26 @@ EOF
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
-rm -rf "$HOME/Library/Logs/mole"
+rm -rf "$HOME/Library/Logs/nora"
 log_operation "clean" "REMOVED" "/tmp/example" "1KB"
 EOF
     [ "$status" -eq 0 ]
 
-    local oplog="$HOME/Library/Logs/mole/operations.log"
+    local oplog="$HOME/Library/Logs/nora/operations.log"
     [[ -f "$oplog" ]] || return 1
     grep -Fq "[clean] REMOVED /tmp/example (1KB)" "$oplog"
 }
 
-@test "should_protect_path protects Mole runtime logs" {
+@test "should_protect_path protects Nora runtime logs" {
     result="$(
         HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc -c \
-            'source "$PROJECT_ROOT/lib/core/common.sh"; should_protect_path "$HOME/Library/Logs/mole/operations.log" && echo protected || echo not-protected'
+            'source "$PROJECT_ROOT/lib/core/common.sh"; should_protect_path "$HOME/Library/Logs/nora/operations.log" && echo protected || echo not-protected'
     )"
     [ "$result" = "protected" ]
 }
 
 @test "rotate_log_once only checks log size once per session" {
-    local log_file="$HOME/Library/Logs/mole/mole.log"
+    local log_file="$HOME/Library/Logs/nora/nora.log"
     mkdir -p "$(dirname "$log_file")"
     if command -v mkfile > /dev/null 2>&1; then
         mkfile -n 1100k "$log_file"
@@ -238,13 +238,13 @@ EOF
         truncate -s 1100k "$log_file"
     fi
 
-    # log.sh calls rotate_log_once at source time and exports MOLE_LOG_ROTATED.
+    # log.sh calls rotate_log_once at source time and exports NORA_LOG_ROTATED.
     # scripts/test.sh sources file_ops.sh, so the whole bats run already carries the
     # marker and a child would skip rotation. Clear it to get a fresh session.
-    env -u MOLE_LOG_ROTATED HOME="$HOME" /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'"
+    env -u NORA_LOG_ROTATED HOME="$HOME" /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'"
     [[ -f "${log_file}.old" ]] || return 1
 
-    result=$(HOME="$HOME" MOLE_LOG_ROTATED=1 /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$MOLE_LOG_ROTATED")
+    result=$(HOME="$HOME" NORA_LOG_ROTATED=1 /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'; echo \$NORA_LOG_ROTATED")
     [[ "$result" == "1" ]]
 }
 
@@ -462,7 +462,7 @@ EOF
     result=$(HOME="$HOME" /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'; should_protect_from_uninstall 'org.pqrs.Karabiner-Elements.Settings' && echo 'protected' || echo 'not-protected'")
     [ "$result" = "not-protected" ]
 
-    # The main app bundle id (the actual `mo uninstall --list` key) behaves the same:
+    # The main app bundle id (the actual `nr uninstall --list` key) behaves the same:
     # removable from uninstall, still data-protected during clean.
     result=$(HOME="$HOME" /bin/bash --noprofile --norc -c "source '$PROJECT_ROOT/lib/core/common.sh'; should_protect_from_uninstall 'org.pqrs.Karabiner-Elements' && echo 'protected' || echo 'not-protected'")
     [ "$result" = "not-protected" ]
@@ -507,7 +507,7 @@ EOF
 @test "start_inline_spinner and stop_inline_spinner work in non-TTY" {
     result=$(HOME="$HOME" /bin/bash --noprofile --norc << 'EOF'
 source "$PROJECT_ROOT/lib/core/common.sh"
-MOLE_SPINNER_PREFIX="  " start_inline_spinner "Testing..."
+NORA_SPINNER_PREFIX="  " start_inline_spinner "Testing..."
 sleep 0.1
 stop_inline_spinner
 echo "done"
@@ -556,7 +556,7 @@ EOF
     PROJECT_ROOT="$PROJECT_ROOT" HOME="$HOME" TERM=xterm-256color \
         /usr/bin/script -q "$raw" /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/lib/core/common.sh"
-            MOLE_SPINNER_PREFIX="  " start_inline_spinner "Phase one..."
+            NORA_SPINNER_PREFIX="  " start_inline_spinner "Phase one..."
             pid_before="$INLINE_SPINNER_PID"
             control_dir="$INLINE_SPINNER_CONTROL_DIR"
             control_mode=$(stat -f%Lp "$control_dir")
@@ -605,7 +605,7 @@ EOF
 @test "safe_clear_lines emits the same erase sequence per line to the target device" {
     local out="$HOME/clear-lines.out"
     run /bin/bash --noprofile --norc -c \
-        "export MOLE_ANSI_SUPPORTED_CACHE=0; source '$PROJECT_ROOT/lib/core/common.sh'; safe_clear_lines 2 '$out'"
+        "export NORA_ANSI_SUPPORTED_CACHE=0; source '$PROJECT_ROOT/lib/core/common.sh'; safe_clear_lines 2 '$out'"
     [ "$status" -eq 0 ]
 
     expected="$(printf '\033[1A\r\033[2K\033[1A\r\033[2K')"
@@ -613,32 +613,32 @@ EOF
 }
 
 @test "read_key maps j/k/h/l to navigation" {
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'j' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'j' | read_key"
     [ "$output" = "DOWN" ]
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'k' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'k' | read_key"
     [ "$output" = "UP" ]
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'h' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'h' | read_key"
     [ "$output" = "LEFT" ]
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'l' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'l' | read_key"
     [ "$output" = "RIGHT" ]
 }
 
 @test "read_key maps uppercase J/K/H/L to navigation" {
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'J' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'J' | read_key"
     [ "$output" = "DOWN" ]
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'K' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'K' | read_key"
     [ "$output" = "UP" ]
 }
 
 @test "read_key maps gg to TOP and a lone g to OTHER" {
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'gg' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'gg' | read_key"
     [ "$output" = "TOP" ]
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'g' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'g' | read_key"
     [ "$output" = "OTHER" ]
 }
 
@@ -651,28 +651,28 @@ EOF
     major=$(/bin/bash -c 'echo "${BASH_VERSINFO[0]}"' 2> /dev/null || echo 99)
     [[ "$major" -lt 4 ]] || skip "/bin/bash is not a 3.x build"
 
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'gg' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf 'gg' | read_key"
     [ "$output" = "TOP" ]
 }
 
-@test "read_key respects MOLE_READ_KEY_FORCE_CHAR" {
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; export MOLE_READ_KEY_FORCE_CHAR=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'j' | read_key"
+@test "read_key respects NORA_READ_KEY_FORCE_CHAR" {
+    run /bin/bash -c "export NORA_BASE_LOADED=1; export NORA_READ_KEY_FORCE_CHAR=1; source '$PROJECT_ROOT/lib/core/ui.sh'; echo -n 'j' | read_key"
     [ "$output" = "CHAR:j" ]
 }
 
 @test "read_key keeps Ctrl-C as quit when forcing printable characters" {
-    run /bin/bash -c "export MOLE_BASE_LOADED=1; export MOLE_READ_KEY_FORCE_CHAR=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf '\\003' | read_key"
+    run /bin/bash -c "export NORA_BASE_LOADED=1; export NORA_READ_KEY_FORCE_CHAR=1; source '$PROJECT_ROOT/lib/core/ui.sh'; printf '\\003' | read_key"
     [ "$output" = "QUIT" ]
 }
 
-@test "ensure_sudo_session returns 1 and sets MOLE_SUDO_ESTABLISHED=false in test mode" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 /bin/bash --noprofile --norc <<'SCRIPT'
+@test "ensure_sudo_session returns 1 and sets NORA_SUDO_ESTABLISHED=false in test mode" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 /bin/bash --noprofile --norc <<'SCRIPT'
 source "$PROJECT_ROOT/lib/core/base.sh"
 source "$PROJECT_ROOT/lib/core/sudo.sh"
-MOLE_SUDO_ESTABLISHED=""
+NORA_SUDO_ESTABLISHED=""
 ensure_sudo_session "Test prompt" && rc=0 || rc=$?
 echo "EXIT=$rc"
-echo "FLAG=$MOLE_SUDO_ESTABLISHED"
+echo "FLAG=$NORA_SUDO_ESTABLISHED"
 SCRIPT
 
     [ "$status" -eq 0 ]
@@ -681,7 +681,7 @@ SCRIPT
 }
 
 @test "sudo helpers do not invoke sudo in no-auth test mode" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 /bin/bash --noprofile --norc <<'SCRIPT'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 /bin/bash --noprofile --norc <<'SCRIPT'
 source "$PROJECT_ROOT/lib/core/base.sh"
 source "$PROJECT_ROOT/lib/core/sudo.sh"
 sudo() {
@@ -713,7 +713,7 @@ source "$PROJECT_ROOT/lib/core/base.sh"
 source "$PROJECT_ROOT/lib/core/sudo.sh"
 has_sudo_session() { return 0; }
 export -f has_sudo_session
-MOLE_SUDO_ESTABLISHED="true"
+NORA_SUDO_ESTABLISHED="true"
 ensure_sudo_session "Test prompt"
 echo "EXIT=$?"
 SCRIPT
@@ -723,7 +723,7 @@ SCRIPT
 }
 
 @test "adopt_sudo_session starts keepalive for cached sudo" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/base.sh"
 source "$PROJECT_ROOT/lib/core/sudo.sh"
@@ -739,8 +739,8 @@ _stop_sudo_keepalive() { :; }
 
 adopt_sudo_session
 echo "EXIT=$?"
-echo "FLAG=$MOLE_SUDO_ESTABLISHED"
-echo "PID=$MOLE_SUDO_KEEPALIVE_PID"
+echo "FLAG=$NORA_SUDO_ESTABLISHED"
+echo "PID=$NORA_SUDO_KEEPALIVE_PID"
 SCRIPT
 
     [ "$status" -eq 0 ]

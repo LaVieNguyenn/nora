@@ -189,7 +189,7 @@ func (m model) View() string {
 		termWidth = 80
 	}
 
-	header, mole := renderHeader(m.metrics, m.errMessage, m.animFrame, termWidth, m.catHidden)
+	header, nora := renderHeader(m.metrics, m.errMessage, m.animFrame, termWidth, m.catHidden)
 	alertBar := renderProcessAlertBar(m.metrics.ProcessAlerts, termWidth)
 
 	renderFrame := func(cpuCores int) string {
@@ -215,13 +215,13 @@ func (m model) View() string {
 			cardContent = renderTwoColumns(cards, termWidth)
 		}
 
-		// Combine header, mole, and cards with consistent spacing
+		// Combine header, nora, and cards with consistent spacing
 		parts := []string{header}
 		if alertBar != "" {
 			parts = append(parts, alertBar)
 		}
-		if mole != "" {
-			parts = append(parts, mole)
+		if nora != "" {
+			parts = append(parts, nora)
 		}
 		parts = append(parts, cardContent)
 		return lipgloss.JoinVertical(lipgloss.Left, parts...)

@@ -38,14 +38,14 @@ CONTRACT
 )
 
 actual=""
-for ((index = 0; index < ${#MOLE_OPTIMIZE_ACTIONS[@]}; index++)); do
+for ((index = 0; index < ${#NORA_OPTIMIZE_ACTIONS[@]}; index++)); do
     printf -v row '%s|%s|%s|%s|%s|%s' \
-        "${MOLE_OPTIMIZE_ACTIONS[$index]}" \
-        "${MOLE_OPTIMIZE_HANDLERS[$index]}" \
-        "${MOLE_OPTIMIZE_HEALTH_NAMES[$index]}" \
-        "${MOLE_OPTIMIZE_WHITELIST_NAMES[$index]}" \
-        "${MOLE_OPTIMIZE_DESCRIPTIONS[$index]}" \
-        "${MOLE_OPTIMIZE_SAFE_VALUES[$index]}"
+        "${NORA_OPTIMIZE_ACTIONS[$index]}" \
+        "${NORA_OPTIMIZE_HANDLERS[$index]}" \
+        "${NORA_OPTIMIZE_HEALTH_NAMES[$index]}" \
+        "${NORA_OPTIMIZE_WHITELIST_NAMES[$index]}" \
+        "${NORA_OPTIMIZE_DESCRIPTIONS[$index]}" \
+        "${NORA_OPTIMIZE_SAFE_VALUES[$index]}"
     actual+="${actual:+$'\n'}$row"
 done
 
@@ -144,8 +144,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/optimize/tasks.sh"
 
-[[ ${#MOLE_OPTIMIZE_ACTIONS[@]} -eq 23 ]] || exit 1
-for handler in "${MOLE_OPTIMIZE_HANDLERS[@]}"; do
+[[ ${#NORA_OPTIMIZE_ACTIONS[@]} -eq 23 ]] || exit 1
+for handler in "${NORA_OPTIMIZE_HANDLERS[@]}"; do
     if ! declare -F "$handler" >/dev/null; then
         echo "missing handler: $handler"
         exit 1

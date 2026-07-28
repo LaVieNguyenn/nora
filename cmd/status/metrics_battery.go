@@ -276,7 +276,7 @@ func parseAppleSmartBatteryHealth(out string) (cycles int, capacity int) {
 	return cycles, batteryHealthPercent(design, nominal, rawMax)
 }
 
-// batteryHealthPercent mirrors the algorithm used by the Mole Mac app
+// batteryHealthPercent mirrors the algorithm used by the Nora Mac app
 // (SystemMetricsCollector.batteryHealthPercent): NominalChargeCapacity is
 // preferred over AppleRawMaxCapacity, the ratio is rounded half-away-from-zero,
 // and the result is clamped to [0, 100].

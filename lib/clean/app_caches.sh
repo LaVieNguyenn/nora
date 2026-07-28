@@ -26,7 +26,7 @@ clean_xcode_derived_data() {
 
     # Calculate total size.
     local size_kb=0
-    size_kb=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" du -skP "$dd_dir" 2> /dev/null | awk '{print $1}') || size_kb=0
+    size_kb=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" du -skP "$dd_dir" 2> /dev/null | awk '{print $1}') || size_kb=0
     local size_human
     size_human=$(bytes_to_human "$((size_kb * 1024))")
 
@@ -371,7 +371,7 @@ clean_jianying_pro_generated_caches() {
     #
     # image/ and importcache3/ are deliberately excluded: both hold copies of
     # material the user imported, draft_info.json is encrypted so no plaintext
-    # reference check can prove they are unreferenced, and mo clean deletes
+    # reference check can prove they are unreferenced, and nr clean deletes
     # permanently. If the user has since moved or deleted the source file, the
     # cached copy is the only remaining one. Revisit only with evidence that
     # the editor re-imports from the original on demand.
@@ -517,7 +517,7 @@ clean_download_managers() {
 }
 # Neat Download Manager: clean stale incomplete download segments.
 # History database (NeatDB.db) is never touched; only numbered segment
-# directories whose seg.x0 file is older than MOLE_ORPHAN_AGE_DAYS are removed.
+# directories whose seg.x0 file is older than NORA_ORPHAN_AGE_DAYS are removed.
 # Download URLs expire within hours/days so 30-day-old segments cannot be resumed.
 clean_neatdm_stale_segments() {
     local neatdm_dir="$HOME/Library/Application Support/com.NeatDownloadManager"
@@ -541,7 +541,7 @@ clean_neatdm_stale_segments() {
         seg_mtime=$(get_file_mtime "$seg_dir/seg.x0")
         local age_days=$(((current_epoch - seg_mtime) / 86400))
 
-        if [[ $age_days -ge ${MOLE_ORPHAN_AGE_DAYS:-30} ]]; then
+        if [[ $age_days -ge ${NORA_ORPHAN_AGE_DAYS:-30} ]]; then
             stale_dirs+=("$seg_dir")
         fi
     done

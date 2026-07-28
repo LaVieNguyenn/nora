@@ -11,8 +11,8 @@ setup_file() {
     export HOME
 
     # Prevent AppleScript permission dialogs during tests
-    MOLE_TEST_MODE=1
-    export MOLE_TEST_MODE
+    NORA_TEST_MODE=1
+    export NORA_TEST_MODE
 
     mkdir -p "$HOME"
 }
@@ -77,8 +77,8 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
-mkdir -p "$HOME/.cache/mole"
-echo "com.example.App" > "$HOME/.cache/mole/installed_apps_cache"
+mkdir -p "$HOME/.cache/nora"
+echo "com.example.App" > "$HOME/.cache/nora/installed_apps_cache"
 get_file_mtime() { date +%s; }
 debug_log() { :; }
 scan_installed_apps "$HOME/installed.txt"
@@ -90,14 +90,14 @@ EOF
 }
 
 @test "scan_installed_apps filters missing value from osascript output" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
 
 # HOME is shared across tests in this file; drop any cache a prior test wrote
 # so this one exercises a real scan rather than reading a stale cache.
-rm -f "$HOME/.cache/mole/installed_apps_cache"
+rm -f "$HOME/.cache/nora/installed_apps_cache"
 
 # Create a fake .app with a plist that has no CFBundleIdentifier
 mkdir -p "$HOME/Applications/FakeApp.app/Contents"
@@ -136,8 +136,8 @@ EOF
 }
 
 @test "scan_installed_apps keeps find traversal options before predicates" {
-    rm -f "$HOME/.cache/mole/installed_apps_cache"
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+    rm -f "$HOME/.cache/nora/installed_apps_cache"
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -611,9 +611,9 @@ EOF
 }
 
 @test "clean_orphaned_system_services respects dry-run" {
-    # Without MOLE_TEST_MODE=0 the sweep early-returns under setup_file's
-    # MOLE_TEST_MODE=1, leaving $output empty and both negative assertions true.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true MOLE_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
+    # Without NORA_TEST_MODE=0 the sweep early-returns under setup_file's
+    # NORA_TEST_MODE=1, leaving $output empty and both negative assertions true.
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true NORA_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -676,7 +676,7 @@ EOF
 }
 
 @test "clean_orphaned_system_services reads unreadable plists through sudo PlistBuddy" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true MOLE_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true NORA_DRY_RUN=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -736,9 +736,9 @@ EOF
 }
 
 @test "clean_orphaned_system_services does not count protected skips as cleaned" {
-    # setup_file exports MOLE_TEST_MODE=1, under which clean_orphaned_system_services
+    # setup_file exports NORA_TEST_MODE=1, under which clean_orphaned_system_services
     # returns immediately and leaves $output empty. Override it as the sibling cases do.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=false MOLE_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=false NORA_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -805,16 +805,16 @@ EOF
 }
 
 # 48ca1090 (#1082) made this sweep call should_protect_path under
-# MOLE_UNINSTALL_MODE=1, which deliberately stops consulting DATA_PROTECTED_BUNDLES
+# NORA_UNINSTALL_MODE=1, which deliberately stops consulting DATA_PROTECTED_BUNDLES
 # so orphaned vendor helpers can be reclaimed; only SYSTEM_CRITICAL_BUNDLES still
 # block. AmneziaWG sits in the data-protected list, so an orphan whose parent app
 # is gone is removed by design, exactly like the com.docker case asserted below.
 # The older "must stay protected" expectation outlived that change only because
 # the assertion sat mid-test and could not fail.
 @test "clean_orphaned_system_services reclaims an AmneziaWG helper once its app is gone" {
-    # setup_file exports MOLE_TEST_MODE=1, under which clean_orphaned_system_services
+    # setup_file exports NORA_TEST_MODE=1, under which clean_orphaned_system_services
     # returns immediately and leaves $output empty. Override it as the sibling cases do.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=false MOLE_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=false NORA_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -908,7 +908,7 @@ EOF
     # uninstall mode so a verified orphan is not blocked by data protection.
     # Routed through /Library/LaunchDaemons (always present) rather than
     # /Library/PrivilegedHelperTools (absent on CI runners).
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=false MOLE_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=false NORA_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -968,7 +968,7 @@ EOF
     # as an orphan and removed, breaking the product. The binary must be
     # re-probed with sudo before being treated as missing. A genuinely missing
     # binary must still be detected, which also proves the scan actually ran.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=false MOLE_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=false NORA_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -1034,7 +1034,7 @@ EOF
 }
 
 @test "clean_orphaned_system_services counts safe_sudo protected skips as protected (#1141)" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=false MOLE_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=false NORA_DRY_RUN=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -1044,7 +1044,7 @@ stop_section_spinner() { :; }
 note_activity() { :; }
 debug_log() { echo "debug: $*"; }
 should_protect_path() {
-  if [[ "${MOLE_UNINSTALL_MODE:-0}" == "1" ]]; then
+  if [[ "${NORA_UNINSTALL_MODE:-0}" == "1" ]]; then
     return 1
   fi
   return 0
@@ -1103,10 +1103,10 @@ EOF
 }
 
 @test "clean_orphaned_system_services dry-run skips protected paths (#886)" {
-    # MOLE_TEST_NO_AUTH=0 overrides the CI default (=1) so the function actually
+    # NORA_TEST_NO_AUTH=0 overrides the CI default (=1) so the function actually
     # runs past the auth-skip guard in apps.sh; the sudo() mock satisfies the
     # `sudo -n true` probe.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -1150,8 +1150,8 @@ EOF
 }
 
 @test "clean_orphaned_system_services dry-run reports unprotected orphans (#886)" {
-    # MOLE_TEST_NO_AUTH=0 overrides CI default so the function executes.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
+    # NORA_TEST_NO_AUTH=0 overrides CI default so the function executes.
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -1192,8 +1192,8 @@ EOF
 }
 
 @test "clean_orphaned_system_services dry-run writes orphan paths to the export list (#1210)" {
-    # MOLE_TEST_NO_AUTH=0 overrides CI default so the function executes.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
+    # NORA_TEST_NO_AUTH=0 overrides CI default so the function executes.
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"
@@ -1347,7 +1347,7 @@ set +e
 # Keep this policy probe independent of the checkout location. A detached
 # worktree commonly lives below /private/var/folders, whose children are
 # intentionally accepted as disposable temp data before app protection runs.
-stub="/Users/mole-clean-apps-fixture-$$/Library/Containers/com.macpaw.CleanMyMac-mas"
+stub="/Users/nora-clean-apps-fixture-$$/Library/Containers/com.macpaw.CleanMyMac-mas"
 plist="$stub/.com.apple.containermanagerd.metadata.plist"
 
 validate_path_for_deletion "$stub" > /dev/null 2>&1
@@ -1479,7 +1479,7 @@ EOF
     # whitelist filter's `orphaned_files=("${kept_files[@]}")` aborted the whole
     # clean run with "kept_files[@]: unbound variable". Force /bin/bash so the
     # 3.2 expansion behaviour is exercised regardless of any newer bash on PATH.
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 DRY_RUN=true /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/apps.sh"

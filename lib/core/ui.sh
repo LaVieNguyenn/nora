@@ -1,16 +1,16 @@
 #!/bin/bash
-# Mole - UI Components
+# Nora - UI Components
 # Terminal UI utilities: cursor control, keyboard input, spinners, menus
 
 set -euo pipefail
 
-if [[ -n "${MOLE_UI_LOADED:-}" ]]; then
+if [[ -n "${NORA_UI_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_UI_LOADED=1
+readonly NORA_UI_LOADED=1
 
-_MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[[ -z "${MOLE_BASE_LOADED:-}" ]] && source "$_MOLE_CORE_DIR/base.sh"
+_NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[[ -z "${NORA_BASE_LOADED:-}" ]] && source "$_NORA_CORE_DIR/base.sh"
 
 # Timeout for the second key of a multi-key sequence (e.g. gg -> jump to top).
 # Bash 4.0+ accepts fractional `read -t` values; macOS default Bash 3.2 rejects
@@ -18,9 +18,9 @@ _MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # silently disabled the gg shortcut. Use a snappy sub-second wait where it is
 # supported and fall back to a 1s integer timeout on Bash 3.2.
 if [[ "${BASH_VERSINFO[0]:-0}" -ge 4 ]]; then
-    readonly MOLE_KEY_SEQ_TIMEOUT="0.3"
+    readonly NORA_KEY_SEQ_TIMEOUT="0.3"
 else
-    readonly MOLE_KEY_SEQ_TIMEOUT="1"
+    readonly NORA_KEY_SEQ_TIMEOUT="1"
 fi
 
 # Cursor control
@@ -173,7 +173,7 @@ read_key() {
         return 0
     }
 
-    if [[ "${MOLE_READ_KEY_FORCE_CHAR:-}" == "1" ]]; then
+    if [[ "${NORA_READ_KEY_FORCE_CHAR:-}" == "1" ]]; then
         [[ -z "$key" ]] && {
             echo "ENTER"
             return 0
@@ -244,7 +244,7 @@ read_key() {
         'l' | 'L') echo "RIGHT" ;;
         'G') echo "BOTTOM" ;;
         'g')
-            if IFS= read -r -s -n 1 -t "$MOLE_KEY_SEQ_TIMEOUT" rest 2> /dev/null; then
+            if IFS= read -r -s -n 1 -t "$NORA_KEY_SEQ_TIMEOUT" rest 2> /dev/null; then
                 if [[ "$rest" == "g" ]]; then
                     echo "TOP"
                 else
@@ -318,13 +318,13 @@ INLINE_SPINNER_MSG_FILE=""
 INLINE_SPINNER_CONTROL_DIR=""
 
 create_inline_spinner_control_dir() {
-    ensure_mole_temp_root || return 1
-    local control_root="$MOLE_RESOLVED_TMPDIR"
+    ensure_nora_temp_root || return 1
+    local control_root="$NORA_RESOLVED_TMPDIR"
 
     [[ -d "$control_root" && ! -L "$control_root" ]] || return 1
-    INLINE_SPINNER_CONTROL_DIR=$(umask 077 && mktemp -d "$control_root/.mole-spinner.XXXXXX") || return 1
+    INLINE_SPINNER_CONTROL_DIR=$(umask 077 && mktemp -d "$control_root/.nora-spinner.XXXXXX") || return 1
     [[ -d "$INLINE_SPINNER_CONTROL_DIR" && ! -L "$INLINE_SPINNER_CONTROL_DIR" && -O "$INLINE_SPINNER_CONTROL_DIR" ]] || return 1
-    MOLE_TEMP_DIRS+=("$INLINE_SPINNER_CONTROL_DIR")
+    NORA_TEMP_DIRS+=("$INLINE_SPINNER_CONTROL_DIR")
 }
 
 # Keep spinner message on one line and avoid wrapping/noisy output on narrow terminals.
@@ -409,7 +409,7 @@ start_inline_spinner() {
                     fi
                 fi
                 # Output to stderr to avoid interfering with stdout
-                printf "${frame_lead}${MOLE_SPINNER_PREFIX:-}${BLUE}%s${NC} %s" "$c" "$current_message" >&2 || break
+                printf "${frame_lead}${NORA_SPINNER_PREFIX:-}${BLUE}%s${NC} %s" "$c" "$current_message" >&2 || break
                 i=$((i + 1))
                 /bin/sleep 0.05
             done
@@ -534,10 +534,10 @@ format_last_used_summary() {
 # Returns 0 if FDA is granted, 1 if denied, 2 if unknown
 has_full_disk_access() {
     # Cache the result to avoid repeated checks
-    if [[ -n "${MOLE_HAS_FDA:-}" ]]; then
-        if [[ "$MOLE_HAS_FDA" == "1" ]]; then
+    if [[ -n "${NORA_HAS_FDA:-}" ]]; then
+        if [[ "$NORA_HAS_FDA" == "1" ]]; then
             return 0
-        elif [[ "$MOLE_HAS_FDA" == "unknown" ]]; then
+        elif [[ "$NORA_HAS_FDA" == "unknown" ]]; then
             return 2
         else
             return 1
@@ -574,15 +574,15 @@ has_full_disk_access() {
     # 3. tested_count > 0 && accessible_count = 0: No FDA → no
     if [[ $tested_count -eq 0 ]]; then
         # Can't determine - test paths don't exist, treat as unknown
-        export MOLE_HAS_FDA="unknown"
+        export NORA_HAS_FDA="unknown"
         return 2
     elif [[ $accessible_count -gt 0 ]]; then
         # At least one path is accessible → has FDA
-        export MOLE_HAS_FDA=1
+        export NORA_HAS_FDA=1
         return 0
     else
         # Tested paths exist but not accessible → no FDA
-        export MOLE_HAS_FDA=0
+        export NORA_HAS_FDA=0
         return 1
     fi
 }

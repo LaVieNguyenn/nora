@@ -29,7 +29,7 @@ run_brew_autoremove_preview() {
 }
 
 # Resolve an existing path through any symlink chain without requiring GNU
-# readlink -f (unavailable on the macOS versions Mole supports).
+# readlink -f (unavailable on the macOS versions Nora supports).
 brew_cleanup_resolve_existing_path() {
     local path="$1"
     local target=""
@@ -85,9 +85,9 @@ snapshot_homebrew_active_links() {
 
     local prefix cellar
     prefix=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew --prefix 2> /dev/null) || return 0
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew --prefix 2> /dev/null) || return 0
     cellar=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew --cellar 2> /dev/null) || return 0
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew --cellar 2> /dev/null) || return 0
     [[ "$prefix" == /* && "$cellar" == /* && -d "$prefix" && -d "$cellar" ]] || return 0
     prefix=$(cd "$prefix" 2> /dev/null && pwd -P) || return 0
     cellar=$(cd "$cellar" 2> /dev/null && pwd -P) || return 0
@@ -131,9 +131,9 @@ restore_homebrew_active_links() {
 
     local prefix cellar
     prefix=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew --prefix 2> /dev/null) || return 0
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew --prefix 2> /dev/null) || return 0
     cellar=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew --cellar 2> /dev/null) || return 0
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew --cellar 2> /dev/null) || return 0
     [[ "$prefix" == /* && "$cellar" == /* && -d "$prefix" && -d "$cellar" ]] || return 0
     prefix=$(cd "$prefix" 2> /dev/null && pwd -P) || return 0
     cellar=$(cd "$cellar" 2> /dev/null && pwd -P) || return 0
@@ -200,8 +200,8 @@ restore_homebrew_active_links() {
 
 clean_homebrew() {
     command -v brew > /dev/null 2>&1 || return 0
-    local cleanup_timeout="${MOLE_TIMEOUT_PKG_CLEANUP_SEC:-20}"
-    local autoremove_preview_timeout="${MOLE_TIMEOUT_PKG_LIST_SEC:-10}"
+    local cleanup_timeout="${NORA_TIMEOUT_PKG_CLEANUP_SEC:-20}"
+    local autoremove_preview_timeout="${NORA_TIMEOUT_PKG_LIST_SEC:-10}"
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         # Check if Homebrew cache is whitelisted
         if is_path_whitelisted "$HOME/Library/Caches/Homebrew"; then
@@ -229,7 +229,7 @@ clean_homebrew() {
         return 0
     fi
     # Skip if cleaned recently to avoid repeated heavy operations.
-    local brew_cache_file="${HOME}/.cache/mole/brew_last_cleanup"
+    local brew_cache_file="${HOME}/.cache/nora/brew_last_cleanup"
     local cache_valid_days=7
     local should_skip=false
     if [[ -f "$brew_cache_file" ]]; then
@@ -252,7 +252,7 @@ clean_homebrew() {
     local skip_cleanup=false
     local brew_cache_size=0
     if [[ -d ~/Library/Caches/Homebrew ]]; then
-        brew_cache_size=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" du -skP ~/Library/Caches/Homebrew 2> /dev/null | awk '{print $1}')
+        brew_cache_size=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" du -skP ~/Library/Caches/Homebrew 2> /dev/null | awk '{print $1}')
         local du_exit=$?
         if [[ $du_exit -eq 0 && -n "$brew_cache_size" && "$brew_cache_size" -lt 51200 ]]; then
             skip_cleanup=true
@@ -263,7 +263,7 @@ clean_homebrew() {
     if [[ "$skip_cleanup" == "false" ]]; then
         brew_tmp_file=$(create_temp_file)
         snapshot_homebrew_active_links || true
-        if [[ -t 1 ]]; then MOLE_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup..."; fi
+        if [[ -t 1 ]]; then NORA_SPINNER_PREFIX="  " start_inline_spinner "Homebrew cleanup..."; fi
         HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_AUTOREMOVE=1 NONINTERACTIVE=1 \
             run_with_timeout "$cleanup_timeout" brew cleanup --prune=30 > "$brew_tmp_file" 2>&1 || brew_exit=$?
         if [[ -t 1 ]]; then stop_inline_spinner; fi

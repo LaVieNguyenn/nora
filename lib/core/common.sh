@@ -1,38 +1,38 @@
 #!/bin/bash
-# Mole - Common Functions Library
+# Nora - Common Functions Library
 # Main entry point that loads all core modules
 
 set -euo pipefail
 
 # Prevent multiple sourcing
-if [[ -n "${MOLE_COMMON_LOADED:-}" ]]; then
+if [[ -n "${NORA_COMMON_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_COMMON_LOADED=1
+readonly NORA_COMMON_LOADED=1
 
-_MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load core modules
-source "$_MOLE_CORE_DIR/base.sh"
-prepare_mole_tmpdir > /dev/null
-source "$_MOLE_CORE_DIR/log.sh"
+source "$_NORA_CORE_DIR/base.sh"
+prepare_nora_tmpdir > /dev/null
+source "$_NORA_CORE_DIR/log.sh"
 
-source "$_MOLE_CORE_DIR/timeout.sh"
-source "$_MOLE_CORE_DIR/timeouts.sh"
-source "$_MOLE_CORE_DIR/file_ops.sh"
-source "$_MOLE_CORE_DIR/help.sh"
-source "$_MOLE_CORE_DIR/ui.sh"
-source "$_MOLE_CORE_DIR/app_protection.sh"
-source "$_MOLE_CORE_DIR/bundle_resolver.sh"
-source "$_MOLE_CORE_DIR/pkg_receipts.sh"
+source "$_NORA_CORE_DIR/timeout.sh"
+source "$_NORA_CORE_DIR/timeouts.sh"
+source "$_NORA_CORE_DIR/file_ops.sh"
+source "$_NORA_CORE_DIR/help.sh"
+source "$_NORA_CORE_DIR/ui.sh"
+source "$_NORA_CORE_DIR/app_protection.sh"
+source "$_NORA_CORE_DIR/bundle_resolver.sh"
+source "$_NORA_CORE_DIR/pkg_receipts.sh"
 
 # Load sudo management if available
-if [[ -f "$_MOLE_CORE_DIR/sudo.sh" ]]; then
-    source "$_MOLE_CORE_DIR/sudo.sh"
+if [[ -f "$_NORA_CORE_DIR/sudo.sh" ]]; then
+    source "$_NORA_CORE_DIR/sudo.sh"
 fi
 
 # Normalize a path for comparisons while preserving root.
-mole_normalize_path() {
+nora_normalize_path() {
     local path="$1"
     local normalized="${path%/}"
     [[ -n "$normalized" ]] && printf '%s\n' "$normalized" || printf '%s\n' "$path"
@@ -40,10 +40,10 @@ mole_normalize_path() {
 
 # Return a stable identity for an existing path. Prefer dev+inode so aliased
 # paths on case-insensitive filesystems or symlinks collapse to one identity.
-mole_path_identity() {
+nora_path_identity() {
     local path="$1"
     local normalized
-    normalized=$(mole_normalize_path "$path")
+    normalized=$(nora_normalize_path "$path")
 
     if [[ -e "$normalized" || -L "$normalized" ]]; then
         if command -v stat > /dev/null 2>&1; then
@@ -59,7 +59,7 @@ mole_path_identity() {
     printf 'path:%s\n' "$normalized"
 }
 
-mole_identity_in_list() {
+nora_identity_in_list() {
     local needle="$1"
     shift
 
@@ -87,7 +87,7 @@ update_via_homebrew() {
         echo "Updating Homebrew..."
     fi
 
-    local brew_update_timeout="${MOLE_HOMEBREW_UPDATE_TIMEOUT:-120}"
+    local brew_update_timeout="${NORA_HOMEBREW_UPDATE_TIMEOUT:-120}"
     HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
         run_with_timeout "$brew_update_timeout" brew update > "$temp_update" 2>&1 || true
 
@@ -95,17 +95,17 @@ update_via_homebrew() {
         stop_inline_spinner
     fi
 
-    # Upgrade Mole
+    # Upgrade Nora
     if [[ -t 1 ]]; then
-        start_inline_spinner "Upgrading Mole..."
+        start_inline_spinner "Upgrading Nora..."
     else
-        echo "Upgrading Mole..."
+        echo "Upgrading Nora..."
     fi
 
-    local brew_upgrade_timeout="${MOLE_HOMEBREW_UPGRADE_TIMEOUT:-120}"
+    local brew_upgrade_timeout="${NORA_HOMEBREW_UPGRADE_TIMEOUT:-120}"
     local upgrade_status=0
     HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
-        run_with_timeout "$brew_upgrade_timeout" brew upgrade mole > "$temp_upgrade" 2>&1 || upgrade_status=$?
+        run_with_timeout "$brew_upgrade_timeout" brew upgrade nora > "$temp_upgrade" 2>&1 || upgrade_status=$?
 
     local upgrade_output
     upgrade_output=$(cat "$temp_upgrade")
@@ -126,14 +126,14 @@ update_via_homebrew() {
         if [[ -n "$upgrade_output" ]]; then
             printf '%s\n' "$upgrade_output" >&2
         else
-            printf 'brew upgrade mole exited with status %s\n' "$upgrade_status" >&2
+            printf 'brew upgrade nora exited with status %s\n' "$upgrade_status" >&2
         fi
         return 1
     elif echo "$upgrade_output" | grep -q "already installed"; then
         local installed_version
         installed_version=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-            run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew list --versions mole 2> /dev/null | awk '{print $2}')
-        [[ -z "$installed_version" ]] && installed_version=$(mo --version 2> /dev/null | awk '/Mole version/ {print $3; exit}')
+            run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew list --versions nora 2> /dev/null | awk '{print $2}')
+        [[ -z "$installed_version" ]] && installed_version=$(nr --version 2> /dev/null | awk '/Nora version/ {print $3; exit}')
         echo ""
         echo -e "${GREEN}${ICON_SUCCESS}${NC} Already on latest version, ${installed_version:-$current_version}"
         echo ""
@@ -141,15 +141,15 @@ update_via_homebrew() {
         echo "$upgrade_output" | grep -Ev "^(==>|Updating Homebrew|Warning:)" || true
         local new_version
         new_version=$(HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 \
-            run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" brew list --versions mole 2> /dev/null | awk '{print $2}')
-        [[ -z "$new_version" ]] && new_version=$(mo --version 2> /dev/null | awk '/Mole version/ {print $3; exit}')
+            run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" brew list --versions nora 2> /dev/null | awk '{print $2}')
+        [[ -z "$new_version" ]] && new_version=$(nr --version 2> /dev/null | awk '/Nora version/ {print $3; exit}')
         echo ""
         echo -e "${GREEN}${ICON_SUCCESS}${NC} Updated to latest version, ${new_version:-$current_version}"
         echo ""
     fi
 
     # Clear update cache (suppress errors if cache doesn't exist or is locked)
-    rm -f "$HOME/.cache/mole/version_check" "$HOME/.cache/mole/update_message" 2> /dev/null || true
+    rm -f "$HOME/.cache/nora/version_check" "$HOME/.cache/nora/update_message" 2> /dev/null || true
 }
 
 # Remove applications from Dock

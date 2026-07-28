@@ -4,7 +4,7 @@ setup() {
     PROJECT_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     export PROJECT_ROOT
     export HOME="$BATS_TEST_TMPDIR/home"
-    mkdir -p "$HOME/.config/mole"
+    mkdir -p "$HOME/.config/nora"
 }
 
 
@@ -189,7 +189,7 @@ EOF
 }
 
 @test "normalize_paths_for_cleanup handles large nested batches without hanging" {
-    local limit_ms="${MOLE_PERF_NORMALIZE_PATHS_LIMIT_MS:-10000}"
+    local limit_ms="${NORA_PERF_NORMALIZE_PATHS_LIMIT_MS:-10000}"
 
     run env PROJECT_ROOT="$PROJECT_ROOT" LIMIT_MS="$limit_ms" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail

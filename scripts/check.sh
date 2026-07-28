@@ -1,5 +1,5 @@
 #!/bin/bash
-# Code quality checks for Mole.
+# Code quality checks for Nora.
 # Auto-formats code, then runs lint and syntax checks.
 
 set -euo pipefail
@@ -64,9 +64,9 @@ readonly ICON_ERROR="☻"
 readonly ICON_WARNING="●"
 readonly ICON_LIST="•"
 
-echo -e "${BLUE}=== Mole Check, ${MODE} ===${NC}\n"
+echo -e "${BLUE}=== Nora Check, ${MODE} ===${NC}\n"
 
-SHELL_FILES=$(find . -type f \( -name "*.sh" -o -name "mole" \) \
+SHELL_FILES=$(find . -type f \( -name "*.sh" -o -name "nora" \) \
     -not -path "./.git/*" \
     -not -path "*/node_modules/*" \
     -not -path "*/tests/tmp-*/*" \
@@ -85,7 +85,7 @@ if [[ "$MODE" == "format" ]]; then
 
     if command -v goimports > /dev/null 2>&1; then
         echo -e "${YELLOW}Formatting Go code, goimports...${NC}"
-        goimports -w -local github.com/tw93/mole ./cmd ./internal
+        goimports -w -local github.com/LaVieNguyenn/nora ./cmd ./internal
         echo -e "${GREEN}${ICON_SUCCESS} Go formatting complete${NC}\n"
     elif command -v go > /dev/null 2>&1; then
         echo -e "${YELLOW}Formatting Go code, gofmt...${NC}"
@@ -110,7 +110,7 @@ if [[ "$MODE" != "check" ]]; then
 
     if command -v goimports > /dev/null 2>&1; then
         echo -e "${YELLOW}2. Formatting Go code, goimports...${NC}"
-        goimports -w -local github.com/tw93/mole ./cmd ./internal
+        goimports -w -local github.com/LaVieNguyenn/nora ./cmd ./internal
         echo -e "${GREEN}${ICON_SUCCESS} Go formatting applied${NC}\n"
     elif command -v go > /dev/null 2>&1; then
         echo -e "${YELLOW}2. Formatting Go code, gofmt...${NC}"
@@ -147,7 +147,7 @@ fi
 
 echo -e "${YELLOW}4. Running ShellCheck...${NC}"
 if command -v shellcheck > /dev/null 2>&1; then
-    if shellcheck mole install.sh bin/*.sh lib/*/*.sh scripts/*.sh; then
+    if shellcheck nora install.sh bin/*.sh lib/*/*.sh scripts/*.sh; then
         echo -e "${GREEN}${ICON_SUCCESS} ShellCheck passed${NC}\n"
     else
         echo -e "${RED}${ICON_ERROR} ShellCheck failed${NC}\n"
@@ -158,8 +158,8 @@ else
 fi
 
 echo -e "${YELLOW}5. Running syntax check...${NC}"
-if ! bash -n mole; then
-    echo -e "${RED}${ICON_ERROR} Syntax check failed, mole${NC}\n"
+if ! bash -n nora; then
+    echo -e "${RED}${ICON_ERROR} Syntax check failed, nora${NC}\n"
     exit 1
 fi
 if ! bash -n install.sh; then

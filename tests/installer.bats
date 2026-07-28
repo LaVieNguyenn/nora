@@ -70,7 +70,7 @@ setup() {
 	touch "$HOME/Downloads/Chrome.dmg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -86,7 +86,7 @@ setup() {
 	touch "$HOME/Downloads/App.mpkg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -106,7 +106,7 @@ setup() {
 	touch "$HOME/Downloads/level1/level2/level3/too-deep.dmg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -121,13 +121,13 @@ setup() {
 	[[ "$output" != *"/level1/level2/level3/too-deep.dmg"* ]]
 }
 
-@test "scan_installers_in_path (fallback find): honors MOLE_INSTALLER_SCAN_MAX_DEPTH" {
+@test "scan_installers_in_path (fallback find): honors NORA_INSTALLER_SCAN_MAX_DEPTH" {
 	mkdir -p "$HOME/Downloads/level1"
 	touch "$HOME/Downloads/top.dmg"
 	touch "$HOME/Downloads/level1/nested.dmg"
 
-	run env PATH="/usr/bin:/bin" MOLE_INSTALLER_SCAN_MAX_DEPTH=1 /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+	run env PATH="/usr/bin:/bin" NORA_INSTALLER_SCAN_MAX_DEPTH=1 /bin/bash -euo pipefail -c "
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -139,7 +139,7 @@ setup() {
 
 @test "scan_installers_in_path (fallback find): handles non-existent directory" {
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/NonExistent"
@@ -155,7 +155,7 @@ setup() {
 	touch "$HOME/Downloads/Installer.dmg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -181,7 +181,7 @@ setup() {
 	touch "$HOME/Downloads/test.dmg"
 
 	run /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source "$1"
         scan_all_installers
     ' bash "$PROJECT_ROOT/bin/installer.sh"
@@ -198,7 +198,7 @@ setup() {
 	touch "$HOME/Downloads/My App Installer.dmg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -211,7 +211,7 @@ setup() {
 	touch "$HOME/Downloads/App-v1.2.3_beta.pkg"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -226,7 +226,7 @@ setup() {
 	touch "$HOME/Downloads/image.png"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -243,7 +243,7 @@ setup() {
 	ln -s /nonexistent "$HOME/Downloads/dangling.lnk"
 
 	run env PATH="/usr/bin:/bin" /bin/bash -euo pipefail -c "
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source \"\$1\"
         scan_installers_in_path \"\$2\"
     " bash "$PROJECT_ROOT/bin/installer.sh" "$HOME/Downloads"
@@ -262,20 +262,20 @@ setup() {
 
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
-        export MOLE_TEST_NO_AUTH=1
-        export MOLE_DELETE_LOG="$HOME/deletions.log"
+        export NORA_TEST_MODE=1
+        export NORA_TEST_NO_AUTH=1
+        export NORA_DELETE_LOG="$HOME/deletions.log"
         source "$1"
 
         INSTALLER_PATHS=("$2" "$3")
         INSTALLER_SIZES=(3 3)
-        MOLE_SELECTION_RESULT="0,1"
+        NORA_SELECTION_RESULT="0,1"
 
         delete_selected_installers < <(printf "\n")
         printf "deleted=%s failed=%s freed=%s\n" "$total_deleted" "${total_delete_failed:-0}" "$total_size_freed_kb"
         [[ ! -e "$2" ]] || return 1
         [[ ! -e "$3" ]] || return 1
-        grep -F "[installer] REMOVED $2" "$HOME/Library/Logs/mole/operations.log" > /dev/null
+        grep -F "[installer] REMOVED $2" "$HOME/Library/Logs/nora/operations.log" > /dev/null
     ' bash "$PROJECT_ROOT/bin/installer.sh" "$first" "$second"
 
 	[ "$status" -eq 0 ]
@@ -288,15 +288,15 @@ setup() {
 
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
-        export MOLE_TEST_NO_AUTH=1
-        export MOLE_DELETE_LOG="$HOME/deletions.log"
+        export NORA_TEST_MODE=1
+        export NORA_TEST_NO_AUTH=1
+        export NORA_DELETE_LOG="$HOME/deletions.log"
         source "$1"
 
         system_size=$(get_file_size "/System")
         INSTALLER_PATHS=("$2" "/System")
         INSTALLER_SIZES=(4 "$system_size")
-        MOLE_SELECTION_RESULT="0,1"
+        NORA_SELECTION_RESULT="0,1"
 
         set +e
         delete_selected_installers < <(printf "\n")
@@ -322,8 +322,8 @@ setup() {
 
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
-        export MOLE_TEST_NO_AUTH=1
+        export NORA_TEST_MODE=1
+        export NORA_TEST_NO_AUTH=1
         source "$1"
 
         INSTALLER_PATHS=("$2")
@@ -353,8 +353,8 @@ setup() {
 
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
-        export MOLE_TEST_NO_AUTH=1
+        export NORA_TEST_MODE=1
+        export NORA_TEST_NO_AUTH=1
         source "$1"
 
         INSTALLER_PATHS=("$2")
@@ -379,7 +379,7 @@ setup() {
 @test "show_summary reports installer delete failures" {
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
+        export NORA_TEST_MODE=1
         source "$1"
 
         total_deleted=1
@@ -406,9 +406,9 @@ setup() {
 
 	# shellcheck disable=SC2016
 	run env HOME="$HOME" TERM="$TERM" /bin/bash -euo pipefail -c '
-        export MOLE_TEST_MODE=1
-        export MOLE_TEST_NO_AUTH=1
-        export MOLE_DELETE_LOG="$HOME/deletions.log"
+        export NORA_TEST_MODE=1
+        export NORA_TEST_NO_AUTH=1
+        export NORA_DELETE_LOG="$HOME/deletions.log"
         source "$1"
         test_removable="$2"
 
@@ -422,7 +422,7 @@ setup() {
         }
 
         show_installer_menu() {
-            MOLE_SELECTION_RESULT="0,1"
+            NORA_SELECTION_RESULT="0,1"
             return 0
         }
 

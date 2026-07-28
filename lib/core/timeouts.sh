@@ -1,11 +1,11 @@
 #!/bin/bash
-# Mole - Centralized timeout constants for run_with_timeout calls.
+# Nora - Centralized timeout constants for run_with_timeout calls.
 #
 # Goal: when someone needs to tune "all quick command-availability probes"
 # or "all package-manager cleanup ceilings", they edit ONE place instead
 # of grepping 100+ call sites.
 #
-# Naming: MOLE_TIMEOUT_<CATEGORY>_SEC. All values are seconds (integer or
+# Naming: NORA_TIMEOUT_<CATEGORY>_SEC. All values are seconds (integer or
 # fractional). All are overridable via the same-named env var so operators
 # can lengthen them for slow disks / cold Spotlight / etc.
 #
@@ -53,15 +53,15 @@
 
 set -euo pipefail
 
-if [[ -n "${MOLE_TIMEOUTS_LOADED:-}" ]]; then
+if [[ -n "${NORA_TIMEOUTS_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_TIMEOUTS_LOADED=1
+readonly NORA_TIMEOUTS_LOADED=1
 
-readonly MOLE_TIMEOUT_QUICK_DETECT_SEC="${MOLE_TIMEOUT_QUICK_DETECT_SEC:-2}"
-readonly MOLE_TIMEOUT_SHORT_QUERY_SEC="${MOLE_TIMEOUT_SHORT_QUERY_SEC:-3}"
-readonly MOLE_TIMEOUT_MEDIUM_PROBE_SEC="${MOLE_TIMEOUT_MEDIUM_PROBE_SEC:-5}"
-readonly MOLE_TIMEOUT_PKG_LIST_SEC="${MOLE_TIMEOUT_PKG_LIST_SEC:-10}"
-readonly MOLE_TIMEOUT_PKG_CLEANUP_SEC="${MOLE_TIMEOUT_PKG_CLEANUP_SEC:-20}"
-readonly MOLE_TIMEOUT_DISK_VERIFY_SEC="${MOLE_TIMEOUT_DISK_VERIFY_SEC:-30}"
-readonly MOLE_TIMEOUT_HINT_SCAN_SEC="${MOLE_TIMEOUT_HINT_SCAN_SEC:-15}"
+readonly NORA_TIMEOUT_QUICK_DETECT_SEC="${NORA_TIMEOUT_QUICK_DETECT_SEC:-2}"
+readonly NORA_TIMEOUT_SHORT_QUERY_SEC="${NORA_TIMEOUT_SHORT_QUERY_SEC:-3}"
+readonly NORA_TIMEOUT_MEDIUM_PROBE_SEC="${NORA_TIMEOUT_MEDIUM_PROBE_SEC:-5}"
+readonly NORA_TIMEOUT_PKG_LIST_SEC="${NORA_TIMEOUT_PKG_LIST_SEC:-10}"
+readonly NORA_TIMEOUT_PKG_CLEANUP_SEC="${NORA_TIMEOUT_PKG_CLEANUP_SEC:-20}"
+readonly NORA_TIMEOUT_DISK_VERIFY_SEC="${NORA_TIMEOUT_DISK_VERIFY_SEC:-30}"
+readonly NORA_TIMEOUT_HINT_SCAN_SEC="${NORA_TIMEOUT_HINT_SCAN_SEC:-15}"

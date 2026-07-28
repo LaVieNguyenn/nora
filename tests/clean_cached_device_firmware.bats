@@ -10,8 +10,8 @@ setup_file() {
     HOME="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-device-firmware.XXXXXX")"
     export HOME
 
-    MOLE_TEST_MODE=1
-    export MOLE_TEST_MODE
+    NORA_TEST_MODE=1
+    export NORA_TEST_MODE
 
     mkdir -p "$HOME"
 }

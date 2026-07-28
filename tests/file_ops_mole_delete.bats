@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
-# Tests for mole_delete in lib/core/file_ops.sh.
-# Exercises permanent mode (default), trash mode (via MOLE_TEST_TRASH_DIR
+# Tests for nora_delete in lib/core/file_ops.sh.
+# Exercises permanent mode (default), trash mode (via NORA_TEST_TRASH_DIR
 # so Finder is never invoked), dry-run, and the deletions log.
 
 setup_file() {
@@ -10,13 +10,13 @@ setup_file() {
 }
 
 setup() {
-    SANDBOX="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-mole-delete.XXXXXX")"
+    SANDBOX="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-nora-delete.XXXXXX")"
     export SANDBOX
-    export MOLE_DELETE_LOG="$SANDBOX/deletions.log"
-    export MOLE_TEST_TRASH_DIR="$SANDBOX/Trash"
-    export MOLE_TEST_NO_AUTH=1
-    unset MOLE_DELETE_MODE
-    unset MOLE_DRY_RUN
+    export NORA_DELETE_LOG="$SANDBOX/deletions.log"
+    export NORA_TEST_TRASH_DIR="$SANDBOX/Trash"
+    export NORA_TEST_NO_AUTH=1
+    unset NORA_DELETE_MODE
+    unset NORA_DRY_RUN
 }
 
 teardown() {
@@ -26,47 +26,47 @@ teardown() {
 prelude() {
     cat <<EOF
 set -euo pipefail
-export MOLE_DELETE_LOG="$MOLE_DELETE_LOG"
-export MOLE_TEST_TRASH_DIR="$MOLE_TEST_TRASH_DIR"
-export MOLE_TEST_NO_AUTH=1
+export NORA_DELETE_LOG="$NORA_DELETE_LOG"
+export NORA_TEST_TRASH_DIR="$NORA_TEST_TRASH_DIR"
+export NORA_TEST_NO_AUTH=1
 source "$PROJECT_ROOT/lib/core/common.sh"
 EOF
 }
 
-@test "mole_delete defaults to permanent mode and removes the target" {
+@test "nora_delete defaults to permanent mode and removes the target" {
     local victim="$SANDBOX/victim"
     mkdir -p "$victim"
     : > "$victim/keep.txt"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-mole_delete "$victim"
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 0 ]
     [[ ! -e "$victim" ]] || return 1
     # Trash dir must remain empty in permanent mode.
-    [[ -z "$(ls -A "$MOLE_TEST_TRASH_DIR" 2> /dev/null || true)" ]]
+    [[ -z "$(ls -A "$NORA_TEST_TRASH_DIR" 2> /dev/null || true)" ]]
 }
 
-@test "mole_delete trash mode moves the target instead of rm -rf" {
+@test "nora_delete trash mode moves the target instead of rm -rf" {
     local victim="$SANDBOX/victim_trash"
     mkdir -p "$victim"
     printf 'payload' > "$victim/data.txt"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DELETE_MODE=trash
-mole_delete "$victim"
+export NORA_DELETE_MODE=trash
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 0 ]
     [[ ! -e "$victim" ]] || return 1
     # Something landed in the stub trash dir.
-    [[ -n "$(ls -A "$MOLE_TEST_TRASH_DIR" 2> /dev/null || true)" ]]
+    [[ -n "$(ls -A "$NORA_TEST_TRASH_DIR" 2> /dev/null || true)" ]]
 }
 
-@test "mole_delete moves sudo-required paths to invoking user Trash" {
+@test "nora_delete moves sudo-required paths to invoking user Trash" {
     local victim="$SANDBOX/victim_sudo_trash"
     local fake_bin="$SANDBOX/bin"
     local fake_home="$SANDBOX/home"
@@ -78,12 +78,12 @@ EOF
 
     cat > "$fake_bin/trash" <<'SH'
 #!/bin/bash
-printf 'trash %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'trash %s\n' "$*" >> "$NORA_TEST_TRACE"
 exit 99
 SH
     cat > "$fake_bin/sudo" <<'SH'
 #!/bin/bash
-printf 'sudo %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'sudo %s\n' "$*" >> "$NORA_TEST_TRACE"
 if [[ "${1:-}" == "-n" ]]; then
     shift
 fi
@@ -91,26 +91,26 @@ fi
 SH
     cat > "$fake_bin/osascript" <<'SH'
 #!/bin/bash
-printf 'osascript %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'osascript %s\n' "$*" >> "$NORA_TEST_TRACE"
 exit 98
 SH
     chmod +x "$fake_bin/trash" "$fake_bin/sudo" "$fake_bin/osascript"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
-export MOLE_DELETE_MODE=trash
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
+export NORA_DELETE_MODE=trash
 export PATH="$fake_bin:\$PATH"
 export HOME="$fake_home"
-export MOLE_TEST_TRACE="$trace"
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
-_mole_create_privileged_trash_stage() {
+export NORA_TEST_TRACE="$trace"
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_create_privileged_trash_stage() {
     local stage="$SANDBOX/stage-sudo-trash"
     mkdir -p "\$stage"
     printf '%s\n' "\$stage"
 }
-mole_delete "$victim" true
+nora_delete "$victim" true
 EOF
 
     [ "$status" -eq 0 ]
@@ -124,18 +124,18 @@ EOF
     # unprivileged rmdir cannot unlink it and would leak one directory per move.
     [[ "$(grep -c "^sudo -n /bin/rmdir $SANDBOX/stage-sudo-trash\$" "$trace" 2> /dev/null || true)" -eq 1 ]] || return 1
     # The shared staging root stays: removing it raced with concurrent runs.
-    [[ "$(grep -c 'rmdir /Library/MoleTrashStaging' "$trace" 2> /dev/null || true)" -eq 0 ]] || return 1
+    [[ "$(grep -c 'rmdir /Library/NoraTrashStaging' "$trace" 2> /dev/null || true)" -eq 0 ]] || return 1
     [[ ! -d "$SANDBOX/stage-sudo-trash" ]] || return 1
     # -x stops the recursive chown at a mount point nested inside the payload;
     # the same-device gate only covers the payload root.
     [[ "$(grep -c '^sudo -n /usr/sbin/chown -Rhx ' "$trace" 2> /dev/null || true)" -eq 1 ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "ok" ]
 }
 
-@test "mole_delete refuses symlinked invoking user Trash for sudo-required paths" {
+@test "nora_delete refuses symlinked invoking user Trash for sudo-required paths" {
     local victim="$SANDBOX/victim_sudo_symlink_trash"
     local fake_bin="$SANDBOX/bin"
     local fake_home="$SANDBOX/home"
@@ -148,7 +148,7 @@ EOF
 
     cat > "$fake_bin/sudo" <<'SH'
 #!/bin/bash
-printf 'sudo %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'sudo %s\n' "$*" >> "$NORA_TEST_TRACE"
 if [[ "${1:-}" == "-n" ]]; then
     shift
 fi
@@ -158,14 +158,14 @@ SH
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
-export MOLE_DELETE_MODE=trash
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
+export NORA_DELETE_MODE=trash
 export PATH="$fake_bin:\$PATH"
 export HOME="$fake_home"
-export MOLE_TEST_TRACE="$trace"
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
-mole_delete "$victim" true
+export NORA_TEST_TRACE="$trace"
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
+nora_delete "$victim" true
 EOF
 
     [ "$status" -ne 0 ]
@@ -174,11 +174,11 @@ EOF
     [[ "$(grep -c '^sudo -n /bin/mv ' "$trace" 2> /dev/null || true)" -eq 0 ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "trash-failed" ]
 }
 
-@test "mole_delete uses unique Trash name for sudo-required path conflicts" {
+@test "nora_delete uses unique Trash name for sudo-required path conflicts" {
     local victim="$SANDBOX/conflict_app"
     local fake_bin="$SANDBOX/bin"
     local fake_home="$SANDBOX/home"
@@ -190,7 +190,7 @@ EOF
 
     cat > "$fake_bin/sudo" <<'SH'
 #!/bin/bash
-printf 'sudo %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'sudo %s\n' "$*" >> "$NORA_TEST_TRACE"
 if [[ "${1:-}" == "-n" ]]; then
     shift
 fi
@@ -200,19 +200,19 @@ SH
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
-export MOLE_DELETE_MODE=trash
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
+export NORA_DELETE_MODE=trash
 export PATH="$fake_bin:\$PATH"
 export HOME="$fake_home"
-export MOLE_TEST_TRACE="$trace"
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
-_mole_create_privileged_trash_stage() {
+export NORA_TEST_TRACE="$trace"
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_create_privileged_trash_stage() {
     local stage="$SANDBOX/stage-conflict-trash"
     mkdir -p "\$stage"
     printf '%s\n' "\$stage"
 }
-mole_delete "$victim" true
+nora_delete "$victim" true
 EOF
 
     [ "$status" -eq 0 ]
@@ -222,7 +222,7 @@ EOF
     [[ "$(grep -c '^sudo -n /bin/mv ' "$trace" 2> /dev/null || true)" -eq 1 ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "ok" ]
 }
 
@@ -237,12 +237,12 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
-export MOLE_DELETE_MODE=trash
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
+export NORA_DELETE_MODE=trash
 export HOME="$fake_home"
-_mole_privileged_path_has_mutable_ancestor() { return 1; }
-_mole_create_privileged_trash_stage() {
+_nora_privileged_path_has_mutable_ancestor() { return 1; }
+_nora_create_privileged_trash_stage() {
     command chmod 500 "$fake_home/.Trash"
     mkdir -p "$stage"
     printf '%s\n' "$stage"
@@ -253,7 +253,7 @@ sudo() {
     "\$@"
 }
 set +e
-mole_delete "$victim" true
+nora_delete "$victim" true
 rc=\$?
 set -e
 printf 'RC=%s\n' "\$rc"
@@ -269,10 +269,10 @@ EOF
 }
 
 @test "privileged Trash staging never uses world-writable Library Caches" {
-    run grep -nF '/Library/Caches/.mole-trash' "$PROJECT_ROOT/lib/core/file_ops.sh"
+    run grep -nF '/Library/Caches/.nora-trash' "$PROJECT_ROOT/lib/core/file_ops.sh"
     [ "$status" -ne 0 ]
 
-    run grep -nF 'stage_root="/Library/MoleTrashStaging"' "$PROJECT_ROOT/lib/core/file_ops.sh"
+    run grep -nF 'stage_root="/Library/NoraTrashStaging"' "$PROJECT_ROOT/lib/core/file_ops.sh"
     [ "$status" -eq 0 ]
 }
 
@@ -283,11 +283,11 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
-export MOLE_DELETE_MODE=trash
-_mole_move_path_to_user_trash() {
+export NORA_DELETE_MODE=trash
+_nora_move_path_to_user_trash() {
     printf 'direct:%s:%s\n' "\$1" "\$2" >> "$trace"
     return 0
 }
@@ -299,10 +299,10 @@ osascript() {
     printf 'osascript:%s\n' "\$*" >> "$trace"
     return 98
 }
-_mole_path_requires_direct_trash "/Applications/Microsoft Word.app"
-! _mole_path_requires_direct_trash "/Applications/Utilities/Microsoft Word.app"
-! _mole_path_requires_direct_trash "/Applications/Microsoft Word.app/Contents"
-_mole_move_to_trash "/Applications/Microsoft Word.app" false
+_nora_path_requires_direct_trash "/Applications/Microsoft Word.app"
+! _nora_path_requires_direct_trash "/Applications/Utilities/Microsoft Word.app"
+! _nora_path_requires_direct_trash "/Applications/Microsoft Word.app/Contents"
+_nora_move_to_trash "/Applications/Microsoft Word.app" false
 EOF
 
     [ "$status" -eq 0 ]
@@ -321,11 +321,11 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
-export MOLE_DELETE_MODE=trash
-export MOLE_UNINSTALL_MODE=1
+export NORA_DELETE_MODE=trash
+export NORA_UNINSTALL_MODE=1
 trash() {
     printf 'trash:%s\n' "\$*" >> "$trace"
     return 99
@@ -334,7 +334,7 @@ osascript() {
     printf 'osascript:%s\n' "\$*" >> "$trace"
     return 98
 }
-mole_delete "$victim" false
+nora_delete "$victim" false
 EOF
 
     [ "$status" -eq 0 ]
@@ -355,12 +355,12 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
-export MOLE_DELETE_MODE=trash
-export MOLE_UNINSTALL_MODE=1
-mole_delete "$victim" false
+export NORA_DELETE_MODE=trash
+export NORA_UNINSTALL_MODE=1
+nora_delete "$victim" false
 EOF
 
     [ "$status" -ne 0 ]
@@ -377,11 +377,11 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
-export MOLE_DELETE_MODE=trash
-export MOLE_UNINSTALL_MODE=1
+export NORA_DELETE_MODE=trash
+export NORA_UNINSTALL_MODE=1
 mv() {
     printf 'mv: %s: Operation not permitted\n' "\$2" >&2
     return 1
@@ -399,11 +399,11 @@ safe_remove() {
     return 97
 }
 set +e
-mole_delete "$victim" false
+nora_delete "$victim" false
 rc=\$?
 set -e
 printf 'RC=%s\n' "\$rc"
-[[ \$rc -eq \$MOLE_ERR_PRIVACY_DENIED ]] || exit 1
+[[ \$rc -eq \$NORA_ERR_PRIVACY_DENIED ]] || exit 1
 EOF
 
     [ "$status" -eq 0 ]
@@ -412,7 +412,7 @@ EOF
     [[ "$output" != *"Touch ID"* ]] || return 1
     [[ "$output" == *"RC=14"* ]] || return 1
     [[ ! -s "$trace" ]] || return 1
-    [ "$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")" = "privacy-denied" ]
+    [ "$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")" = "privacy-denied" ]
 }
 
 @test "direct Trash recognizes lowercase permission denied" {
@@ -422,19 +422,19 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
 mv() {
     printf 'mv: permission denied\n' >&2
     return 1
 }
 set +e
-_mole_move_path_to_user_trash "$victim" false
+_nora_move_path_to_user_trash "$victim" false
 rc=\$?
 set -e
 printf 'RC=%s\n' "\$rc"
-[[ \$rc -eq \$MOLE_ERR_PRIVACY_DENIED ]] || exit 1
+[[ \$rc -eq \$NORA_ERR_PRIVACY_DENIED ]] || exit 1
 EOF
 
     [ "$status" -eq 0 ]
@@ -450,11 +450,11 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-unset MOLE_TEST_TRASH_DIR
-unset MOLE_TEST_NO_AUTH
+unset NORA_TEST_TRASH_DIR
+unset NORA_TEST_NO_AUTH
 export HOME="$fake_home"
-export MOLE_DELETE_MODE=trash
-export MOLE_UNINSTALL_MODE=1
+export NORA_DELETE_MODE=trash
+export NORA_UNINSTALL_MODE=1
 mv() {
     printf 'mv: input/output error\n' >&2
     return 1
@@ -472,7 +472,7 @@ safe_remove() {
     return 97
 }
 set +e
-mole_delete "$victim" false
+nora_delete "$victim" false
 rc=\$?
 set -e
 [[ \$rc -eq 1 ]] || exit 1
@@ -487,7 +487,7 @@ EOF
 @test "privacy denial diagnosis recommends terminal privacy access, not Touch ID" {
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-diagnose_removal_failure "\$MOLE_ERR_PRIVACY_DENIED" "Microsoft Word"
+diagnose_removal_failure "\$NORA_ERR_PRIVACY_DENIED" "Microsoft Word"
 EOF
 
     [ "$status" -eq 0 ]
@@ -497,113 +497,113 @@ EOF
     [[ "$output" != *"Touch ID"* ]]
 }
 
-@test "mole_delete writes a tab-separated log line per call" {
+@test "nora_delete writes a tab-separated log line per call" {
     local victim="$SANDBOX/logged"
     : > "$victim"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-mole_delete "$victim"
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 0 ]
-    [[ -s "$MOLE_DELETE_LOG" ]] || return 1
+    [[ -s "$NORA_DELETE_LOG" ]] || return 1
 
     # Expect 5 tab-separated fields: timestamp, mode, size_kb, status, path.
     local fields
-    fields=$(awk -F'\t' 'END { print NF }' "$MOLE_DELETE_LOG")
+    fields=$(awk -F'\t' 'END { print NF }' "$NORA_DELETE_LOG")
     [ "$fields" -eq 5 ]
 
     # Status column must be "ok" for a successful permanent delete.
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "ok" ]
 }
 
-@test "mole_delete rejects symlinks to protected system paths" {
+@test "nora_delete rejects symlinks to protected system paths" {
     local victim="$SANDBOX/system-link"
     ln -s "/System" "$victim"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-mole_delete "$victim"
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 1 ]
     [[ -L "$victim" ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "rejected" ]
 }
 
-@test "mole_delete dry-run does not touch the filesystem but still logs" {
+@test "nora_delete dry-run does not touch the filesystem but still logs" {
     local victim="$SANDBOX/dry"
     : > "$victim"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DRY_RUN=1
-mole_delete "$victim"
+export NORA_DRY_RUN=1
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 0 ]
     [[ -e "$victim" ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "dry-run" ]
 }
 
-@test "mole_delete records a forensic log entry for rejected paths" {
+@test "nora_delete records a forensic log entry for rejected paths" {
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-mole_delete "/tmp/../etc/hosts"
+nora_delete "/tmp/../etc/hosts"
 EOF
 
     [ "$status" -ne 0 ]
     # Rejection IS logged (security-relevant), with status="rejected" and size=0.
     # Audit trails need to distinguish refused-by-policy from never-attempted.
-    [[ -s "$MOLE_DELETE_LOG" ]] || return 1
+    [[ -s "$NORA_DELETE_LOG" ]] || return 1
     local status_col size_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
-    size_col=$(awk -F'\t' 'END { print $3 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
+    size_col=$(awk -F'\t' 'END { print $3 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "rejected" ]
     [ "$size_col" = "0" ]
 }
 
-@test "mole_delete is a no-op on a non-existent path" {
+@test "nora_delete is a no-op on a non-existent path" {
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-mole_delete "$SANDBOX/does-not-exist"
+nora_delete "$SANDBOX/does-not-exist"
 EOF
 
     [ "$status" -eq 0 ]
-    [[ ! -s "$MOLE_DELETE_LOG" ]]
+    [[ ! -s "$NORA_DELETE_LOG" ]]
 }
 
-@test "mole_delete rejects unknown delete mode without touching target" {
+@test "nora_delete rejects unknown delete mode without touching target" {
     local victim="$SANDBOX/invalid_mode_target"
     : > "$victim"
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DELETE_MODE=surprise
-mole_delete "$victim"
+export NORA_DELETE_MODE=surprise
+nora_delete "$victim"
 EOF
 
     [ "$status" -ne 0 ]
     [[ -e "$victim" ]] || return 1
 
     local mode_col status_col
-    mode_col=$(awk -F'\t' 'END { print $2 }' "$MOLE_DELETE_LOG")
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    mode_col=$(awk -F'\t' 'END { print $2 }' "$NORA_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$mode_col" = "surprise" ]
     [ "$status_col" = "invalid-mode" ]
     [[ "$output" == *'expected "permanent" or "trash"'* ]]
 }
 
-@test "mole_delete warns once for repeated invalid delete mode" {
+@test "nora_delete warns once for repeated invalid delete mode" {
     local first="$SANDBOX/invalid_mode_first"
     local second="$SANDBOX/invalid_mode_second"
     : > "$first"
@@ -611,11 +611,11 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DELETE_MODE=surprise
+export NORA_DELETE_MODE=surprise
 set +e
-mole_delete "$first"
+nora_delete "$first"
 first_rc=\$?
-mole_delete "$second"
+nora_delete "$second"
 second_rc=\$?
 set -e
 [[ \$first_rc -ne 0 && \$second_rc -ne 0 ]] || exit 1
@@ -624,14 +624,14 @@ EOF
     [ "$status" -eq 0 ]
     [[ -e "$first" ]] || return 1
     [[ -e "$second" ]] || return 1
-    [[ "$(grep -c 'invalid MOLE_DELETE_MODE' <<< "$output")" -eq 1 ]]
+    [[ "$(grep -c 'invalid NORA_DELETE_MODE' <<< "$output")" -eq 1 ]]
 }
 
-@test "mole_delete trash failure leaves target in place" {
+@test "nora_delete trash failure leaves target in place" {
     local victim="$SANDBOX/fallback_target"
     : > "$victim"
 
-    # Pointing MOLE_TEST_TRASH_DIR at a non-writable parent forces the stub
+    # Pointing NORA_TEST_TRASH_DIR at a non-writable parent forces the stub
     # trash move to fail, exercising the fallback path.
     local blocked="$SANDBOX/blocked/Trash"
     mkdir -p "$(dirname "$blocked")"
@@ -639,9 +639,9 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DELETE_MODE=trash
-export MOLE_TEST_TRASH_DIR="$blocked"
-mole_delete "$victim"
+export NORA_DELETE_MODE=trash
+export NORA_TEST_TRASH_DIR="$blocked"
+nora_delete "$victim"
 EOF
 
     chmod 0755 "$(dirname "$blocked")"
@@ -650,12 +650,12 @@ EOF
     [[ -e "$victim" ]] || return 1
 
     local status_col
-    status_col=$(awk -F'\t' 'END { print $4 }' "$MOLE_DELETE_LOG")
+    status_col=$(awk -F'\t' 'END { print $4 }' "$NORA_DELETE_LOG")
     [ "$status_col" = "trash-failed" ]
     [[ "$output" == *"refusing permanent delete"* ]]
 }
 
-@test "mole_delete warns once for repeated Trash failures" {
+@test "nora_delete warns once for repeated Trash failures" {
     local first="$SANDBOX/trash_fail_first"
     local second="$SANDBOX/trash_fail_second"
     : > "$first"
@@ -667,12 +667,12 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DELETE_MODE=trash
-export MOLE_TEST_TRASH_DIR="$blocked"
+export NORA_DELETE_MODE=trash
+export NORA_TEST_TRASH_DIR="$blocked"
 set +e
-mole_delete "$first"
+nora_delete "$first"
 first_rc=\$?
-mole_delete "$second"
+nora_delete "$second"
 second_rc=\$?
 set -e
 [[ \$first_rc -ne 0 && \$second_rc -ne 0 ]] || exit 1
@@ -686,7 +686,7 @@ EOF
     [[ "$(grep -c "Trash unavailable" <<< "$output")" -eq 1 ]]
 }
 
-@test "mole_delete records 'unknown' (not 0) when size measurement fails" {
+@test "nora_delete records 'unknown' (not 0) when size measurement fails" {
     # Override get_path_size_kb to simulate a measurement failure (non-numeric
     # output, non-zero exit). The actual delete still goes through safe_remove
     # so the file is removed; only the log size column should differ.
@@ -696,17 +696,17 @@ EOF
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
 get_path_size_kb() { echo "ERR"; return 1; }
-mole_delete "$victim"
+nora_delete "$victim"
 EOF
 
     [ "$status" -eq 0 ]
     [[ ! -e "$victim" ]] || return 1
     local size_col
-    size_col=$(awk -F'\t' 'END { print $3 }' "$MOLE_DELETE_LOG")
+    size_col=$(awk -F'\t' 'END { print $3 }' "$NORA_DELETE_LOG")
     [ "$size_col" = "unknown" ]
 }
 
-@test "mole_delete warns once per session when audit log is unwritable" {
+@test "nora_delete warns once per session when audit log is unwritable" {
     local victim="$SANDBOX/log_blocked"
     : > "$victim"
     local broken_log_dir="$SANDBOX/no_write/logs"
@@ -715,14 +715,14 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 set -euo pipefail
-export MOLE_DELETE_LOG="$broken_log_dir/deletions.log"
-export MOLE_TEST_TRASH_DIR="$MOLE_TEST_TRASH_DIR"
-export MOLE_TEST_NO_AUTH=1
+export NORA_DELETE_LOG="$broken_log_dir/deletions.log"
+export NORA_TEST_TRASH_DIR="$NORA_TEST_TRASH_DIR"
+export NORA_TEST_NO_AUTH=1
 source "$PROJECT_ROOT/lib/core/common.sh"
-mole_delete "$victim"
+nora_delete "$victim"
 # Second call in the same shell must NOT print again.
 : > "$SANDBOX/second_victim"
-mole_delete "$SANDBOX/second_victim"
+nora_delete "$SANDBOX/second_victim"
 EOF
 
     chmod 0755 "$(dirname "$broken_log_dir")"
@@ -757,8 +757,8 @@ STUB
     run /bin/bash --noprofile --norc <<EOF
 set -euo pipefail
 export PATH="$stub_dir:\$PATH"
-export MOLE_TIMEOUT_DISK_VERIFY_SEC=1
-export MOLE_TEST_NO_AUTH=1
+export NORA_TIMEOUT_DISK_VERIFY_SEC=1
+export NORA_TEST_NO_AUTH=1
 source "$PROJECT_ROOT/lib/core/common.sh"
 get_path_size_kb "$victim_dir"
 EOF
@@ -772,7 +772,7 @@ EOF
 
 # The stage-root preparation is the part with a concurrency contract, and the
 # Trash tests above mock the whole stage creator, so it needs its own coverage:
-# two Mole processes can both observe a missing root, and a plain mkdir would
+# two Nora processes can both observe a missing root, and a plain mkdir would
 # make the loser abort a Trash move that was perfectly safe.
 @test "privileged Trash stage root tolerates a concurrent creator" {
     local stage_root="$SANDBOX/stage-root"
@@ -786,7 +786,7 @@ EOF
     # success; reaching them at all is the evidence that mkdir did not abort.
     cat > "$fake_bin/sudo" <<'SH'
 #!/bin/bash
-printf 'sudo %s\n' "$*" >> "$MOLE_TEST_TRACE"
+printf 'sudo %s\n' "$*" >> "$NORA_TEST_TRACE"
 if [[ "${1:-}" == "-n" ]]; then
     shift
 fi
@@ -813,8 +813,8 @@ SH
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
 export PATH="$fake_bin:\$PATH"
-export MOLE_TEST_TRACE="$trace"
-_mole_prepare_privileged_trash_stage_root "$stage_root"
+export NORA_TEST_TRACE="$trace"
+_nora_prepare_privileged_trash_stage_root "$stage_root"
 EOF
 
     # mkdir -p absorbed the existing root and the flow continued into the
@@ -839,9 +839,9 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_TEST_TRACE="$trace"
+export NORA_TEST_TRACE="$trace"
 sudo() { printf 'sudo %s\n' "\$*" >> "$trace"; return 0; }
-_mole_prepare_privileged_trash_stage_root "$stage_root"
+_nora_prepare_privileged_trash_stage_root "$stage_root"
 EOF
 
     [ "$status" -ne 0 ] || return 1

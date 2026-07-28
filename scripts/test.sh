@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test runner for Mole.
+# Test runner for Nora.
 # Runs unit, Go, and integration tests.
 # Exits non-zero on failures.
 
@@ -19,14 +19,14 @@ if [[ -d "$PROJECT_ROOT/tests" ]]; then
 fi
 
 # Never allow the scripted test run to trigger real sudo or Touch ID prompts.
-export MOLE_TEST_NO_AUTH=1
+export NORA_TEST_NO_AUTH=1
 
 # Tests assert deterministic ANSI escape output. Strip any NO_COLOR the
 # developer has set in their shell so the test color-escape assertions
 # match regardless of the host environment.
 unset NO_COLOR
 
-TEST_SYSTEM_STUB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mole-test-stubs.XXXXXX")"
+TEST_SYSTEM_STUB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nora-test-stubs.XXXXXX")"
 TEST_GO_HELPER_DIR=""
 # shellcheck disable=SC2329  # Invoked by trap.
 cleanup_test_stubs() {
@@ -48,19 +48,19 @@ case "${1:-}" in
         ;;
 esac
 
-printf 'mole test blocked sudo: %s\n' "$*" >&2
+printf 'nora test blocked sudo: %s\n' "$*" >&2
 exit 1
 EOF
 
 cat > "$TEST_SYSTEM_STUB_DIR/osascript" << 'EOF'
 #!/bin/bash
-printf 'mole test blocked osascript: %s\n' "$*" >&2
+printf 'nora test blocked osascript: %s\n' "$*" >&2
 exit 1
 EOF
 
 cat > "$TEST_SYSTEM_STUB_DIR/launchctl" << 'EOF'
 #!/bin/bash
-printf 'mole test blocked launchctl: %s\n' "$*" >&2
+printf 'nora test blocked launchctl: %s\n' "$*" >&2
 exit 0
 EOF
 
@@ -71,7 +71,7 @@ export PATH="$TEST_SYSTEM_STUB_DIR:$PATH"
 source "$PROJECT_ROOT/lib/core/file_ops.sh"
 
 echo "==============================="
-echo "Mole Test Runner"
+echo "Nora Test Runner"
 echo "==============================="
 echo ""
 
@@ -95,8 +95,8 @@ enforce_timeout_dependency_in_ci() {
 # Attribution is per file, which is what a parallel run hides: wall clock is
 # set by the single slowest file, not by the total.
 report_slowest_test_files() {
-    local report="${MOLE_TEST_REPORT_DIR:-}/report.xml"
-    [[ -n "${MOLE_TEST_REPORT_DIR:-}" && -f "$report" ]] || return 0
+    local report="${NORA_TEST_REPORT_DIR:-}/report.xml"
+    [[ -n "${NORA_TEST_REPORT_DIR:-}" && -f "$report" ]] || return 0
 
     printf "\n%s\n" "Slowest test files (seconds):"
     sed -n 's/.*<testsuite name="\([^"]*\)".*time="\([0-9.]*\)".*/\2 \1/p' "$report" |
@@ -115,8 +115,8 @@ report_unit_result() {
 
 enforce_timeout_dependency_in_ci
 
-GO_TEST_CACHE="${MOLE_GO_TEST_CACHE:-/tmp/mole-go-build-cache}"
-export MOLE_GO_TEST_CACHE="$GO_TEST_CACHE"
+GO_TEST_CACHE="${NORA_GO_TEST_CACHE:-/tmp/nora-go-build-cache}"
+export NORA_GO_TEST_CACHE="$GO_TEST_CACHE"
 
 test_selection_needs_go_helpers() {
     local test_file
@@ -133,13 +133,13 @@ test_selection_needs_go_helpers() {
 prepare_go_test_helpers() {
     command -v go > /dev/null 2>&1 || return 0
 
-    TEST_GO_HELPER_DIR="$(mktemp -d "${TMPDIR:-/tmp}/mole-go-helpers.XXXXXX")"
+    TEST_GO_HELPER_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nora-go-helpers.XXXXXX")"
     mkdir -p "$GO_TEST_CACHE"
 
     if GOCACHE="$GO_TEST_CACHE" go build -o "$TEST_GO_HELPER_DIR/analyze-go" ./cmd/analyze > /dev/null 2>&1 &&
         GOCACHE="$GO_TEST_CACHE" go build -o "$TEST_GO_HELPER_DIR/status-go" ./cmd/status > /dev/null 2>&1; then
-        export MOLE_TEST_ANALYZE_BIN="$TEST_GO_HELPER_DIR/analyze-go"
-        export MOLE_TEST_STATUS_BIN="$TEST_GO_HELPER_DIR/status-go"
+        export NORA_TEST_ANALYZE_BIN="$TEST_GO_HELPER_DIR/analyze-go"
+        export NORA_TEST_STATUS_BIN="$TEST_GO_HELPER_DIR/status-go"
     else
         rm -rf "$TEST_GO_HELPER_DIR"
         TEST_GO_HELPER_DIR=""
@@ -234,8 +234,8 @@ if command -v bats > /dev/null 2>&1 && [ -d "tests" ]; then
     bats_opts=()
     if $bats_has_jobs && { command -v parallel > /dev/null 2>&1 || command -v rush > /dev/null 2>&1; }; then
         _ncpu="$(sysctl -n hw.logicalcpu 2> /dev/null || nproc 2> /dev/null || echo 4)"
-        if [[ "${MOLE_TEST_JOBS:-}" =~ ^[0-9]+$ && "${MOLE_TEST_JOBS:-0}" -gt 0 ]]; then
-            _jobs="$MOLE_TEST_JOBS"
+        if [[ "${NORA_TEST_JOBS:-}" =~ ^[0-9]+$ && "${NORA_TEST_JOBS:-0}" -gt 0 ]]; then
+            _jobs="$NORA_TEST_JOBS"
         else
             _jobs="$((_ncpu > 6 ? 6 : (_ncpu < 2 ? 2 : _ncpu)))"
         fi
@@ -245,7 +245,7 @@ if command -v bats > /dev/null 2>&1 && [ -d "tests" ]; then
         bats_opts+=("--jobs" "$_jobs" "--no-parallelize-within-files")
         unset _ncpu _jobs
     fi
-    if [[ "${MOLE_TEST_TIMING:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_TIMING:-0}" == "1" ]]; then
         bats_opts+=("--timing")
     fi
 
@@ -253,9 +253,9 @@ if command -v bats > /dev/null 2>&1 && [ -d "tests" ]; then
     # so one slow file is invisible until it dominates the whole run. The JUnit
     # report carries one <testsuite name= time=> per file; CI sets this and the
     # slowest files are printed after the run.
-    if [[ -n "${MOLE_TEST_REPORT_DIR:-}" ]] && $bats_has_formatter; then
-        mkdir -p "$MOLE_TEST_REPORT_DIR"
-        bats_opts+=("--report-formatter" "junit" "--output" "$MOLE_TEST_REPORT_DIR")
+    if [[ -n "${NORA_TEST_REPORT_DIR:-}" ]] && $bats_has_formatter; then
+        mkdir -p "$NORA_TEST_REPORT_DIR"
+        bats_opts+=("--report-formatter" "junit" "--output" "$NORA_TEST_REPORT_DIR")
     fi
 
     # Some test files include wall-clock timing assertions that are skewed by
@@ -323,7 +323,7 @@ if command -v bats > /dev/null 2>&1 && [ -d "tests" ]; then
     # Post-run: timing-sensitive tests run after parallel workers have finished
     # so CPU contention does not skew wall-clock assertions.
     for _pf in ${_sequential_files[@]+"${_sequential_files[@]}"}; do
-        if [[ "${MOLE_TEST_TIMING:-0}" == "1" ]]; then
+        if [[ "${NORA_TEST_TIMING:-0}" == "1" ]]; then
             bats --timing "$_pf" || _unit_rc=1
         else
             bats "$_pf" || _unit_rc=1
@@ -365,7 +365,7 @@ echo ""
 
 echo "5. Running integration tests..."
 # Quick syntax check for main scripts
-if bash -n mole && bash -n bin/clean.sh && bash -n bin/optimize.sh; then
+if bash -n nora && bash -n bin/clean.sh && bash -n bin/optimize.sh; then
     printf "${GREEN}${ICON_SUCCESS} Integration tests passed${NC}\n"
 else
     printf "${RED}${ICON_ERROR} Integration tests failed${NC}\n"
@@ -378,14 +378,14 @@ echo "6. Testing installation..."
 if [[ "$(uname -s)" != "Darwin" ]]; then
     printf "${YELLOW}${ICON_WARNING} Installation test skipped (non-macOS)${NC}\n"
 else
-    # Skip if Homebrew mole is installed (install.sh will refuse to overwrite)
+    # Skip if Homebrew nora is installed (install.sh will refuse to overwrite)
     install_test_home=""
-    if command -v brew > /dev/null 2>&1 && brew list mole &> /dev/null; then
+    if command -v brew > /dev/null 2>&1 && brew list nora &> /dev/null; then
         printf "${GREEN}${ICON_SUCCESS} Installation test skipped, Homebrew${NC}\n"
     else
-        install_test_home="$(mktemp -d /tmp/mole-test-home.XXXXXX 2> /dev/null || true)"
+        install_test_home="$(mktemp -d /tmp/nora-test-home.XXXXXX 2> /dev/null || true)"
         if [[ -z "$install_test_home" ]]; then
-            install_test_home="/tmp/mole-test-home"
+            install_test_home="/tmp/nora-test-home"
             mkdir -p "$install_test_home"
         fi
     fi
@@ -395,8 +395,8 @@ else
         XDG_CONFIG_HOME="$install_test_home/.config" \
         XDG_CACHE_HOME="$install_test_home/.cache" \
         MO_NO_OPLOG=1 \
-        ./install.sh --prefix /tmp/mole-test > /dev/null 2>&1; then
-        if [[ -f "/tmp/mole-test/mole" ]]; then
+        ./install.sh --prefix /tmp/nora-test > /dev/null 2>&1; then
+        if [[ -f "/tmp/nora-test/nora" ]]; then
             printf "${GREEN}${ICON_SUCCESS} Installation test passed${NC}\n"
         else
             printf "${RED}${ICON_ERROR} Installation test failed${NC}\n"
@@ -406,7 +406,7 @@ else
         printf "${RED}${ICON_ERROR} Installation test failed${NC}\n"
         ((FAILED++))
     fi
-    MO_NO_OPLOG=1 safe_remove "/tmp/mole-test" true || true
+    MO_NO_OPLOG=1 safe_remove "/tmp/nora-test" true || true
     if [[ -n "$install_test_home" ]]; then
         MO_NO_OPLOG=1 safe_remove "$install_test_home" true || true
     fi

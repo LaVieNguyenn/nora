@@ -1,21 +1,21 @@
 #!/bin/bash
-# Mole - History parsing and rendering.
+# Nora - History parsing and rendering.
 
 set -euo pipefail
 
-if [[ -n "${MOLE_HISTORY_LOADED:-}" ]]; then
+if [[ -n "${NORA_HISTORY_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_HISTORY_LOADED=1
+readonly NORA_HISTORY_LOADED=1
 
-if [[ -z "${MOLE_BASE_LOADED:-}" ]]; then
-    _MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${NORA_BASE_LOADED:-}" ]]; then
+    _NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     # shellcheck source=lib/core/base.sh
-    source "$_MOLE_CORE_DIR/base.sh"
+    source "$_NORA_CORE_DIR/base.sh"
 fi
 
-readonly MOLE_HISTORY_DEFAULT_LIMIT=20
-readonly MOLE_HISTORY_MAX_LIMIT=200
+readonly NORA_HISTORY_DEFAULT_LIMIT=20
+readonly NORA_HISTORY_MAX_LIMIT=200
 
 declare -a HISTORY_SESSION_COMMANDS=()
 declare -a HISTORY_SESSION_STARTED_AT=()
@@ -50,32 +50,32 @@ HISTORY_ACTIVE_OTHER=0
 HISTORY_ACTIVE_OPERATIONS=0
 
 history_operations_log_file() {
-    printf '%s\n' "${MOLE_OPERATIONS_LOG:-${OPERATIONS_LOG_FILE:-$HOME/Library/Logs/mole/operations.log}}"
+    printf '%s\n' "${NORA_OPERATIONS_LOG:-${OPERATIONS_LOG_FILE:-$HOME/Library/Logs/nora/operations.log}}"
 }
 
 history_deletions_log_file() {
-    printf '%s\n' "${MOLE_DELETE_LOG:-$HOME/Library/Logs/mole/deletions.log}"
+    printf '%s\n' "${NORA_DELETE_LOG:-$HOME/Library/Logs/nora/deletions.log}"
 }
 
 history_normalize_limit() {
-    local value="${1:-$MOLE_HISTORY_DEFAULT_LIMIT}"
+    local value="${1:-$NORA_HISTORY_DEFAULT_LIMIT}"
     local normalized max_digits
 
     if ! normalized=$(history_normalize_decimal "$value"); then
-        printf '%s\n' "$MOLE_HISTORY_DEFAULT_LIMIT"
+        printf '%s\n' "$NORA_HISTORY_DEFAULT_LIMIT"
         return 0
     fi
     if [[ "$normalized" == "0" ]]; then
-        printf '%s\n' "$MOLE_HISTORY_DEFAULT_LIMIT"
+        printf '%s\n' "$NORA_HISTORY_DEFAULT_LIMIT"
         return 0
     fi
-    max_digits=${#MOLE_HISTORY_MAX_LIMIT}
+    max_digits=${#NORA_HISTORY_MAX_LIMIT}
     if [[ "${#normalized}" -gt "$max_digits" ]]; then
-        printf '%s\n' "$MOLE_HISTORY_MAX_LIMIT"
+        printf '%s\n' "$NORA_HISTORY_MAX_LIMIT"
         return 0
     fi
-    if [[ "$normalized" -gt "$MOLE_HISTORY_MAX_LIMIT" ]]; then
-        printf '%s\n' "$MOLE_HISTORY_MAX_LIMIT"
+    if [[ "$normalized" -gt "$NORA_HISTORY_MAX_LIMIT" ]]; then
+        printf '%s\n' "$NORA_HISTORY_MAX_LIMIT"
         return 0
     fi
     printf '%s\n' "$normalized"
@@ -97,9 +97,9 @@ history_parse_limit() {
 
     normalized=$(history_normalize_decimal "$value") || return 1
     [[ "$normalized" != "0" ]] || return 1
-    max_digits=${#MOLE_HISTORY_MAX_LIMIT}
+    max_digits=${#NORA_HISTORY_MAX_LIMIT}
     [[ "${#normalized}" -le "$max_digits" ]] || return 1
-    [[ "$normalized" -le "$MOLE_HISTORY_MAX_LIMIT" ]] || return 1
+    [[ "$normalized" -le "$NORA_HISTORY_MAX_LIMIT" ]] || return 1
     printf '%s\n' "$normalized"
 }
 
@@ -403,7 +403,7 @@ history_json_number_field() {
 
 history_render_text() {
     local limit
-    limit=$(history_normalize_limit "${1:-$MOLE_HISTORY_DEFAULT_LIMIT}")
+    limit=$(history_normalize_limit "${1:-$NORA_HISTORY_DEFAULT_LIMIT}")
 
     local operations_log deletions_log session_count deletion_count
     operations_log=$(history_operations_log_file)
@@ -411,7 +411,7 @@ history_render_text() {
     session_count=${#HISTORY_SESSION_COMMANDS[@]}
     deletion_count=${#HISTORY_DELETE_TIMESTAMPS[@]}
 
-    printf '\n%sMole History%s\n\n' "$BLUE" "$NC"
+    printf '\n%sNora History%s\n\n' "$BLUE" "$NC"
 
     if [[ "$session_count" -eq 0 ]]; then
         printf 'Recent sessions\n'
@@ -533,7 +533,7 @@ history_render_json_deletions() {
 
 history_render_json() {
     local limit
-    limit=$(history_normalize_limit "${1:-$MOLE_HISTORY_DEFAULT_LIMIT}")
+    limit=$(history_normalize_limit "${1:-$NORA_HISTORY_DEFAULT_LIMIT}")
 
     local operations_log deletions_log
     operations_log=$(history_operations_log_file)

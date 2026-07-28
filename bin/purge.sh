@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mole - Purge command.
+# Nora - Purge command.
 # Cleans heavy project build artifacts.
 # Interactive selection by project.
 
@@ -100,7 +100,7 @@ compact_purge_scan_path() {
 # Main purge function
 start_purge() {
     # Set current command for operation logging
-    export MOLE_CURRENT_COMMAND="purge"
+    export NORA_CURRENT_COMMAND="purge"
     log_operation_session_start "purge"
 
     # Clear screen for better UX
@@ -109,7 +109,7 @@ start_purge() {
     fi
 
     # Initialize stats file in user cache directory
-    local stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/mole"
+    local stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nora"
     ensure_user_dir "$stats_dir"
     ensure_user_file "$stats_dir/purge_stats"
     ensure_user_file "$stats_dir/purge_count"
@@ -121,7 +121,7 @@ start_purge() {
 
 # Perform the purge
 perform_purge() {
-    local stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/mole"
+    local stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nora"
     local monitor_pid=""
 
     # Cleanup function - use flag to prevent duplicate execution
@@ -256,7 +256,7 @@ perform_purge() {
         rm -f "$stats_dir/purge_count"
     fi
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         summary_heading="Dry run complete - no changes made"
     fi
 
@@ -265,7 +265,7 @@ perform_purge() {
         freed_size_human=$(bytes_to_human_kb "$total_size_cleaned")
 
         local summary_line="Space freed: ${GREEN}${freed_size_human}${NC}"
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             summary_line="Would free: ${GREEN}${freed_size_human}${NC}"
         fi
         [[ $total_items_cleaned -gt 0 ]] && summary_line+=" | Items: $total_items_cleaned"
@@ -285,9 +285,9 @@ perform_purge() {
 
 # Show help message
 show_help() {
-    echo -e "${PURPLE_BOLD}Mole Purge${NC}, Clean old project build artifacts"
+    echo -e "${PURPLE_BOLD}Nora Purge${NC}, Clean old project build artifacts"
     echo ""
-    echo -e "${YELLOW}Usage:${NC} mo purge [options]"
+    echo -e "${YELLOW}Usage:${NC} nr purge [options]"
     echo ""
     echo -e "${YELLOW}Options:${NC}"
     echo "  --paths         Edit custom scan directories"
@@ -320,21 +320,21 @@ main() {
                 export MO_DEBUG=1
                 ;;
             "--dry-run" | "-n")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             "--include-empty")
-                export MOLE_PURGE_INCLUDE_EMPTY=1
+                export NORA_PURGE_INCLUDE_EMPTY=1
                 ;;
             *)
                 echo "Unknown option: $arg"
-                echo "Use 'mo purge --help' for usage information"
+                echo "Use 'nr purge --help' for usage information"
                 exit 1
                 ;;
         esac
     done
 
     start_purge
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, No project artifacts will be removed"
         printf '\n'
     fi
@@ -342,7 +342,7 @@ main() {
     perform_purge
 }
 
-if [[ "${MOLE_SKIP_MAIN:-0}" == "1" ]]; then
+if [[ "${NORA_SKIP_MAIN:-0}" == "1" ]]; then
     if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
         return 0
     else

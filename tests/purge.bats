@@ -30,13 +30,13 @@ setup() {
 	fi
 	mkdir -p "$HOME/www"
 	mkdir -p "$HOME/dev"
-	mkdir -p "$HOME/.cache/mole"
+	mkdir -p "$HOME/.cache/nora"
 
 	rm -rf "${HOME:?}/www"/* "${HOME:?}/dev"/*
 	rm -rf "${HOME:?}/Library/CloudStorage" "${HOME:?}/Library/Mobile Documents"
 }
 
-@test "mole_purge_is_cloud_synced_path matches only exact cloud roots and descendants" {
+@test "nora_purge_is_cloud_synced_path matches only exact cloud roots and descendants" {
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 physical_home="$HOME/cloud-home-physical"
@@ -46,23 +46,23 @@ ln -s "$physical_home" "$logical_home"
 HOME="$logical_home"
 source "$PROJECT_ROOT/lib/clean/purge_shared.sh"
 
-mole_purge_is_cloud_synced_path "$HOME/Library/CloudStorage"
-mole_purge_is_cloud_synced_path "$HOME/Library/CloudStorage/Provider/project/target"
-mole_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents"
-mole_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents/com~apple~CloudDocs/project/node_modules"
-mole_purge_is_cloud_synced_path "$physical_home/Library/CloudStorage/Provider/project/target"
-mole_purge_is_cloud_synced_path "$physical_home/Library/Mobile Documents/com~apple~CloudDocs/project/node_modules"
+nora_purge_is_cloud_synced_path "$HOME/Library/CloudStorage"
+nora_purge_is_cloud_synced_path "$HOME/Library/CloudStorage/Provider/project/target"
+nora_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents"
+nora_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents/com~apple~CloudDocs/project/node_modules"
+nora_purge_is_cloud_synced_path "$physical_home/Library/CloudStorage/Provider/project/target"
+nora_purge_is_cloud_synced_path "$physical_home/Library/Mobile Documents/com~apple~CloudDocs/project/node_modules"
 
-if mole_purge_is_cloud_synced_path "$HOME/Library/CloudStorageBackup/project/target"; then
+if nora_purge_is_cloud_synced_path "$HOME/Library/CloudStorageBackup/project/target"; then
 	exit 1
 fi
-if mole_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents-old/project/target"; then
+if nora_purge_is_cloud_synced_path "$HOME/Library/Mobile Documents-old/project/target"; then
 	exit 1
 fi
-if mole_purge_is_cloud_synced_path "$physical_home/Library/CloudStorageBackup/project/target"; then
+if nora_purge_is_cloud_synced_path "$physical_home/Library/CloudStorageBackup/project/target"; then
 	exit 1
 fi
-if mole_purge_is_cloud_synced_path "$physical_home/Library/Mobile Documents-old/project/target"; then
+if nora_purge_is_cloud_synced_path "$physical_home/Library/Mobile Documents-old/project/target"; then
 	exit 1
 fi
 EOF
@@ -168,7 +168,7 @@ EOF
 }
 
 @test "compact_purge_scan_path keeps the tail of long purge paths visible" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_SKIP_MAIN=1 /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_SKIP_MAIN=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/bin/purge.sh"
 compact_purge_scan_path "$HOME/projects/team/service/very/deep/component/node_modules" 32
@@ -426,7 +426,7 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/clean/project.sh"
 save_discovered_paths "$HOME/Projects"
-grep -q "^~/" "$HOME/.config/mole/purge_paths"
+grep -q "^~/" "$HOME/.config/nora/purge_paths"
 EOF
 
 	[ "$status" -eq 0 ]
@@ -517,7 +517,7 @@ EOF
 
 	[ "$status" -eq 0 ] || return 1
 	[[ "$output" == *"Cloud-synced artifacts may also be removed from other devices."* ]] || return 1
-	[[ "$output" == *"mo purge --paths"* ]] || return 1
+	[[ "$output" == *"nr purge --paths"* ]] || return 1
 	local warning_count
 	warning_count=$(printf '%s\n' "$output" | grep -cF "Cloud-synced artifacts may also be removed from other devices.")
 	[ "$warning_count" -eq 1 ] || return 1
@@ -824,8 +824,8 @@ EOF
 }
 
 @test "scan_purge_targets: trusts empty fd result without falling back to find" {
-	mkdir -p "$HOME/.config/mole" "$HOME/www/empty-project"
-	printf '%s\n' "$HOME/www" > "$HOME/.config/mole/purge_paths"
+	mkdir -p "$HOME/.config/nora" "$HOME/www/empty-project"
+	printf '%s\n' "$HOME/www" > "$HOME/.config/nora/purge_paths"
 
 	local mock_bin="$HOME/mock-bin"
 	mkdir -p "$mock_bin"
@@ -1104,8 +1104,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/project.sh"
 
-mkdir -p "$HOME/.cache/mole"
-echo "0" > "$HOME/.cache/mole/purge_stats"
+mkdir -p "$HOME/.cache/nora"
+echo "0" > "$HOME/.cache/nora/purge_stats"
 
 mkdir -p "$HOME/www/test-project/node_modules"
 touch "$HOME/www/test-project/package.json"
@@ -1114,11 +1114,11 @@ touch -t 202001010101 "$HOME/www/test-project/node_modules" "$HOME/www/test-proj
 PURGE_SEARCH_PATHS=("$HOME/www")
 get_dir_size_kb() { echo 0; }
 
-export MOLE_PURGE_INCLUDE_EMPTY=1
-export MOLE_DRY_RUN=1
+export NORA_PURGE_INCLUDE_EMPTY=1
+export NORA_DRY_RUN=1
 clean_project_artifacts </dev/null
 
-stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/mole"
+stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nora"
 echo "COUNT=$(cat "$stats_dir/purge_count" 2> /dev/null || echo missing)"
 echo "SIZE=$(cat "$stats_dir/purge_stats" 2> /dev/null || echo missing)"
 [[ -d "$HOME/www/test-project/node_modules" ]]
@@ -1156,11 +1156,11 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/project.sh"
 
-mkdir -p "$HOME/.cache/mole"
-echo "0" > "$HOME/.cache/mole/purge_stats"
+mkdir -p "$HOME/.cache/nora"
+echo "0" > "$HOME/.cache/nora/purge_stats"
 # purge_count must be seeded too: without it this reads a previous test's file
 # through the shared HOME, or reports "missing" when run alone.
-echo "0" > "$HOME/.cache/mole/purge_count"
+echo "0" > "$HOME/.cache/nora/purge_count"
 
 mkdir -p "$HOME/www/test-project/node_modules"
 echo "test data" > "$HOME/www/test-project/node_modules/file.js"
@@ -1175,10 +1175,10 @@ touch -t 202001010101 "$HOME/www/test-project/node_modules/file.js" \
 PURGE_SEARCH_PATHS=("$HOME/www")
 safe_remove() { return 1; }
 
-export MOLE_DRY_RUN=1
+export NORA_DRY_RUN=1
 clean_project_artifacts
 
-stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/mole"
+stats_dir="${XDG_CACHE_HOME:-$HOME/.cache}/nora"
 echo "COUNT=$(cat "$stats_dir/purge_count" 2> /dev/null || echo missing)"
 echo "SIZE=$(cat "$stats_dir/purge_stats" 2> /dev/null || echo missing)"
 [[ -d "$HOME/www/test-project/node_modules" ]]
@@ -1197,7 +1197,7 @@ source "$PROJECT_ROOT/lib/clean/project.sh"
 
 external_root="$BATS_TEST_TMPDIR/var-www"
 artifact="$external_root/site/node_modules"
-mkdir -p "$artifact" "$HOME/.cache/mole"
+mkdir -p "$artifact" "$HOME/.cache/nora"
 touch "$external_root/site/package.json"
 
 PURGE_SEARCH_PATHS=("$external_root")
@@ -1209,7 +1209,7 @@ safe_remove() {
     return 0
 }
 
-export MOLE_DRY_RUN=1
+export NORA_DRY_RUN=1
 clean_project_artifacts </dev/null
 EOF
 
@@ -1225,7 +1225,7 @@ source "$PROJECT_ROOT/lib/clean/project.sh"
 
 cloud_root="$HOME/Library/CloudStorage"
 cloud_artifact="$cloud_root/TestProvider/SampleProject/target"
-mkdir -p "$cloud_artifact" "$HOME/.cache/mole"
+mkdir -p "$cloud_artifact" "$HOME/.cache/nora"
 touch "$cloud_root/TestProvider/SampleProject/Cargo.toml"
 
 PURGE_SEARCH_PATHS=("$cloud_root")
@@ -1241,7 +1241,7 @@ safe_remove() {
 	return 0
 }
 
-export MOLE_DRY_RUN=1
+export NORA_DRY_RUN=1
 clean_project_artifacts </dev/null
 
 [[ -d "$cloud_artifact" ]] || exit 1
@@ -1263,7 +1263,7 @@ cloud_root="$HOME/Library/CloudStorage"
 cloud_artifact="$cloud_root/TestProvider/CloudProject/target"
 local_root="$HOME/www"
 local_artifact="$local_root/LocalProject/node_modules"
-mkdir -p "$cloud_artifact" "$local_artifact" "$HOME/.cache/mole"
+mkdir -p "$cloud_artifact" "$local_artifact" "$HOME/.cache/nora"
 touch "$cloud_root/TestProvider/CloudProject/Cargo.toml"
 touch "$local_root/LocalProject/package.json"
 
@@ -1290,7 +1290,7 @@ safe_remove() {
 	return 0
 }
 
-unset MOLE_DRY_RUN
+unset NORA_DRY_RUN
 clean_project_artifacts </dev/null
 EOF
 
@@ -1324,25 +1324,25 @@ EOF
 		[[ "$output" =~ "Great" ]]
 }
 
-@test "mo purge: command exists and is executable" {
-	[ -x "$PROJECT_ROOT/mole" ]
+@test "nr purge: command exists and is executable" {
+	[ -x "$PROJECT_ROOT/nora" ]
 	[ -f "$PROJECT_ROOT/bin/purge.sh" ]
 }
 
-@test "mo purge: shows in help text" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" --help
+@test "nr purge: shows in help text" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" --help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"mo purge"* ]]
+	[[ "$output" == *"nr purge"* ]]
 }
 
-@test "mo purge --help includes include-empty option" {
-	run env HOME="$HOME" "$PROJECT_ROOT/mole" purge --help
+@test "nr purge --help includes include-empty option" {
+	run env HOME="$HOME" "$PROJECT_ROOT/nora" purge --help
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"--include-empty"* ]] || return 1
 	[[ "$output" == *"Show zero-size project artifact directories"* ]]
 }
 
-@test "mo purge: accepts --debug flag" {
+@test "nr purge: accepts --debug flag" {
 	if ! command -v gtimeout >/dev/null 2>&1 && ! command -v timeout >/dev/null 2>&1; then
 		skip "gtimeout/timeout not available"
 	fi
@@ -1352,12 +1352,12 @@ EOF
 
 	run /bin/bash -c "
         export HOME='$HOME'
-        $timeout_cmd 10 '$PROJECT_ROOT/mole' purge --debug < /dev/null 2>&1 || true
+        $timeout_cmd 10 '$PROJECT_ROOT/nora' purge --debug < /dev/null 2>&1 || true
     "
 	true
 }
 
-@test "mo purge: accepts --dry-run flag" {
+@test "nr purge: accepts --dry-run flag" {
 	if ! command -v gtimeout >/dev/null 2>&1 && ! command -v timeout >/dev/null 2>&1; then
 		skip "gtimeout/timeout not available"
 	fi
@@ -1367,13 +1367,13 @@ EOF
 
 	run /bin/bash -c "
         export HOME='$HOME'
-        $timeout_cmd 10 '$PROJECT_ROOT/mole' purge --dry-run < /dev/null 2>&1 || true
+        $timeout_cmd 10 '$PROJECT_ROOT/nora' purge --dry-run < /dev/null 2>&1 || true
     "
 
 	[[ "$output" == *"DRY RUN MODE"* ]] || [[ "$output" == *"Dry run complete"* ]]
 }
 
-@test "mo purge: accepts --include-empty flag" {
+@test "nr purge: accepts --include-empty flag" {
 	if ! command -v gtimeout >/dev/null 2>&1 && ! command -v timeout >/dev/null 2>&1; then
 		skip "gtimeout/timeout not available"
 	fi
@@ -1383,14 +1383,14 @@ EOF
 
 	run /bin/bash -c "
         export HOME='$HOME'
-        $timeout_cmd 10 '$PROJECT_ROOT/mole' purge --include-empty --dry-run < /dev/null 2>&1
+        $timeout_cmd 10 '$PROJECT_ROOT/nora' purge --include-empty --dry-run < /dev/null 2>&1
     "
 
 	[ "$status" -eq 0 ] || [ "$status" -eq 2 ]
 	[[ "$output" != *"Unknown option"* ]]
 }
 
-@test "mo purge: creates cache directory for stats" {
+@test "nr purge: creates cache directory for stats" {
 	if ! command -v gtimeout >/dev/null 2>&1 && ! command -v timeout >/dev/null 2>&1; then
 		skip "gtimeout/timeout not available"
 	fi
@@ -1400,10 +1400,10 @@ EOF
 
 	/bin/bash -c "
         export HOME='$HOME'
-        $timeout_cmd 10 '$PROJECT_ROOT/mole' purge < /dev/null 2>&1 || true
+        $timeout_cmd 10 '$PROJECT_ROOT/nora' purge < /dev/null 2>&1 || true
     "
 
-	[ -d "$HOME/.cache/mole" ] || [ -d "${XDG_CACHE_HOME:-$HOME/.cache}/mole" ]
+	[ -d "$HOME/.cache/nora" ] || [ -d "${XDG_CACHE_HOME:-$HOME/.cache}/nora" ]
 }
 
 # .NET bin directory detection tests
@@ -1508,7 +1508,7 @@ EOF
 # array (menu_options, item_paths, item_sizes, …) was in size order.
 # Effect: the "Full path" footer showed the wrong project for the highlighted
 # item, and the confirmation dialog listed paths that did not match the
-# selection. See https://github.com/tw93/Mole/issues/647
+# selection. See https://github.com/tw93/Nora/issues/647
 #
 # These tests run clean_project_artifacts under a pseudo-terminal (so the
 # interactive code path is taken and select_purge_categories is called).
@@ -1544,7 +1544,7 @@ _run_in_pty() {
 	cat > "$script_file" << SCRIPT
 set -euo pipefail
 source "$PROJECT_ROOT/lib/clean/project.sh"
-mkdir -p "$HOME/.cache/mole"
+mkdir -p "$HOME/.cache/nora"
 export XDG_CACHE_HOME="$HOME/.cache"
 export TERM="dumb"
 PURGE_SEARCH_PATHS=("$HOME/www")
@@ -1593,7 +1593,7 @@ SCRIPT
 	cat > "$script_file" << SCRIPT
 set -euo pipefail
 source "$PROJECT_ROOT/lib/clean/project.sh"
-mkdir -p "$HOME/.cache/mole"
+mkdir -p "$HOME/.cache/nora"
 export XDG_CACHE_HOME="$HOME/.cache"
 export TERM="dumb"
 PURGE_SEARCH_PATHS=("$HOME/www")
@@ -1655,7 +1655,7 @@ SCRIPT
 	cat > "$script_file" << SCRIPT
 set -euo pipefail
 source "$PROJECT_ROOT/lib/clean/project.sh"
-mkdir -p "$HOME/.cache/mole"
+mkdir -p "$HOME/.cache/nora"
 export XDG_CACHE_HOME="$HOME/.cache"
 export TERM="dumb"
 PURGE_SEARCH_PATHS=("$HOME/www" "$HOME/Library/CloudStorage")

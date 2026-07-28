@@ -56,7 +56,7 @@ _repair_preference_plists_in_dir() {
     local total=${#candidates[@]}
     local batch_size=512
     local start=0
-    local deadline=$((SECONDS + ${MOLE_TIMEOUT_HINT_SCAN_SEC:-15}))
+    local deadline=$((SECONDS + ${NORA_TIMEOUT_HINT_SCAN_SEC:-15}))
     local partial=0
 
     while [[ $start -lt $total ]]; do

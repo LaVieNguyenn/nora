@@ -54,36 +54,36 @@ setup() {
     [ -d "$result" ]
 }
 
-@test "prepare_mole_tmpdir uses writable TMPDIR when available" {
+@test "prepare_nora_tmpdir uses writable TMPDIR when available" {
     local writable_tmp="$HOME/custom-tmp"
     mkdir -p "$writable_tmp"
 
-    result=$(env HOME="$HOME" TMPDIR="$writable_tmp" /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; prepare_mole_tmpdir")
+    result=$(env HOME="$HOME" TMPDIR="$writable_tmp" /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; prepare_nora_tmpdir")
     [ "$result" = "$writable_tmp" ]
 }
 
-@test "prepare_mole_tmpdir falls back to user cache when TMPDIR is not writable" {
+@test "prepare_nora_tmpdir falls back to user cache when TMPDIR is not writable" {
     local blocked_tmp="$HOME/blocked-tmp"
     mkdir -p "$blocked_tmp"
     chmod 500 "$blocked_tmp"
 
-    result=$(env HOME="$HOME" TMPDIR="$blocked_tmp" /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; prepare_mole_tmpdir")
-    [ "$result" = "$HOME/.cache/mole/tmp" ]
-    [ -d "$HOME/.cache/mole/tmp" ]
+    result=$(env HOME="$HOME" TMPDIR="$blocked_tmp" /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; prepare_nora_tmpdir")
+    [ "$result" = "$HOME/.cache/nora/tmp" ]
+    [ -d "$HOME/.cache/nora/tmp" ]
 }
 
-@test "ensure_mole_temp_root caches the first resolved directory" {
+@test "ensure_nora_temp_root caches the first resolved directory" {
     local first_tmp="$HOME/first-tmp"
     local second_tmp="$HOME/second-tmp"
     mkdir -p "$first_tmp" "$second_tmp"
 
     result=$(env HOME="$HOME" TMPDIR="$first_tmp" /bin/bash -c "
         source '$PROJECT_ROOT/lib/core/base.sh'
-        ensure_mole_temp_root
-        first=\$MOLE_RESOLVED_TMPDIR
+        ensure_nora_temp_root
+        first=\$NORA_RESOLVED_TMPDIR
         export TMPDIR='$second_tmp'
-        ensure_mole_temp_root
-        second=\$MOLE_RESOLVED_TMPDIR
+        ensure_nora_temp_root
+        second=\$NORA_RESOLVED_TMPDIR
         printf '%s|%s\n' \"\$first\" \"\$second\"
     ")
 
@@ -95,10 +95,10 @@ setup() {
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/base.sh"
 
-MOLE_RESOLVED_TMPDIR="$HOME/.cache/mole/tmp"
-MOLE_TEMP_REGISTRY_FILE=""
-export MOLE_RESOLVED_TMPDIR MOLE_TEMP_REGISTRY_FILE
-mkdir -p "$MOLE_RESOLVED_TMPDIR"
+NORA_RESOLVED_TMPDIR="$HOME/.cache/nora/tmp"
+NORA_TEMP_REGISTRY_FILE=""
+export NORA_RESOLVED_TMPDIR NORA_TEMP_REGISTRY_FILE
+mkdir -p "$NORA_RESOLVED_TMPDIR"
 
 temp_file=$(mktemp_file "subshell")
 printf 'BEFORE:%s\n' "$([[ -f "$temp_file" ]] && echo exists || echo missing)"
@@ -116,25 +116,25 @@ EOF
 set -uo pipefail
 source "$PROJECT_ROOT/lib/core/base.sh"
 
-MOLE_RESOLVED_TMPDIR="$HOME/.cache/mole/tmp"
-MOLE_TEMP_REGISTRY_FILE=""
-export MOLE_RESOLVED_TMPDIR MOLE_TEMP_REGISTRY_FILE
-mkdir -p "$MOLE_RESOLVED_TMPDIR"
+NORA_RESOLVED_TMPDIR="$HOME/.cache/nora/tmp"
+NORA_TEMP_REGISTRY_FILE=""
+export NORA_RESOLVED_TMPDIR NORA_TEMP_REGISTRY_FILE
+mkdir -p "$NORA_RESOLVED_TMPDIR"
 
-# `mole` resolves the temp root at startup, so the registry path is exported
+# `nora` resolves the temp root at startup, so the registry path is exported
 # from the main shell rather than from a command-substitution subshell.
-ensure_mole_temp_root
+ensure_nora_temp_root
 parent_file=$(mktemp_file "parent-installer")
 [[ -f "$parent_file" ]] || exit 1
 
-# install.sh runs the freshly installed `mole --version` while `mo update`
+# install.sh runs the freshly installed `nora --version` while `nr update`
 # still holds its downloaded installer. That child inherits the exported
 # registry path; adopting it would delete the parent's live temp files.
 /bin/bash --noprofile --norc -c '
     source "$PROJECT_ROOT/lib/core/base.sh"
-    printf "CHILD_ADOPTED:%s\n" "$MOLE_TEMP_REGISTRY_FILE"
-    ensure_mole_temp_registry_file || exit 1
-    printf "CHILD_OWNS:%s\n" "$MOLE_TEMP_REGISTRY_FILE"
+    printf "CHILD_ADOPTED:%s\n" "$NORA_TEMP_REGISTRY_FILE"
+    ensure_nora_temp_registry_file || exit 1
+    printf "CHILD_OWNS:%s\n" "$NORA_TEMP_REGISTRY_FILE"
     cleanup_temp_files
 ' || exit 1
 
@@ -155,21 +155,21 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/base.sh"
 
-MOLE_RESOLVED_TMPDIR="$HOME/.cache/mole/tmp"
-MOLE_TEMP_REGISTRY_FILE="$MOLE_RESOLVED_TMPDIR/mole.registry.$$"
-export MOLE_RESOLVED_TMPDIR MOLE_TEMP_REGISTRY_FILE
-mkdir -p "$MOLE_RESOLVED_TMPDIR"
+NORA_RESOLVED_TMPDIR="$HOME/.cache/nora/tmp"
+NORA_TEMP_REGISTRY_FILE="$NORA_RESOLVED_TMPDIR/nora.registry.$$"
+export NORA_RESOLVED_TMPDIR NORA_TEMP_REGISTRY_FILE
+mkdir -p "$NORA_RESOLVED_TMPDIR"
 
-persistent_file="$HOME/.cache/mole/installed_apps_cache"
+persistent_file="$HOME/.cache/nora/installed_apps_cache"
 touch "$persistent_file"
-printf '%s\n' "$persistent_file" > "$MOLE_TEMP_REGISTRY_FILE"
+printf '%s\n' "$persistent_file" > "$NORA_TEMP_REGISTRY_FILE"
 
 cleanup_temp_files
 [[ -e "$persistent_file" ]] || exit 1
 
-invalid_registry="$HOME/.cache/mole/not-a-temp-registry"
+invalid_registry="$HOME/.cache/nora/not-a-temp-registry"
 printf '%s\n' "$persistent_file" > "$invalid_registry"
-MOLE_TEMP_REGISTRY_FILE="$invalid_registry"
+NORA_TEMP_REGISTRY_FILE="$invalid_registry"
 cleanup_temp_files
 [[ -e "$invalid_registry" ]] || exit 1
 EOF
@@ -177,23 +177,23 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "prune_stale_mole_temp_files leaves persistent cache and fresh temps alone (#1203)" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEMP_STALE_MINUTES=60 /bin/bash --noprofile --norc <<'EOF'
+@test "prune_stale_nora_temp_files leaves persistent cache and fresh temps alone (#1203)" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEMP_STALE_MINUTES=60 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/base.sh"
 
-temp_root="$HOME/.cache/mole/tmp"
+temp_root="$HOME/.cache/nora/tmp"
 old_temp="$temp_root/old-scan"
 fresh_temp="$temp_root/current-scan"
-old_spinner="$temp_root/.mole-spinner.old"
-fresh_spinner="$temp_root/.mole-spinner.fresh"
-persistent_cache="$HOME/.cache/mole/installed_apps_cache"
+old_spinner="$temp_root/.nora-spinner.old"
+fresh_spinner="$temp_root/.nora-spinner.fresh"
+persistent_cache="$HOME/.cache/nora/installed_apps_cache"
 mkdir -p "$old_spinner" "$fresh_spinner"
 touch "$old_temp" "$fresh_temp" "$persistent_cache"
 touch "$old_spinner/message" "$fresh_spinner/message"
 touch -t 202001010101 "$old_temp" "$old_spinner" "$persistent_cache"
 
-prune_stale_mole_temp_files "$temp_root"
+prune_stale_nora_temp_files "$temp_root"
 
 [[ ! -e "$old_temp" ]] || exit 1
 [[ ! -e "$old_spinner" ]] || exit 1
@@ -205,11 +205,11 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "prepare_mole_tmpdir falls back to /tmp when TMPDIR and invoking home are unavailable" {
+@test "prepare_nora_tmpdir falls back to /tmp when TMPDIR and invoking home are unavailable" {
     result=$(env HOME="$HOME" TMPDIR="/var/empty" /bin/bash -c "
         source '$PROJECT_ROOT/lib/core/base.sh'
         get_invoking_home() { echo '/var/empty'; }
-        prepare_mole_tmpdir
+        prepare_nora_tmpdir
     ")
 
     [ "$result" = "/tmp" ]
@@ -221,7 +221,7 @@ EOF
     chmod 500 "$blocked_tmp"
 
     result=$(env HOME="$HOME" TMPDIR="$blocked_tmp" /bin/bash -c "source '$PROJECT_ROOT/lib/core/common.sh'; printf '%s\n' \"\$TMPDIR\"")
-    [ "$result" = "$HOME/.cache/mole/tmp" ]
+    [ "$result" = "$HOME/.cache/nora/tmp" ]
 }
 
 @test "get_user_home returns home for valid user" {
@@ -243,7 +243,7 @@ EOF
 }
 
 @test "ensure_user_dir creates nested directory" {
-    test_dir="$HOME/.config/mole/deep/nested/path"
+    test_dir="$HOME/.config/nora/deep/nested/path"
     /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_dir '$test_dir'"
     [ -d "$test_dir" ]
 }
@@ -276,7 +276,7 @@ EOF
 
 
 @test "ensure_user_file creates file and parent directories" {
-    test_file="$HOME/.config/mole/test.log"
+    test_file="$HOME/.config/nora/test.log"
     /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_file '$test_file'"
     [ -f "$test_file" ]
     [ -d "$(dirname "$test_file")" ]
@@ -329,7 +329,7 @@ EOF
 }
 
 @test "ensure_user_dir and ensure_user_file work together" {
-    cache_dir="$HOME/.cache/mole"
+    cache_dir="$HOME/.cache/nora"
     cache_file="$cache_dir/integration_test.log"
 
     /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'; ensure_user_dir '$cache_dir'"
@@ -341,14 +341,14 @@ EOF
 
 @test "multiple ensure_user_file calls in same directory" {
     /bin/bash -c "source '$PROJECT_ROOT/lib/core/base.sh'
-        ensure_user_file '$HOME/.config/mole/file1.txt'
-        ensure_user_file '$HOME/.config/mole/file2.txt'
-        ensure_user_file '$HOME/.config/mole/file3.txt'
+        ensure_user_file '$HOME/.config/nora/file1.txt'
+        ensure_user_file '$HOME/.config/nora/file2.txt'
+        ensure_user_file '$HOME/.config/nora/file3.txt'
     "
 
-    [ -f "$HOME/.config/mole/file1.txt" ]
-    [ -f "$HOME/.config/mole/file2.txt" ]
-    [ -f "$HOME/.config/mole/file3.txt" ]
+    [ -f "$HOME/.config/nora/file1.txt" ]
+    [ -f "$HOME/.config/nora/file2.txt" ]
+    [ -f "$HOME/.config/nora/file3.txt" ]
 }
 
 @test "ensure functions handle concurrent calls safely" {

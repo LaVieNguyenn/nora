@@ -1,16 +1,16 @@
 #!/bin/bash
-# Mole - Application Protection
+# Nora - Application Protection
 # System critical and data-protected application lists
 
 set -euo pipefail
 
-if [[ -n "${MOLE_APP_PROTECTION_LOADED:-}" ]]; then
+if [[ -n "${NORA_APP_PROTECTION_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_APP_PROTECTION_LOADED=1
+readonly NORA_APP_PROTECTION_LOADED=1
 
-_MOLE_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[[ -z "${MOLE_BASE_LOADED:-}" ]] && source "$_MOLE_CORE_DIR/base.sh"
+_NORA_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[[ -z "${NORA_BASE_LOADED:-}" ]] && source "$_NORA_CORE_DIR/base.sh"
 
 # Declare WHITELIST_PATTERNS if not already set (used by is_path_whitelisted)
 if ! declare -p WHITELIST_PATTERNS &> /dev/null; then
@@ -20,7 +20,7 @@ fi
 # Bundle ID / pattern data is sourced from a sibling file so this file
 # stays focused on logic. See app_protection_data.sh for the lists.
 # shellcheck source=lib/core/app_protection_data.sh
-source "$_MOLE_CORE_DIR/app_protection_data.sh"
+source "$_NORA_CORE_DIR/app_protection_data.sh"
 
 # Centralized check for critical system components (case-insensitive)
 is_critical_system_component() {
@@ -109,7 +109,7 @@ should_protect_from_uninstall() {
 }
 
 # Print the vendor name when an app must be removed through its official
-# uninstaller instead of Mole's generic Trash/delete path.
+# uninstaller instead of Nora's generic Trash/delete path.
 official_uninstaller_vendor() {
     local bundle_id="${1:-}"
     local display_name="${2:-}"
@@ -235,8 +235,8 @@ is_endpoint_security_cache_path() {
     case "$path" in
         /private/var/folders/* | /var/folders/*) ;;
         *)
-            if ! declare -f _mole_path_is_within_existing_root > /dev/null 2>&1 ||
-                ! _mole_path_is_within_existing_root "$path" "/private/var/folders"; then
+            if ! declare -f _nora_path_is_within_existing_root > /dev/null 2>&1 ||
+                ! _nora_path_is_within_existing_root "$path" "/private/var/folders"; then
                 return 1
             fi
             ;;
@@ -301,7 +301,7 @@ holds_compiled_model_cache() {
 # Check if a path is protected from deletion
 # Centralized logic to protect system settings, control center, and critical apps
 #
-# In uninstall mode (MOLE_UNINSTALL_MODE=1), only system-critical components are protected.
+# In uninstall mode (NORA_UNINSTALL_MODE=1), only system-critical components are protected.
 # Data-protected apps (VPNs, dev tools, etc.) can be uninstalled when user explicitly chooses to.
 #
 # Args: $1 - path to check
@@ -367,7 +367,7 @@ should_protect_path() {
         # blocking on the blanket com.apple.* match in should_protect_data.
         if [[ "$path" == */Data/Library/Caches/* || "$path" == */Data/tmp/* ]]; then
             _container_cache_path=true
-        elif [[ "${MOLE_UNINSTALL_MODE:-0}" != "1" ]] && should_protect_data "$bundle_id"; then
+        elif [[ "${NORA_UNINSTALL_MODE:-0}" != "1" ]] && should_protect_data "$bundle_id"; then
             return 0
         fi
     fi
@@ -391,8 +391,8 @@ should_protect_path() {
         */Library/Preferences/com.apple.dock.plist | */Library/Preferences/com.apple.finder.plist)
             return 0
             ;;
-        # Protect Mole's own runtime logs so cleanup cannot delete its active log targets.
-        */Library/Logs/mole | */Library/Logs/mole/ | */Library/Logs/mole/*)
+        # Protect Nora's own runtime logs so cleanup cannot delete its active log targets.
+        */Library/Logs/nora | */Library/Logs/nora/ | */Library/Logs/nora/*)
             return 0
             ;;
         # Codex Desktop and CLI keep conversation indexes and app state in cache-
@@ -477,7 +477,7 @@ should_protect_path() {
     # Skip for container cache/tmp paths: bundle ID was already checked in step 3,
     # and critical containers are caught by steps 1/4/5.
     if [[ "$_container_cache_path" != "true" ]]; then
-        if [[ "${MOLE_UNINSTALL_MODE:-0}" == "1" ]]; then
+        if [[ "${NORA_UNINSTALL_MODE:-0}" == "1" ]]; then
             # Uninstall mode: first check if it's an uninstallable Apple app
             for pattern in "${APPLE_UNINSTALLABLE_APPS[@]}"; do
                 if bundle_matches_pattern "$path" "$pattern"; then
@@ -501,7 +501,7 @@ should_protect_path() {
 
         # 7. Check if the filename itself matches any protected patterns
         # Skip in uninstall mode - user explicitly chose to remove this app
-        if [[ "${MOLE_UNINSTALL_MODE:-0}" != "1" ]]; then
+        if [[ "${NORA_UNINSTALL_MODE:-0}" != "1" ]]; then
             local filename="${path##*/}"
             if should_protect_data "$filename"; then
                 return 0
@@ -573,13 +573,13 @@ is_path_whitelisted() {
     return 1
 }
 
-_mole_uninstall_lower() {
+_nora_uninstall_lower() {
     printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]'
 }
 
-_mole_uninstall_is_common_app_name() {
+_nora_uninstall_is_common_app_name() {
     local lower_name
-    lower_name=$(_mole_uninstall_lower "${1:-}")
+    lower_name=$(_nora_uninstall_lower "${1:-}")
     case "$lower_name" in
         music | notes | photos | finder | safari | preview | calendar | contacts | messages | \
             reminders | clock | weather | stocks | books | news | podcasts | voice | files | \
@@ -592,9 +592,9 @@ _mole_uninstall_is_common_app_name() {
     return 1
 }
 
-_mole_uninstall_vendor_product_tokens() {
+_nora_uninstall_vendor_product_tokens() {
     local bundle_id="${1:-}"
-    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    nora_is_reverse_dns_bundle_id "$bundle_id" || return 1
 
     local product_token="${bundle_id##*.}"
     local without_product="${bundle_id%.*}"
@@ -606,7 +606,7 @@ _mole_uninstall_vendor_product_tokens() {
     printf '%s|%s\n' "$vendor_token" "$product_token"
 }
 
-_mole_uninstall_name_variant_matches() {
+_nora_uninstall_name_variant_matches() {
     local candidate_lower="$1"
     shift
 
@@ -631,20 +631,20 @@ find_vendor_nested_app_paths() {
     shift 2
 
     [[ -n "$app_name" && ${#app_name} -ge 4 ]] || return 0
-    _mole_uninstall_is_common_app_name "$app_name" && return 0
+    _nora_uninstall_is_common_app_name "$app_name" && return 0
 
     local token_pair
-    token_pair=$(_mole_uninstall_vendor_product_tokens "$bundle_id" 2> /dev/null) || return 0
+    token_pair=$(_nora_uninstall_vendor_product_tokens "$bundle_id" 2> /dev/null) || return 0
     local vendor_token product_token
     IFS='|' read -r vendor_token product_token <<< "$token_pair"
 
     local vendor_lower product_lower app_lower nospace_lower hyphen_lower underscore_lower
-    vendor_lower=$(_mole_uninstall_lower "$vendor_token")
-    product_lower=$(_mole_uninstall_lower "$product_token")
-    app_lower=$(_mole_uninstall_lower "$app_name")
-    nospace_lower=$(_mole_uninstall_lower "${app_name// /}")
-    hyphen_lower=$(_mole_uninstall_lower "${app_name// /-}")
-    underscore_lower=$(_mole_uninstall_lower "${app_name// /_}")
+    vendor_lower=$(_nora_uninstall_lower "$vendor_token")
+    product_lower=$(_nora_uninstall_lower "$product_token")
+    app_lower=$(_nora_uninstall_lower "$app_name")
+    nospace_lower=$(_nora_uninstall_lower "${app_name// /}")
+    hyphen_lower=$(_nora_uninstall_lower "${app_name// /-}")
+    underscore_lower=$(_nora_uninstall_lower "${app_name// /_}")
 
     local root candidate parent_dir parent_base parent_lower child_base child_lower
     for root in "$@"; do
@@ -652,12 +652,12 @@ find_vendor_nested_app_paths() {
         while IFS= read -r -d '' candidate; do
             parent_dir="${candidate%/*}"
             parent_base="${parent_dir##*/}"
-            parent_lower=$(_mole_uninstall_lower "$parent_base")
+            parent_lower=$(_nora_uninstall_lower "$parent_base")
             [[ "$parent_lower" == "$vendor_lower" ]] || continue
 
             child_base="${candidate##*/}"
-            child_lower=$(_mole_uninstall_lower "$child_base")
-            if _mole_uninstall_name_variant_matches "$child_lower" \
+            child_lower=$(_nora_uninstall_lower "$child_base")
+            if _nora_uninstall_name_variant_matches "$child_lower" \
                 "$app_lower" "$nospace_lower" "$hyphen_lower" "$underscore_lower" "$product_lower"; then
                 printf '%s\n' "$candidate"
             fi
@@ -671,28 +671,28 @@ find_shared_app_paths() {
     shift 2
 
     [[ -n "$app_name" && ${#app_name} -ge 5 ]] || return 0
-    _mole_uninstall_is_common_app_name "$app_name" && return 0
+    _nora_uninstall_is_common_app_name "$app_name" && return 0
 
     local product_token=""
     local token_pair
-    if token_pair=$(_mole_uninstall_vendor_product_tokens "$bundle_id" 2> /dev/null); then
+    if token_pair=$(_nora_uninstall_vendor_product_tokens "$bundle_id" 2> /dev/null); then
         IFS='|' read -r _ product_token <<< "$token_pair"
     fi
 
     local app_lower nospace_lower hyphen_lower underscore_lower product_lower
-    app_lower=$(_mole_uninstall_lower "$app_name")
-    nospace_lower=$(_mole_uninstall_lower "${app_name// /}")
-    hyphen_lower=$(_mole_uninstall_lower "${app_name// /-}")
-    underscore_lower=$(_mole_uninstall_lower "${app_name// /_}")
-    product_lower=$(_mole_uninstall_lower "$product_token")
+    app_lower=$(_nora_uninstall_lower "$app_name")
+    nospace_lower=$(_nora_uninstall_lower "${app_name// /}")
+    hyphen_lower=$(_nora_uninstall_lower "${app_name// /-}")
+    underscore_lower=$(_nora_uninstall_lower "${app_name// /_}")
+    product_lower=$(_nora_uninstall_lower "$product_token")
 
     local root candidate base lower_base
     for root in "$@"; do
         [[ -d "$root" ]] || continue
         while IFS= read -r -d '' candidate; do
             base="${candidate##*/}"
-            lower_base=$(_mole_uninstall_lower "$base")
-            if _mole_uninstall_name_variant_matches "$lower_base" \
+            lower_base=$(_nora_uninstall_lower "$base")
+            if _nora_uninstall_name_variant_matches "$lower_base" \
                 "$app_lower" "$nospace_lower" "$hyphen_lower" "$underscore_lower" "$product_lower"; then
                 printf '%s\n' "$candidate"
             fi
@@ -741,7 +741,7 @@ _path_belongs_to_independent_cli() {
     return 1
 }
 
-_mole_uninstall_embedded_bundle_ids() {
+_nora_uninstall_embedded_bundle_ids() {
     local app_path="${1:-}"
     local primary_bundle_id="${2:-}"
     local max_info_plists=128
@@ -772,7 +772,7 @@ _mole_uninstall_embedded_bundle_ids() {
         esac
 
         embedded_id=$(plutil -extract CFBundleIdentifier raw "$info" 2> /dev/null || true)
-        mole_is_reverse_dns_bundle_id "$embedded_id" || continue
+        nora_is_reverse_dns_bundle_id "$embedded_id" || continue
         [[ "$embedded_id" == "$primary_bundle_id" ]] && continue
         # Shared framework services are not owned by every app that embeds them.
         case "$embedded_id" in
@@ -824,7 +824,7 @@ find_app_files() {
     # validation. A malformed Info.plist should not be able to traverse out of
     # Library subtrees or broaden matches with glob metacharacters.
     local bundle_id_valid="false"
-    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    if nora_is_reverse_dns_bundle_id "$bundle_id"; then
         bundle_id_valid="true"
     fi
 
@@ -1006,7 +1006,7 @@ find_app_files() {
         [[ -f ~/Library/Preferences/"$bundle_id".plist ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id.plist")
         [[ -d ~/Library/Preferences/"$bundle_id" ]] && files_to_clean+=("$HOME/Library/Preferences/$bundle_id")
         [[ -d ~/Library/Preferences/ByHost ]] && while IFS= read -r -d '' pref; do
-            if mole_name_starts_with_bundle_id_boundary "$pref" "$bundle_id"; then
+            if nora_name_starts_with_bundle_id_boundary "$pref" "$bundle_id"; then
                 files_to_clean+=("$pref")
             fi
         done < <(command find ~/Library/Preferences/ByHost -maxdepth 1 -type f -name "*.plist" -print0 2> /dev/null)
@@ -1023,7 +1023,7 @@ find_app_files() {
         # Group Containers (special handling)
         if [[ -d ~/Library/Group\ Containers ]]; then
             while IFS= read -r -d '' container; do
-                if mole_name_has_bundle_id_boundary "$container" "$bundle_id"; then
+                if nora_name_has_bundle_id_boundary "$container" "$bundle_id"; then
                     files_to_clean+=("$container")
                 fi
             done < <(command find ~/Library/Group\ Containers -maxdepth 1 -type d -print0 2> /dev/null)
@@ -1043,7 +1043,7 @@ find_app_files() {
         for derived_root in "${derived_bundle_roots[@]}"; do
             [[ -d "$derived_root" ]] || continue
             while IFS= read -r -d '' derived_path; do
-                mole_name_has_bundle_id_boundary "$derived_path" "$bundle_id" || continue
+                nora_name_has_bundle_id_boundary "$derived_path" "$bundle_id" || continue
                 already_added=false
                 for existing_path in "${files_to_clean[@]}"; do
                     if [[ "$existing_path" == "$derived_path" ]]; then
@@ -1092,7 +1092,7 @@ find_app_files() {
             [[ -d "$HOME/Library/Preferences/ByHost" ]] && while IFS= read -r -d '' embedded_candidate; do
                 files_to_clean+=("$embedded_candidate")
             done < <(command find "$HOME/Library/Preferences/ByHost" -maxdepth 1 -type f -name "${embedded_id}.*.plist" -print0 2> /dev/null)
-        done < <(_mole_uninstall_embedded_bundle_ids "$app_path" "$bundle_id")
+        done < <(_nora_uninstall_embedded_bundle_ids "$app_path" "$bundle_id")
     fi
 
     # Launch Agents by name (special handling)
@@ -1124,14 +1124,14 @@ find_app_files() {
     # regenerable cache/derived paths belong here. If a toolchain dir is mixed
     # (config + cache), skip the whole tree rather than guess.
     #
-    # MOLE_UNINSTALL_SIBLING_SURVIVES=1 skips the whole heuristic section
+    # NORA_UNINSTALL_SIBLING_SURVIVES=1 skips the whole heuristic section
     # below (through Raycast). The batch uninstall sibling guard sets it when
     # another install sharing this bundle id stays on disk (Xcode.app vs
     # Xcode-beta.app): these blocks match by regex substring, so the demoted
     # bundle id alone does not stop them, and every path they collect is a
     # toolchain cache the surviving install still uses.
     local collect_toolchain_leftovers=true
-    if [[ "${MOLE_UNINSTALL_SIBLING_SURVIVES:-0}" == "1" ]]; then
+    if [[ "${NORA_UNINSTALL_SIBLING_SURVIVES:-0}" == "1" ]]; then
         collect_toolchain_leftovers=false
     fi
 
@@ -1445,7 +1445,7 @@ find_app_system_files() {
     # The two -name patterns are anchored at the dot boundary so that, e.g.,
     # bundle "com.foo" matches "com.foo.plist" and "com.foo.helper.plist" but
     # NOT "com.foobar.plist" from an unrelated vendor.
-    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    if nora_is_reverse_dns_bundle_id "$bundle_id"; then
         for base in /Library/LaunchAgents /Library/LaunchDaemons; do
             [[ -d "$base" ]] && while IFS= read -r -d '' plist; do
                 system_files+=("$plist")
@@ -1470,15 +1470,15 @@ find_app_system_files() {
 
     # Privileged Helper Tools and Receipts (special handling)
     # Only search with bundle_id if it's valid (not empty and not "unknown")
-    if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    if nora_is_reverse_dns_bundle_id "$bundle_id"; then
         [[ -d /Library/PrivilegedHelperTools ]] && while IFS= read -r -d '' helper; do
-            if mole_name_starts_with_bundle_id_boundary "$helper" "$bundle_id"; then
+            if nora_name_starts_with_bundle_id_boundary "$helper" "$bundle_id"; then
                 system_files+=("$helper")
             fi
         done < <(command find /Library/PrivilegedHelperTools -maxdepth 1 -print0 2> /dev/null)
 
         [[ -d /private/var/db/receipts ]] && while IFS= read -r -d '' receipt; do
-            if mole_name_starts_with_bundle_id_boundary "$receipt" "$bundle_id"; then
+            if nora_name_starts_with_bundle_id_boundary "$receipt" "$bundle_id"; then
                 system_files+=("$receipt")
             fi
         done < <(command find /private/var/db/receipts -maxdepth 1 -print0 2> /dev/null)
@@ -1490,7 +1490,7 @@ find_app_system_files() {
     # words case-insensitively and require each matched variant to be at least
     # 5 characters, since nospace variants can be shorter than app_name itself.
     local -a helper_name_variants=()
-    if ! _mole_uninstall_is_common_app_name "$app_name"; then
+    if ! _nora_uninstall_is_common_app_name "$app_name"; then
         local name_variant
         for name_variant in "$lowercase_name" "$lowercase_nospace" "$lowercase_hyphen" "$lowercase_underscore"; do
             if [[ ${#name_variant} -ge 5 ]]; then
@@ -1504,8 +1504,8 @@ find_app_system_files() {
             local helper_lower
             helper_name=$(basename "$helper")
             [[ "$helper_name" =~ ^com\.apple\. ]] && continue
-            helper_lower=$(_mole_uninstall_lower "$helper_name")
-            if _mole_uninstall_name_variant_matches "$helper_lower" "${helper_name_variants[@]}"; then
+            helper_lower=$(_nora_uninstall_lower "$helper_name")
+            if _nora_uninstall_name_variant_matches "$helper_lower" "${helper_name_variants[@]}"; then
                 system_files+=("$helper")
             fi
         done < <(command find /Library/PrivilegedHelperTools -maxdepth 1 -print0 2> /dev/null)
@@ -1546,7 +1546,7 @@ find_app_receipt_files() {
     [[ -z "$bundle_id" || "$bundle_id" == "unknown" ]] && return 0
 
     # Validate bundle_id format to prevent wildcard or defaults-domain abuse.
-    if ! mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    if ! nora_is_reverse_dns_bundle_id "$bundle_id"; then
         debug_log "Invalid bundle_id format: $bundle_id"
         return 0
     fi
@@ -1558,7 +1558,7 @@ find_app_receipt_files() {
     # Usually in /var/db/receipts/
     if [[ -d /private/var/db/receipts ]]; then
         while IFS= read -r -d '' bom; do
-            if mole_name_starts_with_bundle_id_boundary "$bom" "$bundle_id"; then
+            if nora_name_starts_with_bundle_id_boundary "$bom" "$bundle_id"; then
                 bom_files+=("$bom")
             fi
         done < <(find /private/var/db/receipts -maxdepth 1 -name "*.bom" -print0 2> /dev/null)
@@ -1623,7 +1623,7 @@ receipt_payload_path_is_allowlisted() {
     base=$(basename "$clean_path")
 
     [[ -n "$clean_path" && -n "$bundle_id" ]] || return 1
-    mole_is_reverse_dns_bundle_id "$bundle_id" || return 1
+    nora_is_reverse_dns_bundle_id "$bundle_id" || return 1
 
     case "$clean_path" in
         /Library/LaunchAgents/*.plist | /Library/LaunchDaemons/*.plist)
@@ -1631,7 +1631,7 @@ receipt_payload_path_is_allowlisted() {
             return
             ;;
         /Library/PrivilegedHelperTools/*)
-            mole_name_starts_with_bundle_id_boundary "$base" "$bundle_id"
+            nora_name_starts_with_bundle_id_boundary "$base" "$bundle_id"
             return
             ;;
         /private/var/db/receipts/*)
@@ -1654,7 +1654,7 @@ force_kill_app() {
     local app_name="$1"
     local app_path="${2:-""}"
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         debug_log "[DRY RUN] Would terminate running app: $app_name"
         return 0
     fi
@@ -1699,10 +1699,10 @@ force_kill_app() {
     # flow (including unsaved-state prompts). osascript is best-effort: we
     # cap the wait so a hung app, an automation-permission dialog, or a
     # missing osascript binary can never stall the uninstall.
-    if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]] &&
+    if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]] &&
         command -v osascript > /dev/null 2>&1; then
         local quit_target=""
-        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+        if nora_is_reverse_dns_bundle_id "$bundle_id"; then
             quit_target="id \"$bundle_id\""
         else
             # Escape embedded double quotes in app_name before passing into
@@ -1711,7 +1711,7 @@ force_kill_app() {
             escaped_name="${escaped_name//\"/\\\"}"
             quit_target="\"$escaped_name\""
         fi
-        run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" osascript -e "tell application $quit_target to quit" > /dev/null 2>&1 < /dev/null &
+        run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" osascript -e "tell application $quit_target to quit" > /dev/null 2>&1 < /dev/null &
         local quit_pid=$!
         # Poll briefly so the kill ladder skips when the app exits cleanly.
         local quit_wait=20
@@ -1743,7 +1743,7 @@ force_kill_app() {
         return 0
     fi
 
-    if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]] &&
+    if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]] &&
         sudo -n true 2> /dev/null; then
         sudo pkill -9 -x "$match_pattern" 2> /dev/null || true
         sleep 2

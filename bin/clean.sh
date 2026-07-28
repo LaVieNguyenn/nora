@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mole - Clean command.
+# Nora - Clean command.
 # Runs cleanup modules with optional sudo.
 # Supports dry-run and whitelist.
 
@@ -32,10 +32,10 @@ IS_M_SERIES=$([[ "$(uname -m)" == "arm64" ]] && echo "true" || echo "false")
 # command runs as root. Root dry-runs stage preview content in a root-owned
 # file and publish it through an invoking-user process so user-controlled
 # symlinks are never opened for writing with root privileges. See #1210.
-MOLE_USER_HOME="$(get_invoking_home)"
-[[ -n "$MOLE_USER_HOME" ]] || MOLE_USER_HOME="$HOME"
+NORA_USER_HOME="$(get_invoking_home)"
+[[ -n "$NORA_USER_HOME" ]] || NORA_USER_HOME="$HOME"
 
-CLEAN_PREVIEW_FINAL_FILE="$MOLE_USER_HOME/.config/mole/clean-list.txt"
+CLEAN_PREVIEW_FINAL_FILE="$NORA_USER_HOME/.config/nora/clean-list.txt"
 CLEAN_PREVIEW_STAGING_FILE=""
 CLEAN_PREVIEW_LEDGER_FILE=""
 EXPORT_LIST_FILE="$CLEAN_PREVIEW_FINAL_FILE"
@@ -67,7 +67,7 @@ readonly PROTECTED_SW_DOMAINS=(
 
 declare -a WHITELIST_PATTERNS=()
 WHITELIST_WARNINGS=()
-if [[ -f "$MOLE_USER_HOME/.config/mole/whitelist" ]]; then
+if [[ -f "$NORA_USER_HOME/.config/nora/whitelist" ]]; then
     while IFS= read -r line; do
         # shellcheck disable=SC2295
         line="${line#"${line%%[![:space:]]*}"}"
@@ -75,9 +75,9 @@ if [[ -f "$MOLE_USER_HOME/.config/mole/whitelist" ]]; then
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" || "$line" =~ ^# ]] && continue
 
-        [[ "$line" == ~* ]] && line="${line/#~/$MOLE_USER_HOME}"
-        line="${line//\$HOME/$MOLE_USER_HOME}"
-        line="${line//\$\{HOME\}/$MOLE_USER_HOME}"
+        [[ "$line" == ~* ]] && line="${line/#~/$NORA_USER_HOME}"
+        line="${line//\$HOME/$NORA_USER_HOME}"
+        line="${line//\$\{HOME\}/$NORA_USER_HOME}"
         if [[ "$line" =~ \.\. ]]; then
             WHITELIST_WARNINGS+=("Path traversal not allowed: $line")
             continue
@@ -118,7 +118,7 @@ if [[ -f "$MOLE_USER_HOME/.config/mole/whitelist" ]]; then
         fi
         [[ "$duplicate" == "true" ]] && continue
         WHITELIST_PATTERNS+=("$line")
-    done < "$MOLE_USER_HOME/.config/mole/whitelist"
+    done < "$NORA_USER_HOME/.config/nora/whitelist"
 else
     WHITELIST_PATTERNS=("${DEFAULT_WHITELIST_PATTERNS[@]}")
 fi
@@ -129,7 +129,7 @@ expand_whitelist_patterns() {
         local -a EXPANDED_PATTERNS
         EXPANDED_PATTERNS=()
         for pattern in "${WHITELIST_PATTERNS[@]}"; do
-            local expanded="${pattern/#\~/$MOLE_USER_HOME}"
+            local expanded="${pattern/#\~/$NORA_USER_HOME}"
             EXPANDED_PATTERNS+=("$expanded")
         done
         WHITELIST_PATTERNS=("${EXPANDED_PATTERNS[@]}")
@@ -143,12 +143,12 @@ prepare_clean_preview_file() {
     CLEAN_PREVIEW_LEDGER_FILE=""
 
     if is_root_user && [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
-        ensure_mole_temp_root || return 1
-        local root_temp_dir="$MOLE_RESOLVED_TMPDIR"
+        ensure_nora_temp_root || return 1
+        local root_temp_dir="$NORA_RESOLVED_TMPDIR"
 
-        CLEAN_PREVIEW_STAGING_FILE=$(umask 077 && mktemp "$root_temp_dir/mole.clean-preview.XXXXXX") || return 1
+        CLEAN_PREVIEW_STAGING_FILE=$(umask 077 && mktemp "$root_temp_dir/nora.clean-preview.XXXXXX") || return 1
         [[ -f "$CLEAN_PREVIEW_STAGING_FILE" && ! -L "$CLEAN_PREVIEW_STAGING_FILE" && -O "$CLEAN_PREVIEW_STAGING_FILE" ]] || return 1
-        MOLE_TEMP_FILES+=("$CLEAN_PREVIEW_STAGING_FILE")
+        NORA_TEMP_FILES+=("$CLEAN_PREVIEW_STAGING_FILE")
         EXPORT_LIST_FILE="$CLEAN_PREVIEW_STAGING_FILE"
     else
         ensure_user_file "$EXPORT_LIST_FILE"
@@ -225,9 +225,9 @@ register_dry_run_cleanup_target() {
 
     local path="$1"
     local identity
-    identity=$(mole_path_identity "$path")
+    identity=$(nora_path_identity "$path")
 
-    if [[ ${#DRY_RUN_SEEN_IDENTITIES[@]} -gt 0 ]] && mole_identity_in_list "$identity" "${DRY_RUN_SEEN_IDENTITIES[@]}"; then
+    if [[ ${#DRY_RUN_SEEN_IDENTITIES[@]} -gt 0 ]] && nora_identity_in_list "$identity" "${DRY_RUN_SEEN_IDENTITIES[@]}"; then
         return 1
     fi
 
@@ -245,7 +245,7 @@ append_dry_run_cleanup_target() {
     local item_count="${3:-1}"
     local size_known="${4:-true}"
     local identity
-    identity=$(mole_path_identity "$path")
+    identity=$(nora_path_identity "$path")
 
     [[ "$size_kb" =~ ^[0-9]+$ ]] || {
         size_kb=0
@@ -336,7 +336,7 @@ emit_deduplicated_dry_run_ledger() {
         IFS= read -r -d '' size_known &&
         IFS= read -r -d '' section &&
         IFS= read -r -d '' path; do
-        if [[ ${#seen_identities[@]} -gt 0 ]] && mole_identity_in_list "$identity" "${seen_identities[@]}"; then
+        if [[ ${#seen_identities[@]} -gt 0 ]] && nora_identity_in_list "$identity" "${seen_identities[@]}"; then
             continue
         fi
         seen_identities+=("$identity")
@@ -371,7 +371,7 @@ dry_run_ledger_stats() {
         item_count=$((item_count + count))
         [[ "$size_known" == "true" ]] || unknown_size_count=$((unknown_size_count + 1))
 
-        if [[ ${#seen_sections[@]} -eq 0 ]] || ! mole_identity_in_list "$section" "${seen_sections[@]}"; then
+        if [[ ${#seen_sections[@]} -eq 0 ]] || ! nora_identity_in_list "$section" "${seen_sections[@]}"; then
             seen_sections+=("$section")
             category_count=$((category_count + 1))
         fi
@@ -382,11 +382,11 @@ dry_run_ledger_stats() {
 
 write_clean_preview_header() {
     cat > "$EXPORT_LIST_FILE" << EOF
-# Mole Cleanup Preview - $(date '+%Y-%m-%d %H:%M:%S')
+# Nora Cleanup Preview - $(date '+%Y-%m-%d %H:%M:%S')
 #
 # How to protect files:
-# 1. Copy any path below to ~/.config/mole/whitelist
-# 2. Run: mo clean --whitelist
+# 1. Copy any path below to ~/.config/nora/whitelist
+# 2. Run: nr clean --whitelist
 #
 # Example:
 #   /Users/*/Library/Caches/com.example.app
@@ -417,7 +417,7 @@ render_clean_preview_from_ledger() {
                 echo "" >> "$EXPORT_LIST_FILE"
                 echo "=== $section ===" >> "$EXPORT_LIST_FILE"
                 current_rendered_section="$section"
-                if [[ ${#seen_sections[@]} -eq 0 ]] || ! mole_identity_in_list "$section" "${seen_sections[@]}"; then
+                if [[ ${#seen_sections[@]} -eq 0 ]] || ! nora_identity_in_list "$section" "${seen_sections[@]}"; then
                     seen_sections+=("$section")
                     rendered_categories=$((rendered_categories + 1))
                 fi
@@ -451,19 +451,19 @@ render_clean_preview_from_ledger() {
 
 read_clean_sudo_choice() {
     local had_force_char=false
-    local previous_force_char="${MOLE_READ_KEY_FORCE_CHAR:-}"
-    if [[ ${MOLE_READ_KEY_FORCE_CHAR+x} ]]; then
+    local previous_force_char="${NORA_READ_KEY_FORCE_CHAR:-}"
+    if [[ ${NORA_READ_KEY_FORCE_CHAR+x} ]]; then
         had_force_char=true
     fi
 
-    export MOLE_READ_KEY_FORCE_CHAR=1
+    export NORA_READ_KEY_FORCE_CHAR=1
     local choice
     choice=$(read_key)
 
     if [[ "$had_force_char" == "true" ]]; then
-        export MOLE_READ_KEY_FORCE_CHAR="$previous_force_char"
+        export NORA_READ_KEY_FORCE_CHAR="$previous_force_char"
     else
-        unset MOLE_READ_KEY_FORCE_CHAR
+        unset NORA_READ_KEY_FORCE_CHAR
     fi
 
     printf '%s\n' "$choice"
@@ -926,7 +926,7 @@ safe_clean() {
     local total_count=0
     local skipped_count=0
     local removal_failed_count=0
-    local permission_start=${MOLE_PERMISSION_DENIED_COUNT:-0}
+    local permission_start=${NORA_PERMISSION_DENIED_COUNT:-0}
 
     local show_scan_feedback=false
     if [[ ${#targets[@]} -gt 20 && -t 1 ]]; then
@@ -1114,7 +1114,7 @@ safe_clean() {
                     pids+=($!)
                     idx=$((idx + 1))
 
-                    if ((${#pids[@]} >= MOLE_MAX_PARALLEL_JOBS)); then
+                    if ((${#pids[@]} >= NORA_MAX_PARALLEL_JOBS)); then
                         wait "${pids[0]}" 2> /dev/null || true
                         pids=("${pids[@]:1}")
                         completed=$((completed + 1))
@@ -1231,7 +1231,7 @@ safe_clean() {
         stop_inline_spinner
     fi
 
-    local permission_end=${MOLE_PERMISSION_DENIED_COUNT:-0}
+    local permission_end=${NORA_PERMISSION_DENIED_COUNT:-0}
     # Track permission failures in debug output (avoid noisy user warnings).
     if [[ $permission_end -gt $permission_start && $removed_any -eq 0 ]]; then
         debug_log "Permission denied while cleaning: $description"
@@ -1294,7 +1294,7 @@ safe_clean() {
 
 start_cleanup() {
     # Set current command for operation logging
-    export MOLE_CURRENT_COMMAND="clean"
+    export NORA_CURRENT_COMMAND="clean"
     log_operation_session_start "clean"
     DRY_RUN_SEEN_IDENTITIES=()
     DRY_RUN_TOTAL_PARTIAL=false
@@ -1340,7 +1340,7 @@ start_cleanup() {
             echo ""
         else
             SYSTEM_CLEAN=false
-            echo -e "${GRAY}${ICON_WARNING} System caches need sudo, run ${NC}sudo -v && mo clean --dry-run${GRAY} for full preview${NC}"
+            echo -e "${GRAY}${ICON_WARNING} System caches need sudo, run ${NC}sudo -v && nr clean --dry-run${GRAY} for full preview${NC}"
             echo ""
         fi
         return
@@ -1381,7 +1381,7 @@ perform_cleanup() {
 
     # Test mode skips expensive scans and returns minimal output.
     local test_mode_enabled=false
-    if [[ -z "$EXTERNAL_VOLUME_TARGET" && "${MOLE_TEST_MODE:-0}" == "1" ]]; then
+    if [[ -z "$EXTERNAL_VOLUME_TARGET" && "${NORA_TEST_MODE:-0}" == "1" ]]; then
         test_mode_enabled=true
         if [[ "$DRY_RUN" == "true" ]]; then
             echo -e "${YELLOW}Dry Run Mode${NC}, Preview only, no deletions"
@@ -1694,8 +1694,8 @@ perform_cleanup() {
             summary_details+=("$summary_line")
 
             # Movie comparison only if >= 1GB
-            if ((total_size_cleaned >= MOLE_ONE_GIB_KB)); then
-                local freed_gb=$((total_size_cleaned / MOLE_ONE_GIB_KB))
+            if ((total_size_cleaned >= NORA_ONE_GIB_KB)); then
+                local freed_gb=$((total_size_cleaned / NORA_ONE_GIB_KB))
                 local movies=$((freed_gb * 10 / 45))
 
                 if [[ $movies -gt 0 ]]; then
@@ -1729,7 +1729,7 @@ perform_cleanup() {
         ($total_size_cleaned -gt 0 || "$DRY_RUN_TOTAL_PARTIAL" == "true" || $files_cleaned -gt 0) ]]; then
         if publish_clean_preview_file; then
             summary_details+=("Detailed file list: ${GRAY}$CLEAN_PREVIEW_FINAL_FILE${NC}")
-            summary_details+=("Use ${GRAY}mo clean --whitelist${NC} to add protection rules")
+            summary_details+=("Use ${GRAY}nr clean --whitelist${NC} to add protection rules")
         else
             summary_details+=("Cleanup preview file could not be written safely")
         fi
@@ -1774,7 +1774,7 @@ main() {
                 ;;
             "--dry-run" | "-n")
                 DRY_RUN=true
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             "--external")
                 shift
@@ -1790,18 +1790,18 @@ main() {
                 exit 0
                 ;;
             "--select" | "--categories" | "--exclude")
-                echo "mo clean $1 was removed in this release." >&2
-                echo "Use 'mo clean --dry-run' to preview cleanup and 'mo clean --whitelist' to protect paths." >&2
+                echo "nr clean $1 was removed in this release." >&2
+                echo "Use 'nr clean --dry-run' to preview cleanup and 'nr clean --whitelist' to protect paths." >&2
                 exit 1
                 ;;
             -*)
-                echo "Unknown option for mo clean: $1" >&2
-                echo "Run 'mo clean --help' for usage." >&2
+                echo "Unknown option for nr clean: $1" >&2
+                echo "Run 'nr clean --help' for usage." >&2
                 exit 1
                 ;;
             *)
-                echo "Unexpected argument for mo clean: $1" >&2
-                echo "Run 'mo clean --help' for usage." >&2
+                echo "Unexpected argument for nr clean: $1" >&2
+                echo "Run 'nr clean --help' for usage." >&2
                 exit 1
                 ;;
         esac

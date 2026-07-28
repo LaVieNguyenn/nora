@@ -1,13 +1,13 @@
 #!/bin/bash
-# Mole - Uninstall command.
+# Nora - Uninstall command.
 # Interactive app uninstaller.
 # Removes app files and leftovers.
 
 set -euo pipefail
 
 # Preserve user's locale for app display name lookup.
-readonly MOLE_UNINSTALL_USER_LC_ALL="${LC_ALL:-}"
-readonly MOLE_UNINSTALL_USER_LANG="${LANG:-}"
+readonly NORA_UNINSTALL_USER_LC_ALL="${LC_ALL:-}"
+readonly NORA_UNINSTALL_USER_LANG="${LANG:-}"
 
 # Fix locale issues on non-English systems.
 export LC_ALL=C
@@ -31,20 +31,20 @@ total_items=0
 files_cleaned=0
 total_size_cleaned=0
 
-readonly MOLE_UNINSTALL_META_CACHE_DIR="$HOME/.cache/mole"
-readonly MOLE_UNINSTALL_META_CACHE_FILE="$MOLE_UNINSTALL_META_CACHE_DIR/uninstall_app_metadata_v1"
-readonly MOLE_UNINSTALL_META_CACHE_LOCK="${MOLE_UNINSTALL_META_CACHE_FILE}.lock"
-readonly MOLE_UNINSTALL_META_REFRESH_TTL=604800 # 7 days
-readonly MOLE_UNINSTALL_EPOCH_FLOOR=978307200
+readonly NORA_UNINSTALL_META_CACHE_DIR="$HOME/.cache/nora"
+readonly NORA_UNINSTALL_META_CACHE_FILE="$NORA_UNINSTALL_META_CACHE_DIR/uninstall_app_metadata_v1"
+readonly NORA_UNINSTALL_META_CACHE_LOCK="${NORA_UNINSTALL_META_CACHE_FILE}.lock"
+readonly NORA_UNINSTALL_META_REFRESH_TTL=604800 # 7 days
+readonly NORA_UNINSTALL_EPOCH_FLOOR=978307200
 # Display-name mdls lookup budget during scan; overridable for slow disks or
 # cold Spotlight.
-readonly MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC="${MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC:-0.04}"
-readonly MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC="${MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC:-0.04}"
+readonly NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC="${NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC:-0.04}"
+readonly NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC="${NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC:-0.04}"
 # Bounded inline du fallback for cold rows whose quick mdls probe missed
 # (new apps are often not yet Spotlight-indexed). Only enabled when the
 # cold-row count is small so a fully cold first scan keeps the fast path.
-readonly MOLE_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC="${MOLE_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC:-2}"
-readonly MOLE_UNINSTALL_INLINE_DU_MAX_COLD_ROWS="${MOLE_UNINSTALL_INLINE_DU_MAX_COLD_ROWS:-20}"
+readonly NORA_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC="${NORA_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC:-2}"
+readonly NORA_UNINSTALL_INLINE_DU_MAX_COLD_ROWS="${NORA_UNINSTALL_INLINE_DU_MAX_COLD_ROWS:-20}"
 
 uninstall_normalize_size_display() {
     local size="${1:-}"
@@ -74,7 +74,7 @@ uninstall_quick_app_size_kb() {
     }
 
     local logical_size
-    logical_size=$(run_with_timeout "$MOLE_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC" mdls -name kMDItemLogicalSize -raw "$app_path" 2> /dev/null || echo "")
+    logical_size=$(run_with_timeout "$NORA_UNINSTALL_INLINE_MDLS_SIZE_TIMEOUT_SEC" mdls -name kMDItemLogicalSize -raw "$app_path" 2> /dev/null || echo "")
     if [[ "$logical_size" =~ ^[0-9]+$ && "$logical_size" -gt 0 ]]; then
         echo $(((logical_size + 1023) / 1024))
         return 0
@@ -93,7 +93,7 @@ uninstall_inline_du_size_kb() {
     }
 
     local du_size_kb
-    du_size_kb=$(run_with_timeout "$MOLE_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC" du -sk "$app_path" 2> /dev/null | awk '{print $1; exit}') || du_size_kb=""
+    du_size_kb=$(run_with_timeout "$NORA_UNINSTALL_INLINE_DU_SIZE_TIMEOUT_SEC" du -sk "$app_path" 2> /dev/null | awk '{print $1; exit}') || du_size_kb=""
     if [[ "$du_size_kb" =~ ^[0-9]+$ && "$du_size_kb" -gt 0 ]]; then
         echo "$du_size_kb"
         return 0
@@ -109,12 +109,12 @@ uninstall_resolve_display_name() {
 
     if [[ -f "$app_path/Contents/Info.plist" ]]; then
         local md_display_name
-        if [[ -n "$MOLE_UNINSTALL_USER_LC_ALL" ]]; then
-            md_display_name=$(run_with_timeout "$MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" env LC_ALL="$MOLE_UNINSTALL_USER_LC_ALL" LANG="$MOLE_UNINSTALL_USER_LANG" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
-        elif [[ -n "$MOLE_UNINSTALL_USER_LANG" ]]; then
-            md_display_name=$(run_with_timeout "$MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" env LANG="$MOLE_UNINSTALL_USER_LANG" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
+        if [[ -n "$NORA_UNINSTALL_USER_LC_ALL" ]]; then
+            md_display_name=$(run_with_timeout "$NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" env LC_ALL="$NORA_UNINSTALL_USER_LC_ALL" LANG="$NORA_UNINSTALL_USER_LANG" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
+        elif [[ -n "$NORA_UNINSTALL_USER_LANG" ]]; then
+            md_display_name=$(run_with_timeout "$NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" env LANG="$NORA_UNINSTALL_USER_LANG" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
         else
-            md_display_name=$(run_with_timeout "$MOLE_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
+            md_display_name=$(run_with_timeout "$NORA_UNINSTALL_INLINE_MDLS_DISPLAY_TIMEOUT_SEC" mdls -name kMDItemDisplayName -raw "$app_path" 2> /dev/null || echo "")
         fi
 
         local bundle_display_name
@@ -234,19 +234,19 @@ start_uninstall_metadata_refresh() {
             if [[ "${MO_DEBUG:-}" == "1" ]]; then
                 local ts
                 ts=$(date "+%Y-%m-%d %H:%M:%S" 2> /dev/null || echo "?")
-                echo "[$ts] DEBUG: [metadata-refresh] $*" >> "${HOME}/.config/mole/mole_debug_session.log" 2> /dev/null || true
+                echo "[$ts] DEBUG: [metadata-refresh] $*" >> "${HOME}/.config/nora/nora_debug_session.log" 2> /dev/null || true
             fi
         }
 
-        ensure_user_dir "$MOLE_UNINSTALL_META_CACHE_DIR"
-        ensure_user_file "$MOLE_UNINSTALL_META_CACHE_FILE"
-        if [[ ! -r "$MOLE_UNINSTALL_META_CACHE_FILE" ]]; then
-            if ! : > "$MOLE_UNINSTALL_META_CACHE_FILE" 2> /dev/null; then
+        ensure_user_dir "$NORA_UNINSTALL_META_CACHE_DIR"
+        ensure_user_file "$NORA_UNINSTALL_META_CACHE_FILE"
+        if [[ ! -r "$NORA_UNINSTALL_META_CACHE_FILE" ]]; then
+            if ! : > "$NORA_UNINSTALL_META_CACHE_FILE" 2> /dev/null; then
                 _refresh_debug "Cannot create cache file, aborting"
                 exit 0
             fi
         fi
-        if [[ ! -w "$MOLE_UNINSTALL_META_CACHE_FILE" ]]; then
+        if [[ ! -w "$NORA_UNINSTALL_META_CACHE_FILE" ]]; then
             _refresh_debug "Cache file not writable, aborting"
             exit 0
         fi
@@ -284,7 +284,7 @@ start_uninstall_metadata_refresh() {
                     last_used_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$metadata_date" "+%s" 2> /dev/null || echo "0")
                 fi
 
-                if [[ ! "$last_used_epoch" =~ ^[0-9]+$ || $last_used_epoch -le 0 || $last_used_epoch -lt $MOLE_UNINSTALL_EPOCH_FLOOR ]]; then
+                if [[ ! "$last_used_epoch" =~ ^[0-9]+$ || $last_used_epoch -le 0 || $last_used_epoch -lt $NORA_UNINSTALL_EPOCH_FLOOR ]]; then
                     last_used_epoch=0
                 fi
 
@@ -319,7 +319,7 @@ start_uninstall_metadata_refresh() {
             exit 0
         fi
 
-        if ! uninstall_acquire_metadata_lock "$MOLE_UNINSTALL_META_CACHE_LOCK"; then
+        if ! uninstall_acquire_metadata_lock "$NORA_UNINSTALL_META_CACHE_LOCK"; then
             _refresh_debug "Failed to acquire lock, aborting merge"
             rm -f "$updates_file"
             exit 0
@@ -328,7 +328,7 @@ start_uninstall_metadata_refresh() {
         local refresh_merged_file
         refresh_merged_file=$(mktemp 2> /dev/null) || {
             _refresh_debug "mktemp for merge failed, aborting"
-            uninstall_release_metadata_lock "$MOLE_UNINSTALL_META_CACHE_LOCK"
+            uninstall_release_metadata_lock "$NORA_UNINSTALL_META_CACHE_LOCK"
             rm -f "$updates_file"
             exit 0
         }
@@ -341,11 +341,11 @@ start_uninstall_metadata_refresh() {
                     print updates[path]
                 }
             }
-        ' "$updates_file" "$MOLE_UNINSTALL_META_CACHE_FILE" > "$refresh_merged_file"
+        ' "$updates_file" "$NORA_UNINSTALL_META_CACHE_FILE" > "$refresh_merged_file"
 
-        uninstall_persist_cache_file "$refresh_merged_file" "$MOLE_UNINSTALL_META_CACHE_FILE"
+        uninstall_persist_cache_file "$refresh_merged_file" "$NORA_UNINSTALL_META_CACHE_FILE"
 
-        uninstall_release_metadata_lock "$MOLE_UNINSTALL_META_CACHE_LOCK"
+        uninstall_release_metadata_lock "$NORA_UNINSTALL_META_CACHE_LOCK"
         rm -f "$updates_file" "$refresh_merged_file"
         rm -f "$refresh_file" 2> /dev/null || true
         # Redirect stdin from /dev/null so the perl timeout fallback does not see
@@ -667,8 +667,8 @@ _scan_resolve_uncached() {
     # shows on first paint. A fully cold cache (first run) exceeds the cap
     # and keeps the fast path; the deferred refresh still fills the cache.
     local inline_du_fallback=0
-    if [[ "$MOLE_UNINSTALL_INLINE_DU_MAX_COLD_ROWS" =~ ^[0-9]+$ ]] &&
-        ((total_apps > 0 && total_apps <= MOLE_UNINSTALL_INLINE_DU_MAX_COLD_ROWS)); then
+    if [[ "$NORA_UNINSTALL_INLINE_DU_MAX_COLD_ROWS" =~ ^[0-9]+$ ]] &&
+        ((total_apps > 0 && total_apps <= NORA_UNINSTALL_INLINE_DU_MAX_COLD_ROWS)); then
         inline_du_fallback=1
     fi
     local max_parallel
@@ -820,7 +820,7 @@ _scan_dedupe_bundle_ids() {
 # the caller to capture.
 # Reads:  scan_raw_file, cache_source
 # Writes: merged_file, refresh_file, cache_snapshot_file, temp_file,
-#         ${temp_file}.sorted, MOLE_UNINSTALL_META_CACHE_FILE
+#         ${temp_file}.sorted, NORA_UNINSTALL_META_CACHE_FILE
 # Returns: 0 on success (sorted path is echoed on stdout), 1 if sort
 #          fails or the sorted file did not materialize.
 _scan_finalize_index() {
@@ -852,8 +852,8 @@ _scan_finalize_index() {
 
     awk -F'|' \
         -v now="$current_epoch" \
-        -v floor="$MOLE_UNINSTALL_EPOCH_FLOOR" \
-        -v ttl="$MOLE_UNINSTALL_META_REFRESH_TTL" \
+        -v floor="$NORA_UNINSTALL_EPOCH_FLOOR" \
+        -v ttl="$NORA_UNINSTALL_META_REFRESH_TTL" \
         -v refresh_out="$refresh_file" \
         -v snapshot_out="$cache_snapshot_file" \
         -v apps_out="$temp_file" '
@@ -973,9 +973,9 @@ _scan_finalize_index() {
 
     update_scan_status "Updating cache..." "0" "0"
     if [[ -s "$cache_snapshot_file" ]]; then
-        if uninstall_acquire_metadata_lock "$MOLE_UNINSTALL_META_CACHE_LOCK"; then
-            uninstall_persist_cache_file "$cache_snapshot_file" "$MOLE_UNINSTALL_META_CACHE_FILE"
-            uninstall_release_metadata_lock "$MOLE_UNINSTALL_META_CACHE_LOCK"
+        if uninstall_acquire_metadata_lock "$NORA_UNINSTALL_META_CACHE_LOCK"; then
+            uninstall_persist_cache_file "$cache_snapshot_file" "$NORA_UNINSTALL_META_CACHE_FILE"
+            uninstall_release_metadata_lock "$NORA_UNINSTALL_META_CACHE_LOCK"
         fi
     fi
 
@@ -1027,9 +1027,9 @@ scan_applications() {
     : > "$uncached_rows_file"
     : > "$scan_status_file"
 
-    ensure_user_dir "$MOLE_UNINSTALL_META_CACHE_DIR"
-    ensure_user_file "$MOLE_UNINSTALL_META_CACHE_FILE"
-    local cache_source="$MOLE_UNINSTALL_META_CACHE_FILE"
+    ensure_user_dir "$NORA_UNINSTALL_META_CACHE_DIR"
+    ensure_user_file "$NORA_UNINSTALL_META_CACHE_FILE"
+    local cache_source="$NORA_UNINSTALL_META_CACHE_FILE"
     local cache_source_is_temp=false
     if [[ ! -r "$cache_source" ]]; then
         cache_source=$(create_temp_file)
@@ -1076,7 +1076,7 @@ scan_applications() {
 
     start_scan_spinner() {
         [[ -n "$spinner_pid" ]] && return 0
-        [[ -t 2 || "${MOLE_TEST_FORCE_SCAN_SPINNER:-0}" == "1" ]] || return 0
+        [[ -t 2 || "${NORA_TEST_FORCE_SCAN_SPINNER:-0}" == "1" ]] || return 0
         (
             # shellcheck disable=SC2329  # Function invoked indirectly via trap
             cleanup_spinner() { exit 0; }
@@ -1185,19 +1185,19 @@ load_applications() {
 # Keep the scan and selector on one alternate screen so restoring the terminal
 # also restores the primary-screen cursor to the command's original row.
 start_uninstall_interactive_screen() {
-    if [[ -t 1 && -t 2 && "${MOLE_ALT_SCREEN_ACTIVE:-}" != "1" ]]; then
+    if [[ -t 1 && -t 2 && "${NORA_ALT_SCREEN_ACTIVE:-}" != "1" ]]; then
         enter_alt_screen
-        export MOLE_ALT_SCREEN_ACTIVE=1
-        export MOLE_MANAGED_ALT_SCREEN=1
+        export NORA_ALT_SCREEN_ACTIVE=1
+        export NORA_MANAGED_ALT_SCREEN=1
         printf '\033[2J\033[H' >&2
     fi
 }
 
 stop_uninstall_interactive_screen() {
-    if [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
+    if [[ "${NORA_ALT_SCREEN_ACTIVE:-}" == "1" ]]; then
         leave_alt_screen
     fi
-    unset MOLE_ALT_SCREEN_ACTIVE MOLE_MANAGED_ALT_SCREEN
+    unset NORA_ALT_SCREEN_ACTIVE NORA_MANAGED_ALT_SCREEN
 }
 
 # Cleanup: restore cursor and kill keepalive.
@@ -1313,7 +1313,7 @@ uninstall_list_json_escape() {
 }
 
 # Read-only listing: surface each installed app's display name, bundle id,
-# the exact name `mo uninstall` accepts, and human-readable size. Reuses the
+# the exact name `nr uninstall` accepts, and human-readable size. Reuses the
 # existing scanner so the output stays in lockstep with what the destructive
 # path sees.
 uninstall_list_apps() {
@@ -1330,7 +1330,7 @@ uninstall_list_apps() {
     fi
     rm -f "$apps_file"
 
-    # Auto-switch to JSON when stdout is piped, matching `mo status`.
+    # Auto-switch to JSON when stdout is piped, matching `nr status`.
     local format="text"
     if [[ ! -t 1 ]]; then
         format="json"
@@ -1421,18 +1421,18 @@ uninstall_list_apps() {
             "$size_display"
     done
 
-    printf '\n%d application(s)  |  Remove with: mo uninstall <UNINSTALL NAME>\n\n' "$total"
+    printf '\n%d application(s)  |  Remove with: nr uninstall <UNINSTALL NAME>\n\n' "$total"
     return 0
 }
 
 main() {
     # Set current command for operation logging
-    export MOLE_CURRENT_COMMAND="uninstall"
+    export NORA_CURRENT_COMMAND="uninstall"
     log_operation_session_start "uninstall"
 
     # Default to Trash routing so an accidental uninstall is recoverable.
     # The caller can opt back into rm -rf with --permanent. See #723.
-    export MOLE_DELETE_MODE="${MOLE_DELETE_MODE:-trash}"
+    export NORA_DELETE_MODE="${NORA_DELETE_MODE:-trash}"
 
     # Parse flags and collect app name arguments
     local -a app_name_args=()
@@ -1447,23 +1447,23 @@ main() {
                 export MO_DEBUG=1
                 ;;
             "--dry-run" | "-n")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             "--permanent")
-                export MOLE_DELETE_MODE="permanent"
+                export NORA_DELETE_MODE="permanent"
                 ;;
             "--list")
                 list_mode=1
                 ;;
             "--whitelist")
                 echo "Unknown uninstall option: $arg"
-                echo "Whitelist management is currently supported by: mo clean --whitelist / mo optimize --whitelist"
-                echo "Use 'mo uninstall --help' for supported options."
+                echo "Whitelist management is currently supported by: nr clean --whitelist / nr optimize --whitelist"
+                echo "Use 'nr uninstall --help' for supported options."
                 exit 1
                 ;;
             -*)
                 echo "Unknown uninstall option: $arg"
-                echo "Use 'mo uninstall --help' for supported options."
+                echo "Use 'nr uninstall --help' for supported options."
                 exit 1
                 ;;
             *)
@@ -1480,7 +1480,7 @@ main() {
     fi
 
     hide_cursor
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, No app files or settings will be modified"
         printf '\n'
     fi
@@ -1542,9 +1542,9 @@ main() {
     local first_scan=true
     local cached_apps_file=""
     local cached_inventory_fingerprint=""
-    unset MOLE_INLINE_LOADING MOLE_MANAGED_ALT_SCREEN MOLE_ALT_SCREEN_ACTIVE
+    unset NORA_INLINE_LOADING NORA_MANAGED_ALT_SCREEN NORA_ALT_SCREEN_ACTIVE
     while true; do
-        unset MOLE_INLINE_LOADING
+        unset NORA_INLINE_LOADING
 
         # Keep scanning and selection on one alternate screen. Entering the
         # selector only after the scan leaves the primary-screen cursor below
@@ -1705,10 +1705,10 @@ main() {
         batch_uninstall_applications
 
         # A nested command may have returned the controlling terminal to the
-        # parent shell. Reading while Mole is no longer the foreground process
+        # parent shell. Reading while Nora is no longer the foreground process
         # group would suspend the completed uninstall with SIGTTIN. The removal
         # is already finished, so exit cleanly instead of touching terminal input.
-        if ! mole_tty_is_foreground; then
+        if ! nora_tty_is_foreground; then
             show_cursor
             return 0
         fi

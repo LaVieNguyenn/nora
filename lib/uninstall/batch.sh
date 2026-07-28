@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Ensure common.sh is loaded.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-[[ -z "${MOLE_COMMON_LOADED:-}" ]] && source "$SCRIPT_DIR/lib/core/common.sh"
+[[ -z "${NORA_COMMON_LOADED:-}" ]] && source "$SCRIPT_DIR/lib/core/common.sh"
 
 # Load Homebrew cask support (provides get_brew_cask_name, brew_uninstall_cask)
 [[ -f "$SCRIPT_DIR/lib/uninstall/brew.sh" ]] && source "$SCRIPT_DIR/lib/uninstall/brew.sh"
@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Batch uninstall with a single confirmation.
 
 is_uninstall_dry_run() {
-    [[ "${MOLE_DRY_RUN:-0}" == "1" ]]
+    [[ "${NORA_DRY_RUN:-0}" == "1" ]]
 }
 
 app_declares_local_network_usage() {
@@ -96,7 +96,7 @@ decode_file_list() {
 # leading-slash check there would reject every id, print a misleading
 # "Invalid path" warning, and blank the whole list, silently skipping the
 # launchctl bootout of the app's login item helpers. Per-line validation
-# stays in bootout_login_item_helpers via mole_is_reverse_dns_bundle_id.
+# stays in bootout_login_item_helpers via nora_is_reverse_dns_bundle_id.
 decode_bundle_id_list() {
     local encoded="$1"
     local app_name="$2"
@@ -129,12 +129,12 @@ decode_bundle_id_list() {
 # Args: $1 - app bundle id, $2 - newline-separated helper bundle ids.
 # Returns 0 when any of the labels is still loaded in the user's launchd
 # domain. In test mode report "not loaded" so summaries stay quiet; unit
-# tests exercise the real branch with MOLE_TEST_MODE=0 and a launchctl mock.
+# tests exercise the real branch with NORA_TEST_MODE=0 and a launchctl mock.
 _uninstall_background_job_loaded() {
     local bundle_id="$1"
     local helper_ids="${2:-}"
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
@@ -142,7 +142,7 @@ _uninstall_background_job_loaded() {
     uid=$(id -u)
     while IFS= read -r label; do
         [[ -n "$label" ]] || continue
-        mole_is_reverse_dns_bundle_id "$label" || continue
+        nora_is_reverse_dns_bundle_id "$label" || continue
         if launchctl print "gui/$uid/$label" > /dev/null 2>&1; then
             return 0
         fi
@@ -238,7 +238,7 @@ discover_login_item_helper_bundle_ids() {
         info="$helper/Contents/Info.plist"
         [[ -f "$info" ]] || continue
         bundle_id=$(plutil -extract CFBundleIdentifier raw "$info" 2> /dev/null || true)
-        if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+        if nora_is_reverse_dns_bundle_id "$bundle_id"; then
             printf '%s\n' "$bundle_id"
         fi
     done < <(find "$login_items_root" -maxdepth 1 -name "*.app" -print0 2> /dev/null || true)
@@ -247,7 +247,7 @@ discover_login_item_helper_bundle_ids() {
 bootout_login_item_helpers() {
     local helper_ids="$1"
     [[ -n "$helper_ids" ]] || return 0
-    if is_uninstall_dry_run || [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if is_uninstall_dry_run || [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         debug_log "[DRY RUN] Would bootout login item helpers"
         return 0
     fi
@@ -256,13 +256,13 @@ bootout_login_item_helpers() {
     uid=$(id -u)
     while IFS= read -r helper_id; do
         [[ -n "$helper_id" ]] || continue
-        mole_is_reverse_dns_bundle_id "$helper_id" || continue
+        nora_is_reverse_dns_bundle_id "$helper_id" || continue
         # A third-party helper's Info.plist could claim an Apple label; never
         # boot out the protected namespace regardless of what the bundle says.
         case "$helper_id" in
             com.apple.*) continue ;;
         esac
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" launchctl bootout "gui/$uid/$helper_id" > /dev/null 2>&1 || true
+        run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" launchctl bootout "gui/$uid/$helper_id" > /dev/null 2>&1 || true
     done <<< "$helper_ids"
 }
 
@@ -281,9 +281,9 @@ unload_launch_plist() {
     local needs_sudo="${2:-false}"
     can_unload_launch_plist "$plist" || return 0
     if [[ "$needs_sudo" == "true" ]]; then
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" sudo launchctl unload "$plist" > /dev/null 2>&1 || true
+        run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" sudo launchctl unload "$plist" > /dev/null 2>&1 || true
     else
-        run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" launchctl unload "$plist" > /dev/null 2>&1 || true
+        run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" launchctl unload "$plist" > /dev/null 2>&1 || true
     fi
 }
 
@@ -309,7 +309,7 @@ stop_launch_services() {
     local bundle_id_usable=true
     if [[ -z "$bundle_id" || "$bundle_id" == "unknown" ]]; then
         bundle_id_usable=false
-    elif ! mole_is_reverse_dns_bundle_id "$bundle_id"; then
+    elif ! nora_is_reverse_dns_bundle_id "$bundle_id"; then
         # Validate bundle_id format: must be reverse-DNS style (e.g.,
         # com.example.app). This prevents glob injection attacks if bundle_id
         # contains special characters.
@@ -323,7 +323,7 @@ stop_launch_services() {
         done < <(find ~/Library/LaunchAgents -maxdepth 1 \( -name "${bundle_id}.plist" -o -name "${bundle_id}.*.plist" \) -print0 2> /dev/null)
     fi
 
-    if [[ "$bundle_id_usable" == "true" && "$has_system_files" == "true" && "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
+    if [[ "$bundle_id_usable" == "true" && "$has_system_files" == "true" && "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]]; then
         if [[ -d /Library/LaunchAgents ]]; then
             while IFS= read -r -d '' plist; do
                 unload_launch_plist "$plist" "true"
@@ -349,7 +349,7 @@ stop_launch_services() {
                 unload_launch_plist "$plist" "false"
             done < <(find ~/Library/LaunchAgents -maxdepth 1 -name '*.plist' -print0 2> /dev/null)
         fi
-        if [[ "$has_system_files" == "true" && "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
+        if [[ "$has_system_files" == "true" && "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]]; then
             if [[ -d /Library/LaunchAgents ]]; then
                 while IFS= read -r -d '' plist; do
                     grep -qF -- "$app_path" "$plist" 2> /dev/null || continue
@@ -378,7 +378,7 @@ unregister_app_bundle() {
     lsregister=$(get_lsregister_path)
     [[ -x "$lsregister" ]] || return 0
 
-    [[ "${MOLE_DRY_RUN:-0}" == "1" ]] && return 0
+    [[ "${NORA_DRY_RUN:-0}" == "1" ]] && return 0
 
     set +e
     "$lsregister" -u "$app_path" > /dev/null 2>&1
@@ -391,23 +391,23 @@ refresh_launch_services_after_uninstall() {
     lsregister=$(get_lsregister_path)
     [[ -x "$lsregister" ]] || return 0
 
-    [[ "${MOLE_DRY_RUN:-0}" == "1" ]] && return 0
+    [[ "${NORA_DRY_RUN:-0}" == "1" ]] && return 0
 
     local success=0
     set +e
     # Add 10s timeout to prevent hanging (gc is usually fast)
     # run_with_timeout falls back to shell implementation if timeout command unavailable
-    run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" "$lsregister" -gc > /dev/null 2>&1 || true
+    run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" "$lsregister" -gc > /dev/null 2>&1 || true
     # 15s: lsregister rebuild can be slow on some systems, see lib/core/timeouts.sh
     run_with_timeout 15 "$lsregister" -r -f -domain local -domain user -domain system > /dev/null 2>&1
     success=$?
     # 124 = timeout exit code (from run_with_timeout or timeout command)
     if [[ $success -eq 124 ]]; then
         debug_log "LaunchServices rebuild timed out, trying lighter version"
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1
         success=$?
     elif [[ $success -ne 0 ]]; then
-        run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1
+        run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" "$lsregister" -r -f -domain local -domain user > /dev/null 2>&1
         success=$?
     fi
     set -e
@@ -434,7 +434,7 @@ remove_login_item() {
     # Remove from Login Items using index-based deletion (handles broken items)
     if [[ -n "$clean_name" ]]; then
         # Skip AppleScript during tests to avoid permission dialogs
-        if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
+        if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]]; then
             # Escape double quotes and backslashes for AppleScript
             local escaped_name="${clean_name//\\/\\\\}"
             escaped_name="${escaped_name//\"/\\\"}"
@@ -461,16 +461,16 @@ remove_login_item() {
 
 # Remove files (handles symlinks, optional sudo).
 # Security: All paths pass validate_path_for_deletion() before any deletion.
-# Performance: when MOLE_DELETE_MODE=trash and the batch is sudo-free and
+# Performance: when NORA_DELETE_MODE=trash and the batch is sudo-free and
 # symlink-free, the eligible paths are sent to Trash in a single subprocess
 # (one `trash` exec or one Finder AppleScript round-trip). This collapses the
 # previous N-subprocess fan-out that caused the post-confirmation "frozen
-# terminal" reported during `mo uninstall` on apps with many leftovers.
+# terminal" reported during `nr uninstall` on apps with many leftovers.
 remove_file_list() {
     local file_list="$1"
     local use_sudo="${2:-false}"
     local count=0
-    local mode="${MOLE_DELETE_MODE:-permanent}"
+    local mode="${NORA_DELETE_MODE:-permanent}"
 
     local -a trash_batch=()
     local -a fallback_paths=()
@@ -489,10 +489,10 @@ remove_file_list() {
         fi
 
         # Symlinks, sudo-required paths, app bundles, and TCC-managed app data
-        # stay on the per-file mole_delete path. The latter targets bypass
-        # third-party Trash tools and Finder inside _mole_move_to_trash.
+        # stay on the per-file nora_delete path. The latter targets bypass
+        # third-party Trash tools and Finder inside _nora_move_to_trash.
         if [[ "$mode" == "trash" && "$use_sudo" != "true" && ! -L "$file" ]] &&
-            ! _mole_path_requires_direct_trash "$file" &&
+            ! _nora_path_requires_direct_trash "$file" &&
             ! is_uninstall_dry_run; then
             trash_batch+=("$file")
         else
@@ -501,16 +501,16 @@ remove_file_list() {
     done <<< "$file_list"
 
     if [[ ${#trash_batch[@]} -gt 0 ]]; then
-        if _mole_move_to_trash_batch "${trash_batch[@]}"; then
+        if _nora_move_to_trash_batch "${trash_batch[@]}"; then
             local _bp _bsize
             for _bp in "${trash_batch[@]}"; do
                 _bsize="unknown"
-                _mole_delete_log "trash" "$_bsize" "ok" "$_bp"
-                log_operation "${MOLE_CURRENT_COMMAND:-uninstall}" "TRASHED" "$_bp" "batch"
+                _nora_delete_log "trash" "$_bsize" "ok" "$_bp"
+                log_operation "${NORA_CURRENT_COMMAND:-uninstall}" "TRASHED" "$_bp" "batch"
             done
             count=$((count + ${#trash_batch[@]}))
         else
-            # Batch failed wholesale: route each path through mole_delete so
+            # Batch failed wholesale: route each path through nora_delete so
             # per-file Trash handling fails closed and forensic logging stays
             # intact.
             fallback_paths+=("${trash_batch[@]}")
@@ -520,10 +520,10 @@ remove_file_list() {
     if [[ ${#fallback_paths[@]} -gt 0 ]]; then
         local fb
         for fb in "${fallback_paths[@]}"; do
-            # mole_delete routes through Trash when MOLE_DELETE_MODE=trash
+            # nora_delete routes through Trash when NORA_DELETE_MODE=trash
             # (uninstall default) and only uses safe_* permanent removal when
             # the caller explicitly selected permanent mode. See #723.
-            mole_delete "$fb" "$use_sudo" && ((++count)) || true
+            nora_delete "$fb" "$use_sudo" && ((++count)) || true
         done
     fi
 
@@ -777,7 +777,7 @@ _batch_scan_app_details() {
             # caches the surviving install uses.
             local sibling_survives=0
             [[ "$sibling_guard" != "none" ]] && sibling_survives=1
-            related_files=$(MOLE_UNINSTALL_SIBLING_SURVIVES="$sibling_survives" find_app_files "$bundle_id" "$discovery_app_name" "$app_path" || true)
+            related_files=$(NORA_UNINSTALL_SIBLING_SURVIVES="$sibling_survives" find_app_files "$bundle_id" "$discovery_app_name" "$app_path" || true)
             # Diagnostic-report discovery prefers CFBundleExecutable from the
             # selected bundle, and same-bundle-id siblings ship the same
             # executable name ("Xcode" for Xcode-beta.app), so under the
@@ -958,12 +958,12 @@ _batch_preview_and_confirm() {
 
     # Enable uninstall mode - allows deletion of data-protected apps (VPNs, dev tools, etc.)
     # that user explicitly chose to uninstall. System-critical components remain protected.
-    export MOLE_UNINSTALL_MODE=1
+    export NORA_UNINSTALL_MODE=1
 
     # Establish sudo once before uninstalling apps that need admin access.
     # Homebrew cask removal can prompt via sudo during uninstall hooks, which
-    # does not work reliably under Mole's timed non-interactive execution path.
-    if [[ "${MOLE_DRY_RUN:-0}" != "1" ]] &&
+    # does not work reliably under Nora's timed non-interactive execution path.
+    if [[ "${NORA_DRY_RUN:-0}" != "1" ]] &&
         { [[ ${#sudo_apps[@]} -gt 0 ]] || [[ ${#brew_cask_apps[@]} -gt 0 ]]; }; then
         local admin_prompt="Admin required to uninstall selected apps"
         if [[ ${#sudo_apps[@]} -gt 0 && ${#brew_cask_apps[@]} -eq 0 ]]; then
@@ -1082,7 +1082,7 @@ _batch_execute_removals() {
                 else
                     # Only fall back to manual app removal when Homebrew no longer
                     # tracks the cask. Otherwise we would recreate the mismatch
-                    # where brew still reports the app as installed after Mole
+                    # where brew still reports the app as installed after Nora
                     # removes the bundle manually.
                     local cask_state=2
                     if command -v is_brew_cask_installed > /dev/null 2>&1; then
@@ -1094,7 +1094,7 @@ _batch_execute_removals() {
                     fi
 
                     if [[ $cask_state -eq 1 ]]; then
-                        if ! mole_delete "$app_path" "$needs_sudo"; then
+                        if ! nora_delete "$app_path" "$needs_sudo"; then
                             reason="brew cleanup incomplete, manual removal failed"
                         fi
                     elif [[ $cask_state -eq 0 ]]; then
@@ -1125,24 +1125,24 @@ _batch_execute_removals() {
                                 reason="protected system symlink, cannot remove"
                                 ;;
                             *)
-                                if ! mole_delete "$app_path" "true"; then
+                                if ! nora_delete "$app_path" "true"; then
                                     reason="failed to remove symlink"
                                 fi
                                 ;;
                         esac
                     else
-                        if ! mole_delete "$app_path" "true"; then
+                        if ! nora_delete "$app_path" "true"; then
                             reason="failed to remove symlink"
                         fi
                     fi
                 else
                     if is_uninstall_dry_run; then
-                        if ! mole_delete "$app_path" "false"; then
+                        if ! nora_delete "$app_path" "false"; then
                             reason="dry-run path validation failed"
                         fi
                     else
                         local ret=0
-                        mole_delete "$app_path" "true" || ret=$?
+                        nora_delete "$app_path" "true" || ret=$?
                         if [[ $ret -ne 0 ]]; then
                             local diagnosis
                             diagnosis=$(diagnose_removal_failure "$ret" "$app_name")
@@ -1151,7 +1151,7 @@ _batch_execute_removals() {
                     fi
                 fi
             else
-                if ! mole_delete "$app_path" "false"; then
+                if ! nora_delete "$app_path" "false"; then
                     if [[ ! -w "$(dirname "$app_path")" ]]; then
                         reason="parent directory not writable"
                     else
@@ -1193,7 +1193,7 @@ _batch_execute_removals() {
 
                 if [[ ${#leftover_paths[@]} -gt 0 ]]; then
                     local _du_total
-                    _du_total=$(run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" du -skcP "${leftover_paths[@]}" 2> /dev/null | awk 'END {print $1}')
+                    _du_total=$(run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" du -skcP "${leftover_paths[@]}" 2> /dev/null | awk 'END {print $1}')
                     if [[ "$_du_total" =~ ^[0-9]+$ ]]; then
                         leftover_kb=$_du_total
                     fi
@@ -1217,7 +1217,7 @@ _batch_execute_removals() {
             fi
 
             # Defaults writes are side effects that should never run in dry-run mode.
-            if mole_is_reverse_dns_bundle_id "$bundle_id"; then
+            if nora_is_reverse_dns_bundle_id "$bundle_id"; then
                 if is_uninstall_dry_run; then
                     debug_log "[DRY RUN] Would clear defaults domain: $bundle_id"
                 else
@@ -1227,11 +1227,11 @@ _batch_execute_removals() {
                 fi
 
                 # ByHost preferences (machine-specific).
-                # User-owned plists, so route through user-mode mole_delete to
+                # User-owned plists, so route through user-mode nora_delete to
                 # avoid prompting for sudo when uninstalling a normal app.
                 if [[ -d "$HOME/Library/Preferences/ByHost" ]]; then
                     while IFS= read -r -d '' plist_file; do
-                        mole_delete "$plist_file" "false" || true
+                        nora_delete "$plist_file" "false" || true
                     done < <(command find "$HOME/Library/Preferences/ByHost" -maxdepth 1 -type f -name "${bundle_id}.*.plist" -print0 2> /dev/null || true)
                 fi
             fi
@@ -1274,9 +1274,9 @@ _batch_execute_removals() {
                 local _review_path _review_key
                 while IFS= read -r _review_path; do
                     [[ -n "$_review_path" && (-e "$_review_path" || -L "$_review_path") ]] || continue
-                    _review_key=$(mole_normalize_path "$_review_path")
+                    _review_key=$(nora_normalize_path "$_review_path")
                     if [[ ${#review_only_system_leftover_keys[@]} -eq 0 ]] ||
-                        ! mole_identity_in_list "$_review_key" "${review_only_system_leftover_keys[@]}"; then
+                        ! nora_identity_in_list "$_review_key" "${review_only_system_leftover_keys[@]}"; then
                         review_only_system_leftover_keys+=("$_review_key")
                         review_only_system_leftovers+=("$_review_path")
                     fi
@@ -1295,11 +1295,11 @@ _batch_execute_removals() {
             fi
 
             # Check for orphaned system extensions (camera, network, endpoint security, etc.)
-            if mole_is_reverse_dns_bundle_id "$bundle_id" && [[ -d /Library/SystemExtensions ]]; then
+            if nora_is_reverse_dns_bundle_id "$bundle_id" && [[ -d /Library/SystemExtensions ]]; then
                 local system_extension_path=""
                 local has_bundle_system_extension=false
                 while IFS= read -r -d '' system_extension_path; do
-                    if mole_name_starts_with_bundle_id_boundary "$system_extension_path" "$bundle_id"; then
+                    if nora_name_starts_with_bundle_id_boundary "$system_extension_path" "$bundle_id"; then
                         has_bundle_system_extension=true
                         break
                     fi
@@ -1459,7 +1459,7 @@ _batch_render_summary() {
         done
 
         summary_details+=("${ICON_REVIEW} Local Network permissions on macOS 15+ can outlive app removal: ${YELLOW}${local_network_list}${NC}")
-        summary_details+=("${GRAY}${ICON_SUBLIST}${NC} Mole does not reset ${GRAY}/Volumes/Data/Library/Preferences/com.apple.networkextension*.plist${NC}")
+        summary_details+=("${GRAY}${ICON_SUBLIST}${NC} Nora does not reset ${GRAY}/Volumes/Data/Library/Preferences/com.apple.networkextension*.plist${NC}")
         summary_details+=("${GRAY}${ICON_SUBLIST}${NC} If stale or duplicate entries remain, clear them manually in Recovery mode because the reset is global${NC}")
     fi
 
@@ -1558,7 +1558,7 @@ batch_uninstall_applications() {
     local _batch_interrupted=0
 
     # Trap to clean up spinner, sudo keepalive, and uninstall mode on interrupt
-    trap 'stop_inline_spinner 2>/dev/null; _cleanup_sudo_keepalive; unset MOLE_UNINSTALL_MODE; echo ""; _restore_uninstall_traps; _batch_interrupted=1; return 130' INT TERM
+    trap 'stop_inline_spinner 2>/dev/null; _cleanup_sudo_keepalive; unset NORA_UNINSTALL_MODE; echo ""; _restore_uninstall_traps; _batch_interrupted=1; return 130' INT TERM
 
     # Pre-scan: running apps, sudo needs, size.
     local -a running_apps=()
@@ -1636,13 +1636,13 @@ batch_uninstall_applications() {
     _batch_render_summary
 
     # Run brew autoremove silently in background to avoid interrupting UX.
-    if [[ $brew_apps_removed -gt 0 && "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+    if [[ $brew_apps_removed -gt 0 && "${NORA_DRY_RUN:-0}" != "1" ]]; then
         # This background job never needs terminal input. Keeping its stdin
         # attached lets the Perl timeout fallback hand off the controlling tty
         # and suspend the foreground uninstall prompt with SIGTTIN.
         (
             HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_AUTO_UPDATE=1 NONINTERACTIVE=1 \
-                run_with_timeout "$MOLE_TIMEOUT_DISK_VERIFY_SEC" brew autoremove > /dev/null 2>&1 || true
+                run_with_timeout "$NORA_TIMEOUT_DISK_VERIFY_SEC" brew autoremove > /dev/null 2>&1 || true
         ) > /dev/null 2>&1 < /dev/null &
         disown $! 2> /dev/null || true
     fi
@@ -1665,7 +1665,7 @@ batch_uninstall_applications() {
     _cleanup_sudo_keepalive
 
     # Disable uninstall mode
-    unset MOLE_UNINSTALL_MODE
+    unset NORA_UNINSTALL_MODE
 
     _restore_uninstall_traps
     unset -f _restore_uninstall_traps

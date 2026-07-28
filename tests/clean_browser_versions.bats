@@ -11,8 +11,8 @@ setup_file() {
 	export HOME
 
 	# Prevent AppleScript permission dialogs during tests
-	MOLE_TEST_MODE=1
-	export MOLE_TEST_MODE
+	NORA_TEST_MODE=1
+	export NORA_TEST_MODE
 
 	mkdir -p "$HOME"
 }
@@ -78,7 +78,7 @@ export -f pgrep
 CHROME_APP="$HOME/Applications/Google Chrome.app"
 VERSIONS_DIR="$CHROME_APP/Contents/Frameworks/Google Chrome Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0,130.0.0.0}
-export MOLE_CHROME_APP_PATHS="$CHROME_APP"
+export NORA_CHROME_APP_PATHS="$CHROME_APP"
 
 # Create Current symlink pointing to 130.0.0.0
 ln -s "130.0.0.0" "$VERSIONS_DIR/Current"
@@ -121,7 +121,7 @@ export -f pgrep
 CHROME_APP="$HOME/Applications/Google Chrome.app"
 VERSIONS_DIR="$CHROME_APP/Contents/Frameworks/Google Chrome Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0,130.0.0.0}
-export MOLE_CHROME_APP_PATHS="$CHROME_APP"
+export NORA_CHROME_APP_PATHS="$CHROME_APP"
 
 # Create Current symlink pointing to 130.0.0.0
 ln -s "130.0.0.0" "$VERSIONS_DIR/Current"
@@ -165,7 +165,7 @@ export -f pgrep
 CHROME_APP="$HOME/Applications/Google Chrome.app"
 VERSIONS_DIR="$CHROME_APP/Contents/Frameworks/Google Chrome Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0,130.0.0.0}
-export MOLE_CHROME_APP_PATHS="$CHROME_APP"
+export NORA_CHROME_APP_PATHS="$CHROME_APP"
 touch -t 202601010000 "$VERSIONS_DIR/128.0.0.0"
 touch -t 202602010000 "$VERSIONS_DIR/129.0.0.0"
 touch -t 202603010000 "$VERSIONS_DIR/130.0.0.0"
@@ -203,7 +203,7 @@ export -f pgrep
 EDGE_APP="$HOME/Applications/Microsoft Edge.app"
 VERSIONS_DIR="$EDGE_APP/Contents/Frameworks/Microsoft Edge Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0,130.0.0.0}
-export MOLE_EDGE_APP_PATHS="$EDGE_APP"
+export NORA_EDGE_APP_PATHS="$EDGE_APP"
 touch -t 202601010000 "$VERSIONS_DIR/128.0.0.0"
 touch -t 202602010000 "$VERSIONS_DIR/129.0.0.0"
 touch -t 202603010000 "$VERSIONS_DIR/130.0.0.0"
@@ -245,7 +245,7 @@ export -f pgrep
 BRAVE_APP="$HOME/Applications/Brave Browser.app"
 VERSIONS_DIR="$BRAVE_APP/Contents/Frameworks/Brave Browser Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0,130.0.0.0}
-export MOLE_BRAVE_APP_PATHS="$BRAVE_APP"
+export NORA_BRAVE_APP_PATHS="$BRAVE_APP"
 touch -t 202601010000 "$VERSIONS_DIR/128.0.0.0"
 touch -t 202602010000 "$VERSIONS_DIR/129.0.0.0"
 touch -t 202603010000 "$VERSIONS_DIR/130.0.0.0"
@@ -420,7 +420,7 @@ EOF
 	CHROME_APP="$HOME/Applications/Google Chrome.app"
 	VERSIONS_DIR="$CHROME_APP/Contents/Frameworks/Google Chrome Framework.framework/Versions"
 	mkdir -p "$VERSIONS_DIR"/{128.0.0.0,130.0.0.0}
-	export MOLE_CHROME_APP_PATHS="$CHROME_APP"
+	export NORA_CHROME_APP_PATHS="$CHROME_APP"
 
 	# Remove Current if it exists as a directory, then create symlink
 	rm -rf "$VERSIONS_DIR/Current"
@@ -479,7 +479,7 @@ total_items=0
 CHROME_APP="$HOME/Applications/Google Chrome.app"
 VERSIONS_DIR="$CHROME_APP/Contents/Frameworks/Google Chrome Framework.framework/Versions"
 mkdir -p "$VERSIONS_DIR"/{128.0.0.0,129.0.0.0}
-export MOLE_CHROME_APP_PATHS="$CHROME_APP"
+export NORA_CHROME_APP_PATHS="$CHROME_APP"
 # No Current symlink created
 
 clean_chrome_old_versions
@@ -515,7 +515,7 @@ EOF
 	ln -s "122.0.0.0" "$VERSIONS_DIR/Current"
 
 	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" DRY_RUN=true \
-		MOLE_EDGE_APP_PATHS="$EDGE_APP" /bin/bash --noprofile --norc <<'EOF'
+		NORA_EDGE_APP_PATHS="$EDGE_APP" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/user.sh"
@@ -553,7 +553,7 @@ EOF
 	ln -s "122.0.0.0" "$VERSIONS_DIR/Current"
 
 	run env HOME="$TEST_HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-		MOLE_EDGE_APP_PATHS="$EDGE_APP" /bin/bash --noprofile --norc <<'EOF'
+		NORA_EDGE_APP_PATHS="$EDGE_APP" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/user.sh"

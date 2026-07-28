@@ -1,8 +1,8 @@
-# Mole Security Design
+# Nora Security Design
 
-This document describes the safety mechanisms that prevent mole from
+This document describes the safety mechanisms that prevent nora from
 destroying data it shouldn't. It is written for reviewers, contributors,
-and anyone evaluating mole for production use.
+and anyone evaluating nora for production use.
 
 The corresponding implementation lives in `lib/core/file_ops.sh`,
 `lib/core/app_protection.sh`, and `lib/core/app_protection_data.sh`. Path
@@ -13,7 +13,7 @@ and `tests/path_validation_fuzz.bats`.
 
 ## Threat model
 
-Mole is a user-invoked CLI that performs three classes of destructive
+Nora is a user-invoked CLI that performs three classes of destructive
 operations on the local machine:
 
 1. **Cleanup**: remove caches, logs, and temp data the OS or apps regenerate.
@@ -21,7 +21,7 @@ operations on the local machine:
 3. **Trash routing**: move user-selected files in `mo analyze` to Trash.
 
 We assume:
-- The invoking user has shell access and runs mole intentionally.
+- The invoking user has shell access and runs nora intentionally.
 - The user is **not** trying to attack their own machine.
 - The user **does** make mistakes (typo a path, click wrong menu, run
   cleanup with stale config).
@@ -29,9 +29,9 @@ We assume:
   may not follow Apple naming conventions.
 
 We are **not** defending against:
-- A user who runs `sudo mole` with malicious flags they typed in deliberately.
+- A user who runs `sudo nora` with malicious flags they typed in deliberately.
 - A compromised macOS host where SIP is disabled and `/System` is writable.
-- Supply-chain compromise of the mole binary itself (covered separately
+- Supply-chain compromise of the nora binary itself (covered separately
   by signed releases + SHA256SUMS attestations in `release.yml`).
 
 The lines we will not cross, regardless of input:
@@ -53,7 +53,7 @@ The lines we will not cross, regardless of input:
 
 ## Layer 1: `validate_path_for_deletion`
 
-Every removal in mole funnels through `mole_delete` /
+Every removal in nora funnels through `nora_delete` /
 `safe_remove` / `safe_sudo_remove`, which all call
 `validate_path_for_deletion` before touching the filesystem. The validator
 applies six independent checks. Any one rejecting kills the operation.
@@ -141,7 +141,7 @@ before the code can land.
 
 For current uses, grep `# SAFE:`. Anchored by symbol rather than line number,
 because line refs rot: `_remove_verified_container_stub` in `lib/clean/apps.sh`,
-`cleanup_temp_files` and the Mole-temp-root sweeps in `lib/core/base.sh`, and
+`cleanup_temp_files` and the Nora-temp-root sweeps in `lib/core/base.sh`, and
 the orphan-tmp cleanup in `scripts/test.sh`.
 
 `_remove_verified_container_stub` is the one bypass worth understanding before
@@ -212,10 +212,10 @@ rejected before it reaches Finder.
 Three orthogonal mechanisms make the safety claims testable and
 prevent live-machine test runs from doing real damage:
 
-- `MOLE_DRY_RUN=1`: every safe-remove logs what it would do and
+- `NORA_DRY_RUN=1`: every safe-remove logs what it would do and
   returns 0 without touching the filesystem. Used in CI for the
   no-mock path coverage and recommended before any local cleanup.
-- `MOLE_TEST_NO_AUTH=1`: refuses to call `sudo`, `osascript`,
+- `NORA_TEST_NO_AUTH=1`: refuses to call `sudo`, `osascript`,
   `launchctl`, or any path that would prompt the user. Required for
   bats and the integration tests. Enforced by `scripts/test.sh` PATH
   stubs that fail loudly when called.
@@ -238,16 +238,16 @@ a corresponding test that fails before your code lands.
 - **No code signing of the cleanup config.** We rely on filesystem
   permissions to protect the protection lists from tampering. If a
   user can edit `lib/core/app_protection_data.sh` they can already
-  edit `mole` itself; the threat model says we don't defend that.
-- **No anti-rollback.** A user who restores an old mole binary or
+  edit `nora` itself; the threat model says we don't defend that.
+- **No anti-rollback.** A user who restores an old nora binary or
   installs a forked build with weaker lists gets weaker protection.
   We address this through release signing, not runtime checks.
 - **No protection for arbitrary user paths.** `~/Documents/important`
   has no special status. The user is responsible for selecting safe
-  cleanup targets; mole only guarantees system integrity.
+  cleanup targets; nora only guarantees system integrity.
 - **No telemetry.** We never report what was scanned, deleted, or
-  attempted. Mistakes are diagnosed locally via `~/.cache/mole/`
-  operation logs (path is `MOLE_OPLOG_PATH` overridable;
+  attempted. Mistakes are diagnosed locally via `~/.cache/nora/`
+  operation logs (path is `NORA_OPLOG_PATH` overridable;
   `MO_NO_OPLOG=1` disables entirely).
 
 ---
@@ -260,4 +260,4 @@ a corresponding test that fails before your code lands.
 - An incident occurred where one of the layers failed and the writeup
   belongs in the "lessons" section here, not just the commit log.
 
-Last reviewed: 2026-05-21 (mole V1.39.0).
+Last reviewed: 2026-05-21 (nora V1.39.0).

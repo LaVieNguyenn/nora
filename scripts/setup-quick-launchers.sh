@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create Raycast script commands and Alfred keywords for Mole (clean + uninstall).
+# Create Raycast script commands and Alfred keywords for Nora (clean + uninstall).
 
 set -euo pipefail
 
@@ -15,11 +15,11 @@ ICON_WARN="!"
 ICON_ERR="✗"
 
 LAUNCHER_COMMAND_SPECS=(
-    "clean|Mole Clean|Deep system cleanup with Mole|Run Mole clean"
-    "uninstall|Mole Uninstall|Uninstall applications with Mole|Uninstall apps via Mole"
-    "optimize|Mole Optimize|System health checks and optimization|System health and optimization"
-    "analyze|Mole Analyze|Disk space analysis with Mole|Disk space analysis"
-    "status|Mole Status|Live system status dashboard|Live system dashboard"
+    "clean|Nora Clean|Deep system cleanup with Nora|Run Nora clean"
+    "uninstall|Nora Uninstall|Uninstall applications with Nora|Uninstall apps via Nora"
+    "optimize|Nora Optimize|System health checks and optimization|System health and optimization"
+    "analyze|Nora Analyze|Disk space analysis with Nora|Disk space analysis"
+    "status|Nora Status|Live system status dashboard|Live system dashboard"
 )
 
 log_step() { echo -e "${BLUE}${ICON_STEP}${NC} $1"; }
@@ -36,13 +36,13 @@ prompt_enter() {
         echo "$prompt"
     fi
 }
-detect_mo() {
-    if command -v mo > /dev/null 2>&1; then
-        command -v mo
-    elif command -v mole > /dev/null 2>&1; then
-        command -v mole
+detect_cli() {
+    if command -v nr > /dev/null 2>&1; then
+        command -v nr
+    elif command -v nora > /dev/null 2>&1; then
+        command -v nora
     else
-        log_error "Mole not found. Install it first via Homebrew or ./install.sh."
+        log_error "Nora not found. Install it first via Homebrew or ./install.sh."
         exit 1
     fi
 }
@@ -51,10 +51,10 @@ write_raycast_script() {
     local target="$1"
     local title="$2"
     local description="$3"
-    local mo_bin="$4"
+    local cli_bin="$4"
     local subcommand="$5"
 
-    local cmd_for_applescript="${mo_bin//\\/\\\\}"
+    local cmd_for_applescript="${cli_bin//\\/\\\\}"
     cmd_for_applescript="${cmd_for_applescript//\"/\\\"}"
 
     cat > "$target" << EOF
@@ -64,7 +64,7 @@ write_raycast_script() {
 # @raycast.schemaVersion 1
 # @raycast.title ${title}
 # @raycast.mode fullOutput
-# @raycast.packageName Mole
+# @raycast.packageName Nora
 # @raycast.description ${description}
 
 # Optional parameters:
@@ -79,7 +79,7 @@ set -euo pipefail
 echo "🐹 Running ${title}..."
 echo ""
 
-MO_BIN="${mo_bin}"
+MO_BIN="${cli_bin}"
 MO_SUBCOMMAND="${subcommand}"
 MO_BIN_ESCAPED="${cmd_for_applescript}"
 
@@ -244,7 +244,7 @@ EOF
 }
 
 create_raycast_commands() {
-    local mo_bin="$1"
+    local cli_bin="$1"
     local default_dir="$HOME/Library/Application Support/Raycast/script-commands"
     local dir="$default_dir"
     local entry
@@ -257,7 +257,7 @@ create_raycast_commands() {
     mkdir -p "$dir"
     for entry in "${LAUNCHER_COMMAND_SPECS[@]}"; do
         IFS="|" read -r subcommand title description alfred_subtitle <<< "$entry"
-        write_raycast_script "$dir/mole-${subcommand}.sh" "$title" "$description" "$mo_bin" "$subcommand"
+        write_raycast_script "$dir/nora-${subcommand}.sh" "$title" "$description" "$cli_bin" "$subcommand"
     done
     log_success "Scripts ready in: $dir"
 
@@ -288,7 +288,7 @@ uuid() {
 }
 
 create_alfred_workflow() {
-    local mo_bin="$1"
+    local cli_bin="$1"
     local prefs_dir="${ALFRED_PREFS_DIR:-$HOME/Library/Application Support/Alfred/Alfred.alfredpreferences}"
     local workflows_dir="$prefs_dir/workflows"
     local entry
@@ -306,9 +306,9 @@ create_alfred_workflow() {
     log_step "Installing Alfred workflows..."
     for entry in "${LAUNCHER_COMMAND_SPECS[@]}"; do
         IFS="|" read -r subcommand title _ subtitle <<< "$entry"
-        bundle="fun.tw93.mole.${subcommand}"
+        bundle="dev.nora.cli.${subcommand}"
         keyword="${subcommand}"
-        command="\"${mo_bin}\" ${subcommand}"
+        command="\"${cli_bin}\" ${subcommand}"
         local workflow_uid="user.workflow.$(uuid | LC_ALL=C tr '[:upper:]' '[:lower:]')"
         local input_uid
         local action_uid
@@ -325,7 +325,7 @@ create_alfred_workflow() {
     <key>bundleid</key>
     <string>${bundle}</string>
     <key>createdby</key>
-    <string>Mole</string>
+    <string>Nora</string>
     <key>name</key>
     <string>${title}</string>
     <key>objects</key>
@@ -408,15 +408,15 @@ EOF
 main() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Mole Quick Launchers"
+    echo "  Nora Quick Launchers"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    local mo_bin
-    mo_bin="$(detect_mo)"
-    log_step "Detected Mole binary at: ${mo_bin}"
+    local cli_bin
+    cli_bin="$(detect_cli)"
+    log_step "Detected Nora binary at: ${cli_bin}"
 
-    create_raycast_commands "$mo_bin"
-    create_alfred_workflow "$mo_bin"
+    create_raycast_commands "$cli_bin"
+    create_alfred_workflow "$cli_bin"
 
     echo ""
     log_success "Done! Raycast and Alfred are ready with 5 commands:"

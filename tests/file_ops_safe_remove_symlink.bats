@@ -12,9 +12,9 @@ setup_file() {
 setup() {
     SANDBOX="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-symlink.XXXXXX")"
     export SANDBOX
-    export MOLE_DELETE_LOG="$SANDBOX/deletions.log"
-    export MOLE_TEST_NO_AUTH=1
-    unset MOLE_DRY_RUN
+    export NORA_DELETE_LOG="$SANDBOX/deletions.log"
+    export NORA_TEST_NO_AUTH=1
+    unset NORA_DRY_RUN
 }
 
 teardown() {
@@ -24,8 +24,8 @@ teardown() {
 prelude() {
     cat <<EOF
 set -euo pipefail
-export MOLE_DELETE_LOG="$MOLE_DELETE_LOG"
-export MOLE_TEST_NO_AUTH=1
+export NORA_DELETE_LOG="$NORA_DELETE_LOG"
+export NORA_TEST_NO_AUTH=1
 source "$PROJECT_ROOT/lib/core/common.sh"
 EOF
 }
@@ -69,7 +69,7 @@ EOF
 
     run /bin/bash --noprofile --norc <<EOF
 $(prelude)
-export MOLE_DRY_RUN=1
+export NORA_DRY_RUN=1
 safe_remove_symlink "$link"
 EOF
 

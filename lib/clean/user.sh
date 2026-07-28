@@ -10,8 +10,8 @@ clean_trash() {
 
     # Always count and delete directly. The previous Finder AppleScript path
     # triggered macOS's "Show warning before emptying the Trash" dialog and
-    # blocked mo clean on user confirmation. Volume Trashes
-    # (/Volumes/*/.Trashes/<uid>/) are not handled here; mo clean only manages
+    # blocked nr clean on user confirmation. Volume Trashes
+    # (/Volumes/*/.Trashes/<uid>/) are not handled here; nr clean only manages
     # the user's home Trash.
     local trash_count
     trash_count=$(command find "$HOME/.Trash" -mindepth 1 -maxdepth 1 -print0 2> /dev/null |
@@ -47,7 +47,7 @@ clean_trash() {
     fi
 
     if [[ -t 1 ]]; then
-        MOLE_SPINNER_PREFIX="  " start_inline_spinner "Emptying trash, ${trash_count} items..."
+        NORA_SPINNER_PREFIX="  " start_inline_spinner "Emptying trash, ${trash_count} items..."
     fi
 
     local cleaned_count=0
@@ -75,7 +75,7 @@ clean_user_essentials() {
     start_section_spinner "Cleaning runtime files..."
     _clean_darwin_user_runtime_dirs
 
-    if [[ "${MOLE_SKIP_TRASH_CLEANUP:-0}" != "1" ]]; then
+    if [[ "${NORA_SKIP_TRASH_CLEANUP:-0}" != "1" ]]; then
         clean_trash
     fi
     stop_section_spinner
@@ -134,7 +134,7 @@ _clean_incomplete_downloads() {
 
 # Internal: Clean old mail downloads.
 _clean_mail_downloads() {
-    local mail_age_days=${MOLE_MAIL_AGE_DAYS:-}
+    local mail_age_days=${NORA_MAIL_AGE_DAYS:-}
     if ! [[ "$mail_age_days" =~ ^[0-9]+$ ]]; then
         mail_age_days=30
     fi
@@ -152,7 +152,7 @@ _clean_mail_downloads() {
     local cleaned_kb=0
     local spinner_active=false
     local dry_run_mode=false
-    [[ "${DRY_RUN:-false}" == "true" || "${MOLE_DRY_RUN:-0}" == "1" ]] && dry_run_mode=true
+    [[ "${DRY_RUN:-false}" == "true" || "${NORA_DRY_RUN:-0}" == "1" ]] && dry_run_mode=true
     for target_path in "${mail_dirs[@]}"; do
         if [[ -d "$target_path" ]]; then
             if [[ "$spinner_active" == "false" && -t 1 ]]; then
@@ -164,7 +164,7 @@ _clean_mail_downloads() {
             if ! [[ "$dir_size_kb" =~ ^[0-9]+$ ]]; then
                 dir_size_kb=0
             fi
-            local min_kb="${MOLE_MAIL_DOWNLOADS_MIN_KB:-}"
+            local min_kb="${NORA_MAIL_DOWNLOADS_MIN_KB:-}"
             if ! [[ "$min_kb" =~ ^[0-9]+$ ]]; then
                 min_kb=5120
             fi
@@ -180,7 +180,7 @@ _clean_mail_downloads() {
                         if declare -f record_dry_run_cleanup_target > /dev/null 2>&1; then
                             record_dry_run_cleanup_target "$file_path" "$file_size_kb" 1 true || continue
                         fi
-                        MOLE_DRY_RUN=1 safe_remove "$file_path" true "$file_size_kb" && remove_rc=0
+                        NORA_DRY_RUN=1 safe_remove "$file_path" true "$file_size_kb" && remove_rc=0
                     elif safe_remove "$file_path" true "$file_size_kb"; then
                         remove_rc=0
                     fi
@@ -237,9 +237,9 @@ _clean_darwin_user_runtime_dir() {
     local runtime_dir="$1"
     local kind="$2"
     local label="$3"
-    local age_days="${MOLE_DARWIN_USER_RUNTIME_AGE_DAYS:-7}"
-    local max_items="${MOLE_DARWIN_USER_RUNTIME_MAX_ITEMS:-1500}"
-    local scan_timeout="${MOLE_DARWIN_USER_RUNTIME_SCAN_TIMEOUT:-8}"
+    local age_days="${NORA_DARWIN_USER_RUNTIME_AGE_DAYS:-7}"
+    local max_items="${NORA_DARWIN_USER_RUNTIME_MAX_ITEMS:-1500}"
+    local scan_timeout="${NORA_DARWIN_USER_RUNTIME_SCAN_TIMEOUT:-8}"
 
     [[ "$age_days" =~ ^[0-9]+$ ]] || age_days=7
     [[ "$max_items" =~ ^[0-9]+$ ]] || max_items=1500
@@ -357,8 +357,8 @@ _clean_darwin_user_runtime_dir() {
 }
 
 _clean_darwin_user_runtime_dirs() {
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-        [[ "${MOLE_ENABLE_DARWIN_RUNTIME_CLEANUP_IN_TESTS:-0}" == "1" ]] || return 0
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+        [[ "${NORA_ENABLE_DARWIN_RUNTIME_CLEANUP_IN_TESTS:-0}" == "1" ]] || return 0
     fi
 
     local temp_dir=""
@@ -536,8 +536,8 @@ is_brave_browser_running() {
 # Remove old Google Chrome versions while keeping Current.
 clean_chrome_old_versions() {
     local -a app_paths
-    if [[ -n "${MOLE_CHROME_APP_PATHS:-}" ]]; then
-        IFS=':' read -ra app_paths <<< "$MOLE_CHROME_APP_PATHS"
+    if [[ -n "${NORA_CHROME_APP_PATHS:-}" ]]; then
+        IFS=':' read -ra app_paths <<< "$NORA_CHROME_APP_PATHS"
     else
         app_paths=(
             "/Applications/Google Chrome.app"
@@ -552,8 +552,8 @@ clean_chrome_old_versions() {
 # Remove old Microsoft Edge versions while keeping Current.
 clean_edge_old_versions() {
     local -a app_paths
-    if [[ -n "${MOLE_EDGE_APP_PATHS:-}" ]]; then
-        IFS=':' read -ra app_paths <<< "$MOLE_EDGE_APP_PATHS"
+    if [[ -n "${NORA_EDGE_APP_PATHS:-}" ]]; then
+        IFS=':' read -ra app_paths <<< "$NORA_EDGE_APP_PATHS"
     else
         app_paths=(
             "/Applications/Microsoft Edge.app"
@@ -664,8 +664,8 @@ clean_edge_updater_old_versions() {
 # Remove old Brave Browser versions while keeping Current.
 clean_brave_old_versions() {
     local -a app_paths
-    if [[ -n "${MOLE_BRAVE_APP_PATHS:-}" ]]; then
-        IFS=':' read -ra app_paths <<< "$MOLE_BRAVE_APP_PATHS"
+    if [[ -n "${NORA_BRAVE_APP_PATHS:-}" ]]; then
+        IFS=':' read -ra app_paths <<< "$NORA_BRAVE_APP_PATHS"
     else
         app_paths=(
             "/Applications/Brave Browser.app"
@@ -687,7 +687,7 @@ clean_finder_metadata() {
 
 # Conservative cleanup for support caches not covered by generic rules.
 clean_support_app_data() {
-    local support_age_days="${MOLE_SUPPORT_CACHE_AGE_DAYS:-30}"
+    local support_age_days="${NORA_SUPPORT_CACHE_AGE_DAYS:-30}"
     [[ "$support_age_days" =~ ^[0-9]+$ ]] || support_age_days=30
 
     local crash_reporter_dir="$HOME/Library/Application Support/CrashReporter"
@@ -704,7 +704,7 @@ clean_support_app_data() {
     # Clean system-level idle/aerial screensaver videos (macOS re-downloads as needed).
     local sys_idle_assets_dir="/Library/Application Support/com.apple.idleassetsd/Customer"
     # Skip sudo operations during tests to avoid password prompts
-    if [[ "${MOLE_TEST_MODE:-0}" != "1" && "${MOLE_TEST_NO_AUTH:-0}" != "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" != "1" && "${NORA_TEST_NO_AUTH:-0}" != "1" ]]; then
         if sudo -n test -d "$sys_idle_assets_dir" 2> /dev/null; then
             safe_sudo_find_delete "$sys_idle_assets_dir" "*" "$support_age_days" "f" || true
         fi
@@ -829,7 +829,7 @@ clean_app_caches() {
     local total_size_partial=false
     local cleaned_count=0
     local found_any=false
-    local precise_size_limit="${MOLE_CONTAINER_CACHE_PRECISE_SIZE_LIMIT:-64}"
+    local precise_size_limit="${NORA_CONTAINER_CACHE_PRECISE_SIZE_LIMIT:-64}"
     [[ "$precise_size_limit" =~ ^[0-9]+$ ]] || precise_size_limit=64
     local precise_size_used=0
 
@@ -1223,7 +1223,7 @@ resolve_existing_path() {
 }
 
 external_volume_root() {
-    printf '%s\n' "${MOLE_EXTERNAL_VOLUMES_ROOT:-/Volumes}"
+    printf '%s\n' "${NORA_EXTERNAL_VOLUMES_ROOT:-/Volumes}"
 }
 
 validate_external_volume_target() {
@@ -1271,7 +1271,7 @@ validate_external_volume_target() {
     fi
 
     local disk_info=""
-    disk_info=$(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" command diskutil info "$resolved" 2> /dev/null || echo "")
+    disk_info=$(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" command diskutil info "$resolved" 2> /dev/null || echo "")
     if [[ -n "$disk_info" ]]; then
         if echo "$disk_info" | grep -Eq 'Internal:[[:space:]]+Yes'; then
             echo "Refusing to clean an internal volume: $resolved" >&2
@@ -1337,7 +1337,7 @@ clean_external_volume_target() {
         clean_ds_store_tree "$volume" "${volume_name} volume, .DS_Store"
     fi
 
-    local metadata_scan_timeout="${MOLE_EXTERNAL_VOLUME_SCAN_TIMEOUT:-15}"
+    local metadata_scan_timeout="${NORA_EXTERNAL_VOLUME_SCAN_TIMEOUT:-15}"
     [[ "$metadata_scan_timeout" =~ ^[0-9]+$ ]] || metadata_scan_timeout=15
     while IFS= read -r -d '' metadata_file; do
         [[ -e "$metadata_file" ]] || continue
@@ -1698,8 +1698,8 @@ clean_tart_caches() {
     local cache_size_human
     cache_size_human=$(bytes_to_human "$((cache_size_kb * 1024))")
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Tart caches · would prune items older than ${MOLE_ORPHAN_AGE_DAYS} days (${cache_size_human})"
-        echo -e "    ${GRAY}tart prune --entries caches --older-than ${MOLE_ORPHAN_AGE_DAYS}${NC}"
+        echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} Tart caches · would prune items older than ${NORA_ORPHAN_AGE_DAYS} days (${cache_size_human})"
+        echo -e "    ${GRAY}tart prune --entries caches --older-than ${NORA_ORPHAN_AGE_DAYS}${NC}"
         note_activity
         return 0
     fi
@@ -1708,7 +1708,7 @@ clean_tart_caches() {
         start_section_spinner "Pruning Tart caches..."
     fi
     local prune_succeeded=false
-    if run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" tart prune --entries caches --older-than "$MOLE_ORPHAN_AGE_DAYS" > /dev/null 2>&1; then
+    if run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" tart prune --entries caches --older-than "$NORA_ORPHAN_AGE_DAYS" > /dev/null 2>&1; then
         prune_succeeded=true
     fi
     if [[ -t 1 ]]; then
@@ -1717,7 +1717,7 @@ clean_tart_caches() {
 
     if [[ "$prune_succeeded" != "true" ]]; then
         echo -e "  ${GRAY}${ICON_WARNING}${NC} Tart caches · prune failed"
-        debug_log "tart prune failed for cache-only ${MOLE_ORPHAN_AGE_DAYS}-day policy"
+        debug_log "tart prune failed for cache-only ${NORA_ORPHAN_AGE_DAYS}-day policy"
         note_activity
         return 0
     fi
@@ -1830,7 +1830,7 @@ clean_application_support_logs() {
     local total_size_partial=false
     local cleaned_count=0
     local found_any=false
-    local size_timeout_seconds="${MOLE_APP_SUPPORT_ITEM_SIZE_TIMEOUT_SEC:-0.4}"
+    local size_timeout_seconds="${NORA_APP_SUPPORT_ITEM_SIZE_TIMEOUT_SEC:-0.4}"
     if [[ ! "$size_timeout_seconds" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
         size_timeout_seconds=0.4
     fi
@@ -2237,7 +2237,7 @@ report_agent_worktree_candidates() {
             [[ "$size_kb" -ge "$threshold_kb" ]] || continue
             echo -e "  ${YELLOW}${ICON_WARNING}${NC} AI agent worktrees · ${GREEN}$(bytes_to_human "$((size_kb * 1024))")${NC} · ${GRAY}$(format_path_link "$container")${NC}"
             note_activity
-        done < <(run_with_timeout "$MOLE_TIMEOUT_PKG_CLEANUP_SEC" command find "$root" -maxdepth 6 -type d -path "*/.claude/worktrees" -prune -print0 2> /dev/null)
+        done < <(run_with_timeout "$NORA_TIMEOUT_PKG_CLEANUP_SEC" command find "$root" -maxdepth 6 -type d -path "*/.claude/worktrees" -prune -print0 2> /dev/null)
     done
     return 0
 }
@@ -2249,7 +2249,7 @@ check_large_file_candidates() {
 
     _large_candidate_size_kb() {
         local path="$1"
-        local timeout_seconds="${2:-${MOLE_LARGE_CANDIDATE_SIZE_TIMEOUT:-3}}"
+        local timeout_seconds="${2:-${NORA_LARGE_CANDIDATE_SIZE_TIMEOUT:-3}}"
         [[ "$timeout_seconds" =~ ^[0-9]+$ ]] || timeout_seconds=3
         local du_output=""
         du_output=$(run_with_timeout "$timeout_seconds" du -skP "$path" 2> /dev/null || true)
@@ -2337,7 +2337,7 @@ check_large_file_candidates() {
     if [[ "${SYSTEM_CLEAN:-false}" != "true" ]] && command -v tmutil > /dev/null 2>&1 &&
         defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup 2> /dev/null | grep -qE '^[01]$'; then
         local snapshot_list snapshot_count
-        snapshot_list=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" tmutil listlocalsnapshots / 2> /dev/null || true)
+        snapshot_list=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" tmutil listlocalsnapshots / 2> /dev/null || true)
         if [[ -n "$snapshot_list" ]]; then
             snapshot_count=$(echo "$snapshot_list" | { grep -Eo 'com\.apple\.TimeMachine\.[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}' || true; } | wc -l | awk '{print $1}')
             if [[ "$snapshot_count" =~ ^[0-9]+$ && "$snapshot_count" -gt 0 ]]; then
@@ -2351,7 +2351,7 @@ check_large_file_candidates() {
 
     if command -v docker > /dev/null 2>&1; then
         local docker_output
-        docker_output=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" docker system df --format '{{.Type}}\t{{.Size}}\t{{.Reclaimable}}' 2> /dev/null || true)
+        docker_output=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" docker system df --format '{{.Type}}\t{{.Size}}\t{{.Reclaimable}}' 2> /dev/null || true)
         if [[ -n "$docker_output" ]]; then
             local docker_detail=""
             while IFS=$'\t' read -r dtype dsize dreclaim; do
@@ -2365,7 +2365,7 @@ check_large_file_candidates() {
                 start_section_spinner "Scanning large files..."
             fi
         else
-            docker_output=$(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" docker system df 2> /dev/null || true)
+            docker_output=$(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" docker system df 2> /dev/null || true)
             if [[ -n "$docker_output" ]]; then
                 stop_section_spinner
                 echo -e "  ${YELLOW}${ICON_WARNING}${NC} Docker storage · ${GRAY}docker system df${NC}"
@@ -2379,7 +2379,7 @@ check_large_file_candidates() {
     # Device backups reach 100GB+ with millions of small files; the default
     # 3s du budget times out cold and silently drops the most valuable row,
     # so give this probe the hint-scan budget instead.
-    _report_large_review_dir "iOS backups" "$HOME/Library/Application Support/MobileSync/Backup" "$MOLE_TIMEOUT_HINT_SCAN_SEC"
+    _report_large_review_dir "iOS backups" "$HOME/Library/Application Support/MobileSync/Backup" "$NORA_TIMEOUT_HINT_SCAN_SEC"
     _report_large_review_dir "LM Studio models" "$HOME/.lmstudio/models"
     local orbstack_data
     for orbstack_data in "$HOME"/Library/Group\ Containers/*dev.orbstack/data "$HOME/OrbStack"; do

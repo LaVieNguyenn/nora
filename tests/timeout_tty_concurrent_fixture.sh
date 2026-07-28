@@ -10,7 +10,7 @@ source "$PROJECT_ROOT/lib/core/timeout.sh"
 MO_TIMEOUT_BIN=""
 MO_TIMEOUT_PERL_BIN="/usr/bin/perl"
 
-# Mole runs timeout helpers concurrently inside a single process group (the
+# Nora runs timeout helpers concurrently inside a single process group (the
 # uninstall scan workers). Only the helper whose process group actually owns
 # the terminal may hand it to its child: a helper that hands off while a
 # sibling's child owns the terminal also restores the terminal to that

@@ -67,7 +67,7 @@ cmd/analyze/analyze
 cmd/status/status
 /status
 /analyze
-mole-analyze
+nora-analyze
 # Go binaries
 bin/analyze-go
 bin/status-go
@@ -86,4 +86,8 @@ coverage.html
 
 session.json
 run_tests.ps1
-mole_guidelines.md
+nora_guidelines.md
+
+# Swift app build output
+app/.build/
+app/dist/

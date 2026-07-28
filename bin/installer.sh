@@ -1,17 +1,17 @@
 #!/bin/bash
-# Mole - Installer command
+# Nora - Installer command
 # Find and remove installer files - .dmg, .pkg, .mpkg, .iso, .xip, .zip
 
 set -euo pipefail
 
 # shellcheck disable=SC2154
 # External variables set by menu_paginated.sh and environment
-declare MOLE_SELECTION_RESULT
-declare MOLE_INSTALLER_SCAN_MAX_DEPTH
+declare NORA_SELECTION_RESULT
+declare NORA_INSTALLER_SCAN_MAX_DEPTH
 
 export LC_ALL=C
 export LANG=C
-export MOLE_CURRENT_COMMAND="${MOLE_CURRENT_COMMAND:-installer}"
+export NORA_CURRENT_COMMAND="${NORA_CURRENT_COMMAND:-installer}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/core/common.sh"
@@ -95,7 +95,7 @@ handle_candidate_file() {
 
 scan_installers_in_path() {
     local path="$1"
-    local max_depth="${MOLE_INSTALLER_SCAN_MAX_DEPTH:-$INSTALLER_SCAN_MAX_DEPTH_DEFAULT}"
+    local max_depth="${NORA_INSTALLER_SCAN_MAX_DEPTH:-$INSTALLER_SCAN_MAX_DEPTH_DEFAULT}"
 
     [[ -d "$path" ]] || return 0
 
@@ -505,11 +505,11 @@ select_installers() {
                 return 1
                 ;;
             "" | $'\n' | $'\r') # Enter - confirm
-                MOLE_SELECTION_RESULT=""
+                NORA_SELECTION_RESULT=""
                 for ((i = 0; i < total_items; i++)); do
                     if [[ ${selected[i]} == true ]]; then
-                        [[ -n "$MOLE_SELECTION_RESULT" ]] && MOLE_SELECTION_RESULT+=","
-                        MOLE_SELECTION_RESULT+="$i"
+                        [[ -n "$NORA_SELECTION_RESULT" ]] && NORA_SELECTION_RESULT+=","
+                        NORA_SELECTION_RESULT+="$i"
                     fi
                 done
                 restore_terminal
@@ -527,7 +527,7 @@ show_installer_menu() {
 
     echo ""
 
-    MOLE_SELECTION_RESULT=""
+    NORA_SELECTION_RESULT=""
     if ! select_installers "${DISPLAY_NAMES[@]}"; then
         return 1
     fi
@@ -583,7 +583,7 @@ build_installer_delete_plan() {
 
         INSTALLER_DELETE_PATHS+=("$file_path")
         INSTALLER_DELETE_SIZES+=("$file_size")
-        INSTALLER_DELETE_IDENTITIES+=("$(mole_path_identity "$file_path")")
+        INSTALLER_DELETE_IDENTITIES+=("$(nora_path_identity "$file_path")")
     done
 
     [[ ${#INSTALLER_DELETE_PATHS[@]} -gt 0 ]]
@@ -602,7 +602,7 @@ execute_installer_delete_plan() {
         fi
 
         local current_identity
-        current_identity=$(mole_path_identity "$file_path")
+        current_identity=$(nora_path_identity "$file_path")
         if [[ "$current_identity" != "$planned_identity" ]]; then
             record_installer_delete_failure "$file_path" "changed since scan"
             continue
@@ -618,8 +618,8 @@ execute_installer_delete_plan() {
             continue
         fi
 
-        if mole_delete "$file_path" false; then
-            if [[ "${MOLE_DRY_RUN:-0}" == "1" ]] || [[ ! -e "$file_path" && ! -L "$file_path" ]]; then
+        if nora_delete "$file_path" false; then
+            if [[ "${NORA_DRY_RUN:-0}" == "1" ]] || [[ ! -e "$file_path" && ! -L "$file_path" ]]; then
                 total_size_freed_kb=$((total_size_freed_kb + ((current_size + 1023) / 1024)))
                 total_deleted=$((total_deleted + 1))
             else
@@ -642,8 +642,8 @@ delete_selected_installers() {
 
     # Parse selection indices
     local -a selected_indices=()
-    if [[ -n "$MOLE_SELECTION_RESULT" ]]; then
-        IFS=',' read -ra selected_indices <<< "$MOLE_SELECTION_RESULT"
+    if [[ -n "$NORA_SELECTION_RESULT" ]]; then
+        IFS=',' read -ra selected_indices <<< "$NORA_SELECTION_RESULT"
     fi
 
     if [[ ${#selected_indices[@]} -eq 0 ]]; then
@@ -758,7 +758,7 @@ perform_installers() {
 show_summary() {
     local summary_heading="Installers cleaned"
     local -a summary_details=()
-    local dry_run_mode="${MOLE_DRY_RUN:-0}"
+    local dry_run_mode="${NORA_DRY_RUN:-0}"
 
     if [[ "$dry_run_mode" == "1" ]]; then
         summary_heading="Dry run complete - no changes made"
@@ -819,7 +819,7 @@ main() {
                 export MO_DEBUG=1
                 ;;
             "--dry-run" | "-n")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             *)
                 echo "Unknown option: $arg"
@@ -828,7 +828,7 @@ main() {
         esac
     done
 
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, No installer files will be removed"
         printf '\n'
     fi
@@ -858,6 +858,6 @@ main() {
 }
 
 # Only run main if not in test mode
-if [[ "${MOLE_TEST_MODE:-0}" != "1" ]]; then
+if [[ "${NORA_TEST_MODE:-0}" != "1" ]]; then
     main "$@"
 fi

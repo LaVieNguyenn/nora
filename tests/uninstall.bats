@@ -597,7 +597,7 @@ source "$PROJECT_ROOT/lib/uninstall/batch.sh"
 
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
-mole_delete() { echo "MOLE_DELETE:$1"; return 0; }
+nora_delete() { echo "NORA_DELETE:$1"; return 0; }
 
 selected_apps=("0|$HOME/Applications/Falcon.app|Falcon|com.crowdstrike.falcon.UserAgent|0|Never")
 files_cleaned=0
@@ -611,7 +611,7 @@ EOF
 
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"requires the official CrowdStrike uninstaller"* ]] || return 1
-	[[ "$output" != *"MOLE_DELETE"* ]]
+	[[ "$output" != *"NORA_DELETE"* ]]
 }
 
 @test "batch_uninstall_applications keeps system remnants review-only" {
@@ -643,8 +643,8 @@ remove_file_list() {
 	printf 'REMOVE_LIST:%s:%s\n' "${2:-false}" "$1" >> "$HOME/remove.log"
 	return 0
 }
-mole_delete() {
-	printf 'MOLE_DELETE:%s:%s\n' "$2" "$1" >> "$HOME/remove.log"
+nora_delete() {
+	printf 'NORA_DELETE:%s:%s\n' "$2" "$1" >> "$HOME/remove.log"
 	rm -rf "$1"
 	return 0
 }
@@ -692,8 +692,8 @@ find_app_system_files() {
     printf '%s\n' "$HOME/system/com.example.TestApp.helper"
 }
 
-export MOLE_DRY_RUN=1
-export MOLE_DELETE_MODE=trash
+export NORA_DRY_RUN=1
+export NORA_DELETE_MODE=trash
 
 app_bundle="$HOME/Applications/TestApp.app"
 mkdir -p "$app_bundle"
@@ -787,7 +787,7 @@ sleep() { :; }
 export -f sleep
 
 # Allow the osascript branch to run (the upfront guard skips it under test mode).
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 
 force_kill_app "TestApp" "$app_path"
 EOF
@@ -860,7 +860,7 @@ export -f sudo
 sleep() { :; }
 export -f sleep
 
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 
 force_kill_app "StubbornApp" "$app_path"
 EOF
@@ -897,7 +897,7 @@ cat > "$app_path/Contents/Info.plist" << 'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleExecutable</key><string>TestApp</string>
-  <key>CFBundleIdentifier</key><string>com.example.TestApp&quot; to display dialog &quot;mole</string>
+  <key>CFBundleIdentifier</key><string>com.example.TestApp&quot; to display dialog &quot;nora</string>
 </dict></plist>
 PLIST
 
@@ -921,7 +921,7 @@ export -f pkill
 sleep() { :; }
 export -f sleep
 
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 
 force_kill_app "TestApp" "$app_path"
 EOF
@@ -986,7 +986,7 @@ export -f pgrep
 sleep() { :; }
 export -f sleep
 
-unset MOLE_TEST_MODE MOLE_TEST_NO_AUTH
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
 
 force_kill_app "Evil-$SPOOFED" "$app_path"
 EOF
@@ -1000,7 +1000,7 @@ EOF
 }
 
 @test "batch_uninstall_applications proceeds with deletion when force_kill_app fails" {
-	# Reproduces the issue where uninstalling a still-running app (e.g. Mole.app
+	# Reproduces the issue where uninstalling a still-running app (e.g. Nora.app
 	# with a watchdog or XPC helper that ignores SIGKILL) used to abort with
 	# "still running" and leave the bundle on disk. macOS allows deleting a
 	# running app's bundle; we should warn the user but proceed.
@@ -1501,7 +1501,7 @@ EOF
 }
 
 @test "bootout_login_item_helpers never touches the com.apple namespace" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/uninstall/batch.sh"
@@ -1576,8 +1576,8 @@ function plutil() {
     return 1
 }
 
-MOLE_UNINSTALL_USER_LC_ALL=""
-MOLE_UNINSTALL_USER_LANG=""
+NORA_UNINSTALL_USER_LC_ALL=""
+NORA_UNINSTALL_USER_LANG=""
 
 eval "$(sed -n '/^uninstall_resolve_display_name()/,/^}/p' "$PROJECT_ROOT/bin/uninstall.sh")"
 
@@ -1688,13 +1688,13 @@ EOF
 	[[ "$output" == *"DEBUG:LaunchServices rebuild timed out, trying lighter version"* ]]
 }
 
-@test "remove_mole deletes manual binaries and caches" {
+@test "remove_nora deletes manual binaries and caches" {
 	mkdir -p "$HOME/.local/bin"
-	touch "$HOME/.local/bin/mole"
-	touch "$HOME/.local/bin/mo"
-	mkdir -p "$HOME/.config/mole" "$HOME/.cache/mole" "$HOME/Library/Logs/mole"
+	touch "$HOME/.local/bin/nora"
+	touch "$HOME/.local/bin/nr"
+	mkdir -p "$HOME/.config/nora" "$HOME/.cache/nora" "$HOME/Library/Logs/nora"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
@@ -1726,70 +1726,70 @@ sudo() {
     return 0
 }
 export -f start_inline_spinner stop_inline_spinner rm sudo
-printf '\n' | "$PROJECT_ROOT/mole" remove
+printf '\n' | "$PROJECT_ROOT/nora" remove
 EOF
 
 	[ "$status" -eq 0 ]
-	[ ! -f "$HOME/.local/bin/mole" ]
-	[ ! -f "$HOME/.local/bin/mo" ]
-	[ ! -d "$HOME/.config/mole" ]
-	[ ! -d "$HOME/.cache/mole" ]
-	[ ! -d "$HOME/Library/Logs/mole" ]
+	[ ! -f "$HOME/.local/bin/nora" ]
+	[ ! -f "$HOME/.local/bin/nr" ]
+	[ ! -d "$HOME/.config/nora" ]
+	[ ! -d "$HOME/.cache/nora" ]
+	[ ! -d "$HOME/Library/Logs/nora" ]
 }
 
-@test "remove_mole dry-run keeps manual binaries and caches" {
+@test "remove_nora dry-run keeps manual binaries and caches" {
 	mkdir -p "$HOME/.local/bin"
-	touch "$HOME/.local/bin/mole"
-	touch "$HOME/.local/bin/mo"
-	mkdir -p "$HOME/.config/mole" "$HOME/.cache/mole" "$HOME/Library/Logs/mole"
+	touch "$HOME/.local/bin/nora"
+	touch "$HOME/.local/bin/nr"
+	mkdir -p "$HOME/.config/nora" "$HOME/.cache/nora" "$HOME/Library/Logs/nora"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
 export -f start_inline_spinner stop_inline_spinner
-printf '\n' | "$PROJECT_ROOT/mole" remove --dry-run
+printf '\n' | "$PROJECT_ROOT/nora" remove --dry-run
 EOF
 
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"DRY RUN MODE"* ]] || return 1
-	[ -f "$HOME/.local/bin/mole" ]
-	[ -f "$HOME/.local/bin/mo" ]
-	[ -d "$HOME/.config/mole" ]
-	[ -d "$HOME/.cache/mole" ]
-	[ -d "$HOME/Library/Logs/mole" ]
+	[ -f "$HOME/.local/bin/nora" ]
+	[ -f "$HOME/.local/bin/nr" ]
+	[ -d "$HOME/.config/nora" ]
+	[ -d "$HOME/.cache/nora" ]
+	[ -d "$HOME/Library/Logs/nora" ]
 }
 
-@test "remove_mole test mode ignores PATH installs outside test HOME" {
-	mkdir -p "$HOME/.local/bin" "$HOME/.config/mole" "$HOME/.cache/mole" "$HOME/Library/Logs/mole"
-	touch "$HOME/.local/bin/mole"
-	touch "$HOME/.local/bin/mo"
+@test "remove_nora test mode ignores PATH installs outside test HOME" {
+	mkdir -p "$HOME/.local/bin" "$HOME/.config/nora" "$HOME/.cache/nora" "$HOME/Library/Logs/nora"
+	touch "$HOME/.local/bin/nora"
+	touch "$HOME/.local/bin/nr"
 
 	fake_global_bin="$(mktemp -d "${BATS_TEST_DIRNAME}/tmp-remove-path.XXXXXX")"
-	touch "$fake_global_bin/mole"
-	touch "$fake_global_bin/mo"
+	touch "$fake_global_bin/nora"
+	touch "$fake_global_bin/nr"
 	cat > "$fake_global_bin/brew" <<'EOF'
 #!/bin/bash
 exit 0
 EOF
 	chmod +x "$fake_global_bin/brew"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$fake_global_bin:/usr/bin:/bin" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$fake_global_bin:/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 start_inline_spinner() { :; }
 stop_inline_spinner() { :; }
 export -f start_inline_spinner stop_inline_spinner
-printf '\n' | "$PROJECT_ROOT/mole" remove --dry-run
+printf '\n' | "$PROJECT_ROOT/nora" remove --dry-run
 EOF
 
 	rm -rf "$fake_global_bin"
 
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"$HOME/.local/bin/mole"* ]] || return 1
-	[[ "$output" == *"$HOME/.local/bin/mo"* ]] || return 1
-	[[ "$output" != *"$fake_global_bin/mole"* ]] || return 1
-	[[ "$output" != *"$fake_global_bin/mo"* ]] || return 1
-	[[ "$output" != *"brew uninstall --force mole"* ]]
+	[[ "$output" == *"$HOME/.local/bin/nora"* ]] || return 1
+	[[ "$output" == *"$HOME/.local/bin/nr"* ]] || return 1
+	[[ "$output" != *"$fake_global_bin/nora"* ]] || return 1
+	[[ "$output" != *"$fake_global_bin/nr"* ]] || return 1
+	[[ "$output" != *"brew uninstall --force nora"* ]]
 }
 @test "match_apps_by_name finds exact match case-insensitively" {
 	run /bin/bash --noprofile --norc <<'EOF'
@@ -1965,13 +1965,13 @@ hide_cursor() { :; }
 show_cursor() { :; }
 clear_screen() { printf 'clear\n' >> "$trace_file"; }
 start_uninstall_interactive_screen() {
-    export MOLE_ALT_SCREEN_ACTIVE=1
-    export MOLE_MANAGED_ALT_SCREEN=1
+    export NORA_ALT_SCREEN_ACTIVE=1
+    export NORA_MANAGED_ALT_SCREEN=1
     printf 'start\n' >> "$trace_file"
 }
 stop_uninstall_interactive_screen() {
     printf 'stop\n' >> "$trace_file"
-    unset MOLE_ALT_SCREEN_ACTIVE MOLE_MANAGED_ALT_SCREEN
+    unset NORA_ALT_SCREEN_ACTIVE NORA_MANAGED_ALT_SCREEN
 }
 scan_applications() {
     printf 'scan\n' >> "$trace_file"
@@ -1984,8 +1984,8 @@ uninstall_app_inventory_fingerprint() {
 load_applications() { printf 'load\n' >> "$trace_file"; }
 drain_pending_input() { printf 'drain\n' >> "$trace_file"; }
 select_apps_for_uninstall() {
-    [[ "${MOLE_ALT_SCREEN_ACTIVE:-}" == "1" ]]
-    [[ "${MOLE_MANAGED_ALT_SCREEN:-}" == "1" ]]
+    [[ "${NORA_ALT_SCREEN_ACTIVE:-}" == "1" ]]
+    [[ "${NORA_MANAGED_ALT_SCREEN:-}" == "1" ]]
     printf 'select\n' >> "$trace_file"
     return 1
 }
@@ -2006,15 +2006,15 @@ INNER
 }
 
 @test "scan_applications starts feedback before discovery and cleans no-app state" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_FORCE_SCAN_SPINNER=1 /bin/bash --noprofile --norc <<'INNER'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_FORCE_SCAN_SPINNER=1 /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 
 trace_file="$HOME/scan-feedback-trace.log"
 scan_temp="$HOME/scan-feedback-temp"
 
-MOLE_UNINSTALL_META_CACHE_DIR="$HOME/.cache/mole"
-MOLE_UNINSTALL_META_CACHE_FILE="$MOLE_UNINSTALL_META_CACHE_DIR/uninstall_app_metadata_v1"
-MOLE_UNINSTALL_META_CACHE_LOCK="${MOLE_UNINSTALL_META_CACHE_FILE}.lock"
+NORA_UNINSTALL_META_CACHE_DIR="$HOME/.cache/nora"
+NORA_UNINSTALL_META_CACHE_FILE="$NORA_UNINSTALL_META_CACHE_DIR/uninstall_app_metadata_v1"
+NORA_UNINSTALL_META_CACHE_LOCK="${NORA_UNINSTALL_META_CACHE_FILE}.lock"
 
 create_temp_file() { printf '%s\n' "$scan_temp"; }
 ensure_user_dir() { mkdir -p "$1"; }
@@ -2079,15 +2079,15 @@ format_app_display() {
 }
 drain_pending_input() { printf 'drain\n' >> "$trace_file"; }
 paginated_multi_select() {
-    printf 'guard:%s\n' "${MOLE_MENU_IGNORE_INITIAL_ENTER:-unset}" >> "$trace_file"
+    printf 'guard:%s\n' "${NORA_MENU_IGNORE_INITIAL_ENTER:-unset}" >> "$trace_file"
     printf 'paginated\n' >> "$trace_file"
-    MOLE_SELECTION_RESULT="0"
+    NORA_SELECTION_RESULT="0"
     return 0
 }
 
 select_apps_for_uninstall
 [[ ${#selected_apps[@]} -eq 1 ]]
-[[ -z "${MOLE_MENU_IGNORE_INITIAL_ENTER:-}" ]]
+[[ -z "${NORA_MENU_IGNORE_INITIAL_ENTER:-}" ]]
 
 expected=$(printf 'format\ndrain\nguard:1\npaginated\n')
 actual=$(cat "$trace_file")
@@ -2117,14 +2117,14 @@ read_key() {
     fi
 }
 
-MOLE_SELECTION_RESULT=""
+NORA_SELECTION_RESULT=""
 set +e
-MOLE_MENU_IGNORE_INITIAL_ENTER=1 paginated_multi_select "Test Menu" "First App" > "$HOME/menu.out" 2> "$HOME/menu.err"
+NORA_MENU_IGNORE_INITIAL_ENTER=1 paginated_multi_select "Test Menu" "First App" > "$HOME/menu.out" 2> "$HOME/menu.err"
 rc=$?
 set -e
 
 echo "rc=$rc"
-echo "result=${MOLE_SELECTION_RESULT:-}"
+echo "result=${NORA_SELECTION_RESULT:-}"
 INNER
 
 	[ "$status" -eq 0 ]
@@ -2152,15 +2152,15 @@ read_key() {
     esac
 }
 
-MOLE_SELECTION_RESULT=""
-unset MOLE_MENU_SORT_MODE MOLE_MENU_SORT_REVERSE MOLE_MENU_META_SIZEKB
+NORA_SELECTION_RESULT=""
+unset NORA_MENU_SORT_MODE NORA_MENU_SORT_REVERSE NORA_MENU_META_SIZEKB
 set +e
-MOLE_MENU_META_EPOCHS="100,200" paginated_multi_select "Test Menu" "Alpha" "Beta" > "$HOME/menu.out" 2> "$HOME/menu.err" < /dev/null
+NORA_MENU_META_EPOCHS="100,200" paginated_multi_select "Test Menu" "Alpha" "Beta" > "$HOME/menu.out" 2> "$HOME/menu.err" < /dev/null
 rc=$?
 set -e
 echo "rc=$rc"
-echo "mode=${MOLE_MENU_SORT_MODE:-}"
-echo "result=${MOLE_SELECTION_RESULT:-}"
+echo "mode=${NORA_MENU_SORT_MODE:-}"
+echo "result=${NORA_SELECTION_RESULT:-}"
 [[ $rc -eq 0 ]] || exit 1
 INNER
 
@@ -2189,22 +2189,22 @@ read_key() {
     esac
 }
 
-MOLE_SELECTION_RESULT=""
+NORA_SELECTION_RESULT=""
 set +e
-MOLE_MENU_META_SIZEKB="1,100" MOLE_MENU_SORT_MODE=size MOLE_MENU_SORT_REVERSE=false paginated_multi_select "Test Menu" "Small" "Large" > "$HOME/menu-default.out" 2> "$HOME/menu-default.err" < /dev/null
+NORA_MENU_META_SIZEKB="1,100" NORA_MENU_SORT_MODE=size NORA_MENU_SORT_REVERSE=false paginated_multi_select "Test Menu" "Small" "Large" > "$HOME/menu-default.out" 2> "$HOME/menu-default.err" < /dev/null
 default_rc=$?
 set -e
-echo "default=${MOLE_SELECTION_RESULT:-}"
+echo "default=${NORA_SELECTION_RESULT:-}"
 
 : > "$key_state"
-MOLE_SELECTION_RESULT=""
+NORA_SELECTION_RESULT=""
 set +e
-NEXT_KEY="CHAR:O" MOLE_MENU_META_SIZEKB="1,100" MOLE_MENU_SORT_MODE=size MOLE_MENU_SORT_REVERSE=false paginated_multi_select "Test Menu" "Small" "Large" > "$HOME/menu-reverse.out" 2> "$HOME/menu-reverse.err" < /dev/null
+NEXT_KEY="CHAR:O" NORA_MENU_META_SIZEKB="1,100" NORA_MENU_SORT_MODE=size NORA_MENU_SORT_REVERSE=false paginated_multi_select "Test Menu" "Small" "Large" > "$HOME/menu-reverse.out" 2> "$HOME/menu-reverse.err" < /dev/null
 reverse_rc=$?
 set -e
 echo "default_rc=$default_rc"
 echo "reverse_rc=$reverse_rc"
-echo "reverse=${MOLE_SELECTION_RESULT:-}"
+echo "reverse=${NORA_SELECTION_RESULT:-}"
 [[ $default_rc -eq 0 ]] || exit 1
 [[ $reverse_rc -eq 0 ]] || exit 1
 INNER
@@ -2311,11 +2311,11 @@ INNER
 # #723: Trash routing default and --permanent flag
 # ---------------------------------------------------------------------------
 
-@test "uninstall main sets MOLE_DELETE_MODE=trash by default" {
+@test "uninstall main sets NORA_DELETE_MODE=trash by default" {
 	local apps_cache
 	apps_cache="$(mktemp "${BATS_TEST_TMPDIR:-$BATS_RUN_TMPDIR:-$HOME}/tmp-723-trash.XXXXXX")"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2331,7 +2331,7 @@ scan_applications() { printf '%s\n' "$APPS_CACHE_FILE"; }
 load_applications() { return 0; }
 drain_pending_input() { :; }
 select_apps_for_uninstall() {
-    printf 'delete_mode=%s\n' "${MOLE_DELETE_MODE:-unset}"
+    printf 'delete_mode=%s\n' "${NORA_DELETE_MODE:-unset}"
     return 1
 }
 
@@ -2344,11 +2344,11 @@ INNER
 	[[ "$output" == *"delete_mode=trash"* ]]
 }
 
-@test "uninstall main sets MOLE_DELETE_MODE=permanent with --permanent flag" {
+@test "uninstall main sets NORA_DELETE_MODE=permanent with --permanent flag" {
 	local apps_cache
 	apps_cache="$(mktemp "${BATS_TEST_TMPDIR:-$BATS_RUN_TMPDIR:-$HOME}/tmp-723-perm.XXXXXX")"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2364,7 +2364,7 @@ scan_applications() { printf '%s\n' "$APPS_CACHE_FILE"; }
 load_applications() { return 0; }
 drain_pending_input() { :; }
 select_apps_for_uninstall() {
-    printf 'delete_mode=%s\n' "${MOLE_DELETE_MODE:-unset}"
+    printf 'delete_mode=%s\n' "${NORA_DELETE_MODE:-unset}"
     return 1
 }
 
@@ -2390,7 +2390,7 @@ INNER
 1700000000|/Applications/Zoom.app|Zoom|us.zoom.xos|140MB|Yesterday|143360
 CACHE
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2439,7 +2439,7 @@ INNER
 1700000000|/Applications/Slack.app|Slack|com.tinyspeck.slackmacgap|180MB|Today|184320
 CACHE
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2483,7 +2483,7 @@ INNER
 	# Non-empty file so load_applications doesn't bail early on size check.
 	echo "" > "$apps_cache"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2520,7 +2520,7 @@ INNER
 1700000000|/Applications/Visual Studio Code.app|Visual Studio Code|com.microsoft.VSCode|420MB|Today|430080
 CACHE
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		APPS_CACHE_FILE="$apps_cache" /bin/bash --noprofile --norc <<'INNER'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2559,7 +2559,7 @@ INNER
 _bg_items_runner() {
 	HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
 		DETAIL="$1" SUCCESS_PATH="$2" LAUNCHCTL_RC="${3:-113}" \
-		MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 \
+		NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2588,7 +2588,7 @@ EOF
 @test "_uninstall_match_loaded_background_items checks helper ids under the sibling guard" {
 	# Sibling guard demotes bundle_id to "unknown" while helper ids stay
 	# valid; a loaded helper job must still be reported.
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
@@ -2612,7 +2612,7 @@ EOF
 @test "_uninstall_match_loaded_background_items stays quiet in test mode" {
 	# Test mode must not probe launchctl at all; summaries stay silent so
 	# end-to-end uninstall tests never see a background-item warning.
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
 		/bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"

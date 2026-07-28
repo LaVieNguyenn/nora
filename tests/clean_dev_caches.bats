@@ -114,7 +114,7 @@ note_activity() { :; }
 run_with_timeout() { shift; "$@"; }
 npm() {
     if [[ "$1" == "config" && "$2" == "get" && "$3" == "cache" ]]; then
-        echo "/tmp/mole-custom-npm-cache"
+        echo "/tmp/nora-custom-npm-cache"
         return 0
     fi
     return 0
@@ -124,10 +124,10 @@ EOF
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"npm cache directory|$HOME/.npm/_cacache/*"* ]] || return 1
-    [[ "$output" == *"npm cache directory (custom path)|/tmp/mole-custom-npm-cache/_cacache/*"* ]] || return 1
-    [[ "$output" == *"npm npx cache (custom path)|/tmp/mole-custom-npm-cache/_npx/*"* ]] || return 1
-    [[ "$output" == *"npm logs (custom path)|/tmp/mole-custom-npm-cache/_logs/*"* ]] || return 1
-    [[ "$output" == *"npm prebuilds (custom path)|/tmp/mole-custom-npm-cache/_prebuilds/*"* ]]
+    [[ "$output" == *"npm cache directory (custom path)|/tmp/nora-custom-npm-cache/_cacache/*"* ]] || return 1
+    [[ "$output" == *"npm npx cache (custom path)|/tmp/nora-custom-npm-cache/_npx/*"* ]] || return 1
+    [[ "$output" == *"npm logs (custom path)|/tmp/nora-custom-npm-cache/_logs/*"* ]] || return 1
+    [[ "$output" == *"npm prebuilds (custom path)|/tmp/nora-custom-npm-cache/_prebuilds/*"* ]]
 }
 
 @test "clean_dev_npm falls back to default cache when npm path is invalid" {
@@ -262,7 +262,7 @@ bun() {
         return 0
     fi
     if [[ "$1" == "pm" && "$2" == "cache" ]]; then
-        echo "/tmp/mole-bun-cache"
+        echo "/tmp/nora-bun-cache"
         return 0
     fi
     return 0
@@ -332,7 +332,7 @@ bun() {
         return 1
     fi
     if [[ "$1" == "pm" && "$2" == "cache" ]]; then
-        echo "/tmp/mole-bun-cache"
+        echo "/tmp/nora-bun-cache"
         return 0
     fi
     return 0
@@ -342,7 +342,7 @@ clean_dev_npm
 EOF
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Bun cache|/tmp/mole-bun-cache/*"* ]] || return 1
+    [[ "$output" == *"Bun cache|/tmp/nora-bun-cache/*"* ]] || return 1
     [[ "$output" == *"Orphaned bun cache|$HOME/.bun/install/cache/*"* ]]
 }
 
@@ -430,7 +430,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"Docker unused data · skipped (review: docker system df)"* ]] || return 1
     [[ "$output" != *"whitelisted"* ]] || return 1
-    [[ "$output" != *"mo clean --whitelist"* ]] || return 1
+    [[ "$output" != *"nr clean --whitelist"* ]] || return 1
     [[ "$output" != *"docker called"* ]]
 }
 

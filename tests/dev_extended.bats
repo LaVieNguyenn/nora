@@ -134,7 +134,7 @@ EOF
 	touch -t 202402010000 "$doc_root/DeveloperDocumentation.index"
 	touch -t 202401010000 "$doc_root/DeveloperDocumentation-16.0.index"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_XCODE_DOCUMENTATION_CACHE_DIR="$doc_root" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_XCODE_DOCUMENTATION_CACHE_DIR="$doc_root" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -164,7 +164,7 @@ EOF
 	touch "$doc_root/DeveloperDocumentation.index"
 	touch "$doc_root/DeveloperDocumentation-16.0.index"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_XCODE_DOCUMENTATION_CACHE_DIR="$doc_root" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_XCODE_DOCUMENTATION_CACHE_DIR="$doc_root" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -184,7 +184,7 @@ EOF
 	mkdir -p "$cache_root/dyld/runtime" "$cache_root/metadata"
 	touch "$cache_root/dyld/runtime/cache" "$cache_root/metadata/index"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR="$cache_root" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR="$cache_root" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -207,7 +207,7 @@ EOF
 	local cache_root="$HOME/SystemCoreSimulatorCaches"
 	mkdir -p "$cache_root/dyld"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR="$cache_root" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_XCODE_SYSTEM_CORESIMULATOR_CACHE_DIR="$cache_root" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -271,7 +271,7 @@ EOF
 set -euo pipefail
 source "$PROJECT_ROOT/bin/clean.sh"
 DRY_RUN=true
-MOLE_DRY_RUN=1
+NORA_DRY_RUN=1
 pgrep() { return 1; }
 clean_xcode_xctest_devices
 [[ -d "$HOME/Library/Developer/XCTestDevices" ]] && echo "STILL_EXISTS"
@@ -342,7 +342,7 @@ safe_clean() {
     done
     echo "$target"
 }
-MOLE_JETBRAINS_TOOLBOX_KEEP=1
+NORA_JETBRAINS_TOOLBOX_KEEP=1
 clean_dev_jetbrains_toolbox
 EOF
 
@@ -363,7 +363,7 @@ source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 note_activity() { :; }
 safe_clean() { echo "$1"; }
-MOLE_JETBRAINS_TOOLBOX_KEEP=1
+NORA_JETBRAINS_TOOLBOX_KEEP=1
 clean_dev_jetbrains_toolbox
 EOF
 
@@ -474,7 +474,7 @@ EOF
 	rm -f "$bin_dir/claude"
 }
 
-@test "clean_dev_ai_agents respects MOLE_AI_AGENTS_KEEP and skips missing roots" {
+@test "clean_dev_ai_agents respects NORA_AI_AGENTS_KEEP and skips missing roots" {
 	local claude_root="$HOME/.local/share/claude/versions"
 	# Earlier cases in this file seed versions under the shared HOME; without a
 	# reset this sees five versions instead of three and KEEP=2 sweeps 2.1.101 too.
@@ -490,7 +490,7 @@ source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 note_activity() { :; }
 safe_clean() { echo "$1"; }
-MOLE_AI_AGENTS_KEEP=2 clean_dev_ai_agents
+NORA_AI_AGENTS_KEEP=2 clean_dev_ai_agents
 EOF
 
 	[ "$status" -eq 0 ]
@@ -599,7 +599,7 @@ EOF
 
 	# The "scanning N entries" line is deliberately gated behind MO_DEBUG (the
 	# spinner carries the feedback otherwise), so this case has to ask for it.
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MO_DEBUG=1 MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$volumes_root" MOLE_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$cryptex_root" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MO_DEBUG=1 NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$volumes_root" NORA_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$cryptex_root" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -613,7 +613,7 @@ has_sudo_session() { return 0; }
 is_path_whitelisted() { return 1; }
 should_protect_path() { return 1; }
 _sim_runtime_mount_points() {
-    printf '%s\n' "$MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT/in-use-runtime"
+    printf '%s\n' "$NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT/in-use-runtime"
 }
 _sim_runtime_size_kb() {
     local target_path="$1"
@@ -645,7 +645,7 @@ EOF
 	local volumes_root="$HOME/sim-volumes"
 	mkdir -p "$volumes_root/runtime-a" "$volumes_root/runtime-b"
 
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$volumes_root" MOLE_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$HOME/none" /bin/bash --noprofile --norc <<'EOF'
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$volumes_root" NORA_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$HOME/none" /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
@@ -696,8 +696,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 
-_MOLE_SIMCTL_XCODE_APP_ROOTS=("$HOME/EmptyApplications")
-mkdir -p "${_MOLE_SIMCTL_XCODE_APP_ROOTS[0]}"
+_NORA_SIMCTL_XCODE_APP_ROOTS=("$HOME/EmptyApplications")
+mkdir -p "${_NORA_SIMCTL_XCODE_APP_ROOTS[0]}"
 check_android_ndk() { :; }
 clean_xcode_documentation_cache() { :; }
 clean_xcode_system_coresimulator_caches() { :; }
@@ -821,7 +821,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 
-_MOLE_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
+_NORA_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
 check_android_ndk() { :; }
 clean_xcode_documentation_cache() { :; }
 clean_xcode_system_coresimulator_caches() { :; }
@@ -874,7 +874,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 
-_MOLE_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
+_NORA_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
 check_android_ndk() { :; }
 clean_xcode_documentation_cache() { :; }
 clean_xcode_system_coresimulator_caches() { :; }
@@ -924,7 +924,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 
-_MOLE_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
+_NORA_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
 check_android_ndk() { :; }
 clean_xcode_documentation_cache() { :; }
 clean_xcode_system_coresimulator_caches() { :; }
@@ -971,7 +971,7 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/clean/dev.sh"
 
-_MOLE_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
+_NORA_SIMCTL_XCODE_APP_ROOTS=("$HOME/Applications")
 check_android_ndk() { :; }
 clean_xcode_documentation_cache() { :; }
 clean_xcode_system_coresimulator_caches() { :; }
@@ -1130,8 +1130,8 @@ stop_section_spinner() { :; }
 cleanup_result_color_kb() { printf '%s' "$GREEN"; }
 xcrun() { return 0; }
 _resolve_simctl_developer_dir() {
-    _MOLE_SIMCTL_DEVELOPER_DIR="$HOME/Xcode.app/Contents/Developer"
-    _MOLE_SIMCTL_RESOLUTION_STATUS="ready"
+    _NORA_SIMCTL_DEVELOPER_DIR="$HOME/Xcode.app/Contents/Developer"
+    _NORA_SIMCTL_RESOLUTION_STATUS="ready"
 }
 
 scenario="list-timeout"

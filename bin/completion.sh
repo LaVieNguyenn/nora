@@ -7,7 +7,7 @@ source "$ROOT_DIR/lib/core/common.sh"
 source "$ROOT_DIR/lib/core/commands.sh"
 
 command_names=()
-for entry in "${MOLE_COMMANDS[@]}"; do
+for entry in "${NORA_COMMANDS[@]}"; do
     command_names+=("${entry%%:*}")
 done
 command_words="${command_names[*]}"
@@ -17,17 +17,17 @@ history_option_words="--json --limit --help -h"
 purge_option_words="--paths --dry-run -n --include-empty --debug --help -h"
 
 emit_zsh_subcommands() {
-    for entry in "${MOLE_COMMANDS[@]}"; do
+    for entry in "${NORA_COMMANDS[@]}"; do
         printf "        '%s:%s'\n" "${entry%%:*}" "${entry#*:}"
     done
 }
 
 emit_fish_completions() {
     local cmd="$1"
-    for entry in "${MOLE_COMMANDS[@]}"; do
+    for entry in "${NORA_COMMANDS[@]}"; do
         local name="${entry%%:*}"
         local desc="${entry#*:}"
-        printf 'complete -f -c %s -n "__fish_mole_no_subcommand" -a %s -d "%s"\n' "$cmd" "$name" "$desc"
+        printf 'complete -f -c %s -n "__fish_nora_no_subcommand" -a %s -d "%s"\n' "$cmd" "$name" "$desc"
     done
 
     printf '\n'
@@ -48,16 +48,16 @@ emit_fish_completions() {
     printf 'complete -f -c %s -n "__fish_seen_subcommand_from purge" -l debug -d "Show detailed logs"\n' "$cmd"
     printf 'complete -f -c %s -n "__fish_seen_subcommand_from purge" -l help -s h -d "Show help"\n' "$cmd"
     printf '\n'
-    printf 'complete -f -c %s -n "not __fish_mole_no_subcommand" -a bash -d "generate bash completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
-    printf 'complete -f -c %s -n "not __fish_mole_no_subcommand" -a zsh -d "generate zsh completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
-    printf 'complete -f -c %s -n "not __fish_mole_no_subcommand" -a fish -d "generate fish completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
+    printf 'complete -f -c %s -n "not __fish_nora_no_subcommand" -a bash -d "generate bash completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
+    printf 'complete -f -c %s -n "not __fish_nora_no_subcommand" -a zsh -d "generate zsh completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
+    printf 'complete -f -c %s -n "not __fish_nora_no_subcommand" -a fish -d "generate fish completion" -n "__fish_see_subcommand_path completion"\n' "$cmd"
 }
 
 remove_stale_completion_entries() {
     local config_file="$1"
     local success_message="$2"
 
-    if [[ ! -f "$config_file" ]] || ! grep -Eq "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" 2> /dev/null; then
+    if [[ ! -f "$config_file" ]] || ! grep -Eq "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" 2> /dev/null; then
         return 1
     fi
 
@@ -65,7 +65,7 @@ remove_stale_completion_entries() {
     local temp_file
     original_mode="$(stat -f '%Mp%Lp' "$config_file" 2> /dev/null || true)"
     temp_file="$(mktemp)"
-    grep -Ev "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
+    grep -Ev "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
     mv "$temp_file" "$config_file"
     [[ -n "$original_mode" ]] && chmod "$original_mode" "$config_file" 2> /dev/null || true
     [[ -n "$success_message" ]] && echo -e "${GREEN}${ICON_SUCCESS}${NC} $success_message"
@@ -77,7 +77,7 @@ if [[ $# -gt 0 ]]; then
     for arg in "$@"; do
         case "$arg" in
             "--dry-run" | "-n")
-                export MOLE_DRY_RUN=1
+                export NORA_DRY_RUN=1
                 ;;
             *)
                 normalized_args+=("$arg")
@@ -93,7 +93,7 @@ fi
 
 # Auto-install mode when run without arguments
 if [[ $# -eq 0 ]]; then
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${YELLOW}${ICON_DRY_RUN} DRY RUN MODE${NC}, shell config files will not be modified"
         echo ""
     fi
@@ -105,33 +105,33 @@ if [[ $# -eq 0 ]]; then
     fi
 
     completion_name=""
-    if command -v mole > /dev/null 2>&1; then
-        completion_name="mole"
-    elif command -v mo > /dev/null 2>&1; then
-        completion_name="mo"
+    if command -v nora > /dev/null 2>&1; then
+        completion_name="nora"
+    elif command -v nr > /dev/null 2>&1; then
+        completion_name="nr"
     fi
 
     # Fish uses a separate install path: write to ~/.config/fish/completions/ so
-    # both `mole` and `mo` load completions independently on terminal startup.
+    # both `nora` and `nr` load completions independently on terminal startup.
     if [[ "$current_shell" == "fish" ]]; then
         fish_dir="${HOME}/.config/fish/completions"
-        mole_file="${fish_dir}/mole.fish"
-        mo_file="${fish_dir}/mo.fish"
+        nora_file="${fish_dir}/nora.fish"
+        nr_file="${fish_dir}/nr.fish"
         config_fish="${HOME}/.config/fish/config.fish"
 
         if [[ -z "$completion_name" ]]; then
-            # Clean up any stale config.fish entries even when mole is not in PATH
-            if [[ "${MOLE_DRY_RUN:-0}" != "1" ]]; then
+            # Clean up any stale config.fish entries even when nora is not in PATH
+            if [[ "${NORA_DRY_RUN:-0}" != "1" ]]; then
                 remove_stale_completion_entries "$config_fish" "Removed stale completion entries from config.fish" || true
             fi
-            log_error "mole not found in PATH, install Mole before enabling completion"
+            log_error "nora not found in PATH, install Nora before enabling completion"
             exit 1
         fi
 
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             echo -e "${GRAY}${ICON_REVIEW} [DRY RUN] Would write Fish completions to:${NC}"
-            echo "  $mole_file"
-            echo "  $mo_file"
+            echo "  $nora_file"
+            echo "  $nr_file"
             echo ""
             echo -e "${GREEN}${ICON_SUCCESS}${NC} Dry run complete, no changes made"
             exit 0
@@ -143,11 +143,11 @@ if [[ $# -eq 0 ]]; then
         fi
 
         # Prompt only on first install; silently update if files exist
-        if [[ ! -f "$mole_file" ]]; then
+        if [[ ! -f "$nora_file" ]]; then
             echo ""
             echo -e "${GRAY}Will write Fish completions to:${NC}"
-            echo "  $mole_file"
-            echo "  $mo_file"
+            echo "  $nora_file"
+            echo "  $nr_file"
             echo ""
             echo -ne "${PURPLE}${ICON_ARROW}${NC} Enable completion for ${GREEN}fish${NC}? ${GRAY}Enter confirm / Q cancel${NC}: "
             IFS= read -r -s -n1 key || key=""
@@ -168,12 +168,12 @@ if [[ $# -eq 0 ]]; then
         fi
 
         mkdir -p "$fish_dir"
-        "$completion_name" completion fish > "$mole_file"
-        # mo.fish sources mole.fish so Fish loads mo completions on `mo<Tab>`
-        printf '# Mole completions for mo (alias) -- auto-generated, do not edit\n' > "$mo_file"
-        printf 'source %s\n' "$mole_file" >> "$mo_file"
+        "$completion_name" completion fish > "$nora_file"
+        # mo.fish sources nora.fish so Fish loads nr completions on `nr<Tab>`
+        printf '# Nora completions for nr (alias) -- auto-generated, do not edit\n' > "$nr_file"
+        printf 'source %s\n' "$nora_file" >> "$nr_file"
 
-        if [[ -f "$mole_file" ]]; then
+        if [[ -f "$nora_file" ]]; then
             echo -e "${GREEN}${ICON_SUCCESS}${NC} Fish completions written to $fish_dir"
         fi
         echo ""
@@ -194,21 +194,21 @@ if [[ $# -eq 0 ]]; then
             ;;
         *)
             log_error "Unsupported shell: $current_shell"
-            echo "  mole completion <bash|zsh|fish>"
+            echo "  nora completion <bash|zsh|fish>"
             exit 1
             ;;
     esac
 
     if [[ -z "$completion_name" ]]; then
-        if [[ -f "$config_file" ]] && grep -Eq "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" 2> /dev/null; then
-            if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+        if [[ -f "$config_file" ]] && grep -Eq "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" 2> /dev/null; then
+            if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
                 echo -e "${GRAY}${ICON_REVIEW} [DRY RUN] Would remove stale completion entries from $config_file${NC}"
                 echo ""
             else
                 original_mode=""
                 original_mode="$(stat -f '%Mp%Lp' "$config_file" 2> /dev/null || true)"
                 temp_file="$(mktemp)"
-                grep -Ev "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
+                grep -Ev "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
                 mv "$temp_file" "$config_file"
                 if [[ -n "$original_mode" ]]; then
                     chmod "$original_mode" "$config_file" 2> /dev/null || true
@@ -217,13 +217,13 @@ if [[ $# -eq 0 ]]; then
                 echo ""
             fi
         fi
-        log_error "mole not found in PATH, install Mole before enabling completion"
+        log_error "nora not found in PATH, install Nora before enabling completion"
         exit 1
     fi
 
     # Check if already installed and normalize to latest line
-    if [[ -f "$config_file" ]] && grep -Eq "(mole|mo)[[:space:]]+completion" "$config_file" 2> /dev/null; then
-        if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ -f "$config_file" ]] && grep -Eq "(nora|nr)[[:space:]]+completion" "$config_file" 2> /dev/null; then
+        if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
             echo -e "${GRAY}${ICON_REVIEW} [DRY RUN] Would normalize completion entry in $config_file${NC}"
             echo ""
             exit 0
@@ -232,14 +232,14 @@ if [[ $# -eq 0 ]]; then
         original_mode=""
         original_mode="$(stat -f '%Mp%Lp' "$config_file" 2> /dev/null || true)"
         temp_file="$(mktemp)"
-        grep -Ev "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
+        grep -Ev "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
         mv "$temp_file" "$config_file"
         if [[ -n "$original_mode" ]]; then
             chmod "$original_mode" "$config_file" 2> /dev/null || true
         fi
         {
             echo ""
-            echo "# Mole shell completion"
+            echo "# Nora shell completion"
             echo "$completion_line"
         } >> "$config_file"
         echo ""
@@ -253,7 +253,7 @@ if [[ $# -eq 0 ]]; then
     echo -e "${GRAY}Will add to ${config_file}:${NC}"
     echo "  $completion_line"
     echo ""
-    if [[ "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "${GREEN}${ICON_SUCCESS}${NC} Dry run complete, no changes made"
         exit 0
     fi
@@ -281,12 +281,12 @@ if [[ $# -eq 0 ]]; then
         touch "$config_file"
     fi
 
-    # Remove previous Mole completion lines to avoid duplicates
+    # Remove previous Nora completion lines to avoid duplicates
     if [[ -f "$config_file" ]]; then
         original_mode=""
         original_mode="$(stat -f '%Mp%Lp' "$config_file" 2> /dev/null || true)"
         temp_file="$(mktemp)"
-        grep -Ev "(^# Mole shell completion$|(mole|mo)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
+        grep -Ev "(^# Nora shell completion$|(nora|nr)[[:space:]]+completion)" "$config_file" > "$temp_file" || true
         mv "$temp_file" "$config_file"
         if [[ -n "$original_mode" ]]; then
             chmod "$original_mode" "$config_file" 2> /dev/null || true
@@ -296,7 +296,7 @@ if [[ $# -eq 0 ]]; then
     # Add completion line
     {
         echo ""
-        echo "# Mole shell completion"
+        echo "# Nora shell completion"
         echo "$completion_line"
     } >> "$config_file"
 
@@ -311,7 +311,7 @@ fi
 case "$1" in
     bash)
         cat << EOF
-_mole_completions()
+_nora_completions()
 {
     local cur_word prev_word subcommand
     cur_word="\${COMP_WORDS[\$COMP_CWORD]}"
@@ -355,12 +355,12 @@ _mole_completions()
     fi
 }
 
-complete -F _mole_completions mole mo
+complete -F _nora_completions nora nr
 EOF
         ;;
     zsh)
-        printf '#compdef mole mo\n\n'
-        printf '_mole() {\n'
+        printf '#compdef nora nr\n\n'
+        printf '_nora() {\n'
         printf '    local -a subcommands\n'
         printf '    subcommands=(\n'
         emit_zsh_subcommands
@@ -408,14 +408,14 @@ EOF
         printf '            ;;\n'
         printf '    esac\n'
         printf '}\n\n'
-        printf 'compdef _mole mole mo\n'
+        printf 'compdef _nora nora nr\n'
         ;;
     fish)
-        printf '# Completions for mole\n'
-        emit_fish_completions mole
-        printf '\n# Completions for mo (alias)\n'
-        emit_fish_completions mo
-        printf '\nfunction __fish_mole_no_subcommand\n'
+        printf '# Completions for nora\n'
+        emit_fish_completions nora
+        printf '\n# Completions for nr (alias)\n'
+        emit_fish_completions nr
+        printf '\nfunction __fish_nora_no_subcommand\n'
         printf '    for i in (commandline -opc)\n'
         # shellcheck disable=SC2016
         printf '        if contains -- $i %s\n' "$command_words"
@@ -430,31 +430,31 @@ EOF
         ;;
     *)
         cat << 'EOF'
-Usage: mole completion [bash|zsh|fish]
+Usage: nora completion [bash|zsh|fish]
 
-Setup shell tab completion for mole and mo commands.
+Setup shell tab completion for nora and nr commands.
 
 Auto-install:
-  mole completion              # Auto-detect shell and install
-  mole completion --dry-run    # Preview config changes without writing files
+  nora completion              # Auto-detect shell and install
+  nora completion --dry-run    # Preview config changes without writing files
 
 Manual install:
-  mole completion bash         # Generate bash completion script
-  mole completion zsh          # Generate zsh completion script
-  mole completion fish         # Generate fish completion script
+  nora completion bash         # Generate bash completion script
+  nora completion zsh          # Generate zsh completion script
+  nora completion fish         # Generate fish completion script
 
 Examples:
   # Auto-install (recommended)
-  mole completion
+  nora completion
 
   # Manual install - Bash
-  eval "$(mole completion bash)"
+  eval "$(nora completion bash)"
 
   # Manual install - Zsh
-  eval "$(mole completion zsh)"
+  eval "$(nora completion zsh)"
 
   # Manual install - Fish
-  mole completion fish | source
+  nora completion fish | source
 EOF
         exit 1
         ;;

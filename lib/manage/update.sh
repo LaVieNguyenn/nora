@@ -1,21 +1,21 @@
 #!/bin/bash
-# Mole self-update: version discovery (GitHub + Homebrew), install-channel
+# Nora self-update: version discovery (GitHub + Homebrew), install-channel
 # detection, the update-available banner cache, and the update flow itself.
-# Extracted from the `mole` dispatcher, which now only routes.
+# Extracted from the `nora` dispatcher, which now only routes.
 #
-# VERSION lives in `mole` (install.sh reads it from there); these functions
+# VERSION lives in `nora` (install.sh reads it from there); these functions
 # read it at call time, so this file must be sourced after it is set.
 
 set -euo pipefail
 
-# The `mole` dispatcher assigns VERSION before sourcing this file, so the
+# The `nora` dispatcher assigns VERSION before sourcing this file, so the
 # linter cannot see the assignment from here; declare it as an inherited value.
 : "${VERSION:=}"
 
-if [[ -n "${MOLE_MANAGE_UPDATE_LOADED:-}" ]]; then
+if [[ -n "${NORA_MANAGE_UPDATE_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_MANAGE_UPDATE_LOADED=1
+readonly NORA_MANAGE_UPDATE_LOADED=1
 
 curl_download_with_retry() {
     local url="$1"
@@ -50,14 +50,14 @@ curl_download_with_retry() {
 # the user's machine, which is exactly what a broken installed version cannot
 # fix by itself (#1297). Streaming install.sh from main straight into bash
 # skips all of it, so a server-side install.sh fix reaches every stuck install
-# on its next `mo update`. install.sh only dispatches on its final line, and
+# on its next `nr update`. install.sh only dispatches on its final line, and
 # pipefail surfaces a truncated download, so a partial script runs nothing.
 _update_self_heal_reinstall() {
     local assume_sudo="$1"
     local update_tag="$2"
     local install_dir="$3"
     local config_dir="$4"
-    local mole_path="$5"
+    local nora_path="$5"
     local success_label="$6"
 
     command -v curl > /dev/null 2>&1 || return 1
@@ -67,8 +67,8 @@ _update_self_heal_reinstall() {
     heal_output=$(
         set -o pipefail
         curl -fsSL --connect-timeout 10 --max-time 60 \
-            "https://raw.githubusercontent.com/tw93/mole/main/install.sh" |
-            MOLE_ASSUME_SUDO_AUTH="$assume_sudo" MOLE_VERSION="$update_tag" \
+            "https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh" |
+            NORA_ASSUME_SUDO_AUTH="$assume_sudo" NORA_VERSION="$update_tag" \
                 bash -s -- --prefix "$install_dir" --config "$config_dir" 2>&1
     ) || {
         [[ -n "$heal_output" ]] && printf '%s\n' "$heal_output" | tail -5 >&2
@@ -78,7 +78,7 @@ _update_self_heal_reinstall() {
     # Claim success only when the installed binary reports the target version.
     # Trusting installer output here would repeat the V1.47.1 false success.
     local installed_version=""
-    installed_version=$("$mole_path" --version 2> /dev/null | awk 'NR==1 && NF {print $NF}')
+    installed_version=$("$nora_path" --version 2> /dev/null | awk 'NR==1 && NF {print $NF}')
     if [[ "$installed_version" != "${update_tag#V}" ]]; then
         return 1
     fi
@@ -89,25 +89,25 @@ _update_self_heal_reinstall() {
 # These run inside `latest=$(...)` command substitutions in a shell with
 # `set -euo pipefail`, so a nonzero pipeline (curl refused by a flaky proxy, or
 # grep finding no match) would kill the whole command before the caller's own
-# fallback and error message could run. `mo update` exited 1 with no output at
+# fallback and error message could run. `nr update` exited 1 with no output at
 # all that way. The trailing `|| true` is what keeps the failure recoverable.
 get_latest_version() {
     curl -fsSL --connect-timeout 2 --max-time 3 -H "Cache-Control: no-cache" \
-        "https://raw.githubusercontent.com/tw93/mole/main/mole" 2> /dev/null |
+        "https://raw.githubusercontent.com/LaVieNguyenn/nora/main/nora" 2> /dev/null |
         grep '^VERSION=' | head -1 | sed 's/VERSION="\(.*\)"/\1/' || true
 }
 
 get_latest_version_from_github() {
     local version
     version=$(curl -fsSL --connect-timeout 2 --max-time 3 \
-        "https://api.github.com/repos/tw93/mole/releases/latest" 2> /dev/null |
+        "https://api.github.com/repos/LaVieNguyenn/nora/releases/latest" 2> /dev/null |
         grep '"tag_name"' | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
     version="${version#v}"
     version="${version#V}"
     echo "$version"
 }
 
-# Foreground `mo update` version discovery. The single-shot helpers above stay
+# Foreground `nr update` version discovery. The single-shot helpers above stay
 # fast because the update-available banner calls them on every command; an
 # explicit update is worth a bounded retry instead, since the same proxy reset
 # that breaks the installer download also breaks this request.
@@ -138,16 +138,16 @@ run_brew_command() {
 }
 
 run_brew_detect() {
-    run_brew_command "${MOLE_HOMEBREW_DETECT_TIMEOUT:-2}" "$@"
+    run_brew_command "${NORA_HOMEBREW_DETECT_TIMEOUT:-2}" "$@"
 }
 
 run_brew_query() {
-    run_brew_command "${MOLE_HOMEBREW_QUERY_TIMEOUT:-5}" "$@"
+    run_brew_command "${NORA_HOMEBREW_QUERY_TIMEOUT:-5}" "$@"
 }
 
-brew_mole_formula_installed() {
+brew_nora_formula_installed() {
     local brew_cmd="${1:-brew}"
-    run_brew_detect "$brew_cmd" list mole > /dev/null 2>&1
+    run_brew_detect "$brew_cmd" list nora > /dev/null 2>&1
 }
 
 get_homebrew_latest_version() {
@@ -156,7 +156,7 @@ get_homebrew_latest_version() {
     local line candidate=""
 
     # Prefer local tap outdated info to avoid notifying before formula is available.
-    line=$(run_brew_query brew outdated --formula --verbose mole 2> /dev/null | head -1 || true)
+    line=$(run_brew_query brew outdated --formula --verbose nora 2> /dev/null | head -1 || true)
     if [[ "$line" == *"< "* ]]; then
         candidate="${line##*< }"
         candidate="${candidate%% *}"
@@ -164,7 +164,7 @@ get_homebrew_latest_version() {
 
     # Fallback for environments where outdated output is unavailable.
     if [[ -z "$candidate" ]]; then
-        line=$(run_brew_query brew info mole 2> /dev/null | awk 'NR==1 { print; exit }' || true)
+        line=$(run_brew_query brew info nora 2> /dev/null | awk 'NR==1 { print; exit }' || true)
         line="${line#==> }"
         line="${line#*: }"
         if [[ "$line" == stable* ]]; then
@@ -174,24 +174,24 @@ get_homebrew_latest_version() {
 
     [[ -n "$candidate" ]] && printf '%s\n' "$candidate"
 }
-resolve_mole_source_path() {
-    # MOLE_ENTRY_SCRIPT is set by the `mole` entrypoint before this file is
+resolve_nora_source_path() {
+    # NORA_ENTRY_SCRIPT is set by the `nora` entrypoint before this file is
     # sourced. Do NOT fall back to BASH_SOURCE[0] first: in here it names this
     # lib file, so the update would target lib/manage/update.sh instead of the
-    # mole binary the user invoked.
-    local mole_path="${MOLE_ENTRY_SCRIPT:-${BASH_SOURCE[0]:-$0}}"
-    if [[ "$mole_path" != /* ]]; then
-        if [[ "$mole_path" == */* ]]; then
-            mole_path="$(cd "$(dirname "$mole_path")" 2> /dev/null && pwd)/${mole_path##*/}"
+    # nora binary the user invoked.
+    local nora_path="${NORA_ENTRY_SCRIPT:-${BASH_SOURCE[0]:-$0}}"
+    if [[ "$nora_path" != /* ]]; then
+        if [[ "$nora_path" == */* ]]; then
+            nora_path="$(cd "$(dirname "$nora_path")" 2> /dev/null && pwd)/${nora_path##*/}"
         else
-            mole_path=$(command -v "$mole_path" 2> /dev/null || true)
+            nora_path=$(command -v "$nora_path" 2> /dev/null || true)
         fi
     fi
-    [[ -n "$mole_path" ]] && printf '%s\n' "$mole_path"
+    [[ -n "$nora_path" ]] && printf '%s\n' "$nora_path"
 }
 
 manual_install_repair_reason() {
-    local config_root="${MOLE_CONFIG_DIR:-$SCRIPT_DIR}"
+    local config_root="${NORA_CONFIG_DIR:-$SCRIPT_DIR}"
     local reason=""
     local helper
 
@@ -209,31 +209,31 @@ manual_install_repair_reason() {
     [[ -n "$reason" ]] && printf '%s\n' "$reason"
 }
 
-is_homebrew_mole_path() {
-    local mole_path="$1"
+is_homebrew_nora_path() {
+    local nora_path="$1"
     local has_brew="$2"
     local link_target=""
-    [[ -n "$mole_path" ]] || return 1
+    [[ -n "$nora_path" ]] || return 1
 
-    if [[ -L "$mole_path" ]]; then
-        link_target=$(readlink "$mole_path" 2> /dev/null) || true
-        if [[ "$link_target" == *"Cellar/mole"* ]]; then
+    if [[ -L "$nora_path" ]]; then
+        link_target=$(readlink "$nora_path" 2> /dev/null) || true
+        if [[ "$link_target" == *"Cellar/nora"* ]]; then
             if $has_brew; then
-                brew_mole_formula_installed brew && return 0
+                brew_nora_formula_installed brew && return 0
             fi
             return 1
         fi
         return 1
     fi
 
-    if [[ -f "$mole_path" ]]; then
+    if [[ -f "$nora_path" ]]; then
         # Paths are quoted so Homebrew bottle relocation cannot break parsing
         # when the prefix contains spaces (e.g. Applite under "Application Support").
-        case "$mole_path" in
-            "/opt/homebrew/bin/mole" | "/usr/local/bin/mole")
-                if [[ -d "/opt/homebrew/Cellar/mole" ]] || [[ -d "/usr/local/Cellar/mole" ]]; then
+        case "$nora_path" in
+            "/opt/homebrew/bin/nora" | "/usr/local/bin/nora")
+                if [[ -d "/opt/homebrew/Cellar/nora" ]] || [[ -d "/usr/local/Cellar/nora" ]]; then
                     if $has_brew; then
-                        brew_mole_formula_installed brew && return 0
+                        brew_nora_formula_installed brew && return 0
                     else
                         return 0 # Cellar exists, probably Homebrew install
                     fi
@@ -246,22 +246,22 @@ is_homebrew_mole_path() {
 }
 
 # Install detection (Homebrew vs manual).
-# Always follows the invoked Mole script, never PATH, so update and remove act
-# on the Mole the user actually ran instead of another copy earlier in PATH.
+# Always follows the invoked Nora script, never PATH, so update and remove act
+# on the Nora the user actually ran instead of another copy earlier in PATH.
 is_homebrew_install() {
     local has_brew=false
     if command -v brew > /dev/null 2>&1; then
         has_brew=true
     fi
 
-    local mole_path
-    mole_path=$(resolve_mole_source_path || true)
-    is_homebrew_mole_path "$mole_path" "$has_brew"
+    local nora_path
+    nora_path=$(resolve_nora_source_path || true)
+    is_homebrew_nora_path "$nora_path" "$has_brew"
 }
 
 get_install_channel() {
     # Try user config dir first (matches install.sh behavior), fallback to SCRIPT_DIR
-    local channel_file="${MOLE_CONFIG_DIR:-$HOME/.config/mole}/install_channel"
+    local channel_file="${NORA_CONFIG_DIR:-$HOME/.config/nora}/install_channel"
     if [[ ! -f "$channel_file" ]]; then
         channel_file="$SCRIPT_DIR/install_channel"
     fi
@@ -277,7 +277,7 @@ get_install_channel() {
 
 get_install_commit() {
     # Try user config dir first (matches install.sh behavior), fallback to SCRIPT_DIR
-    local channel_file="${MOLE_CONFIG_DIR:-$HOME/.config/mole}/install_channel"
+    local channel_file="${NORA_CONFIG_DIR:-$HOME/.config/nora}/install_channel"
     if [[ ! -f "$channel_file" ]]; then
         channel_file="$SCRIPT_DIR/install_channel"
     fi
@@ -289,26 +289,26 @@ get_install_commit() {
 get_latest_commit_from_github() {
     local sha
     sha=$(curl -fsSL --connect-timeout 2 --max-time 3 \
-        "https://api.github.com/repos/tw93/mole/commits/main" 2> /dev/null |
+        "https://api.github.com/repos/LaVieNguyenn/nora/commits/main" 2> /dev/null |
         grep '"sha"[[:space:]]*:[[:space:]]*"[0-9a-f]\{40\}"' | head -1 | sed -E 's/.*"sha"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/') || sha=""
     echo "$sha"
 }
 
-mole_update_message_cache_is_current() {
+nora_update_message_cache_is_current() {
     local msg_cache="$1"
     [[ -f "$msg_cache" && -s "$msg_cache" ]] || return 1
 
-    local mole_path
-    mole_path=$(resolve_mole_source_path || true)
-    [[ -n "$mole_path" && -e "$mole_path" ]] || return 0
+    local nora_path
+    nora_path=$(resolve_nora_source_path || true)
+    [[ -n "$nora_path" && -e "$nora_path" ]] || return 0
 
-    local cache_mtime mole_mtime
+    local cache_mtime nora_mtime
     cache_mtime=$(get_file_mtime "$msg_cache")
-    mole_mtime=$(get_file_mtime "$mole_path")
+    nora_mtime=$(get_file_mtime "$nora_path")
 
-    if [[ "$cache_mtime" =~ ^[0-9]+$ && "$mole_mtime" =~ ^[0-9]+$ &&
-        "$cache_mtime" -gt 0 && "$mole_mtime" -gt 0 &&
-        "$cache_mtime" -lt "$mole_mtime" ]]; then
+    if [[ "$cache_mtime" =~ ^[0-9]+$ && "$nora_mtime" =~ ^[0-9]+$ &&
+        "$cache_mtime" -gt 0 && "$nora_mtime" -gt 0 &&
+        "$cache_mtime" -lt "$nora_mtime" ]]; then
         return 1
     fi
 
@@ -317,7 +317,7 @@ mole_update_message_cache_is_current() {
 
 read_update_message_cache() {
     local msg_cache="$1"
-    if mole_update_message_cache_is_current "$msg_cache"; then
+    if nora_update_message_cache_is_current "$msg_cache"; then
         cat "$msg_cache" 2> /dev/null || echo ""
     else
         : > "$msg_cache" 2> /dev/null || true
@@ -327,7 +327,7 @@ read_update_message_cache() {
 
 # Background update notice
 check_for_updates() {
-    local msg_cache="$HOME/.cache/mole/update_message"
+    local msg_cache="$HOME/.cache/nora/update_message"
     ensure_user_dir "$(dirname "$msg_cache")"
     ensure_user_file "$msg_cache"
 
@@ -379,11 +379,11 @@ check_for_updates() {
 # UI helpers
 show_brand_banner() {
     cat << EOF
-${GREEN} __  __       _      ${NC}
-${GREEN}|  \/  | ___ | | ___ ${NC}
-${GREEN}| |\/| |/ _ \| |/ _ \\${NC}
-${GREEN}| |  | | (_) | |  __/${NC}  ${BLUE}https://mole.fit${NC}
-${GREEN}|_|  |_|\___/|_|\___|${NC}  ${GREEN}${MOLE_TAGLINE}${NC}
+${GREEN} _   _                 ${NC}
+${GREEN}| \\ | | ___  _ __ __ _ ${NC}
+${GREEN}|  \\| |/ _ \\| '__/ _\` |${NC}
+${GREEN}| |\\  | (_) | | | (_| |${NC}  ${BLUE}${NORA_REPO_URL}${NC}
+${GREEN}|_| \\_|\\___/|_|  \\__,_|${NC}  ${GREEN}${NORA_TAGLINE}${NC}
 
 EOF
 }
@@ -421,7 +421,7 @@ show_version() {
     local channel
     channel=$(get_install_channel)
 
-    printf '\nMole version %s\n' "$VERSION"
+    printf '\nNora version %s\n' "$VERSION"
     if [[ "$channel" == "nightly" ]]; then
         local commit
         commit=$(get_install_commit)
@@ -444,32 +444,32 @@ show_help() {
     show_brand_banner
     echo
     printf "%s%s%s\n" "$BLUE" "COMMANDS" "$NC"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo" "$NC" "Main menu"
-    for entry in "${MOLE_COMMANDS[@]}"; do
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr" "$NC" "Main menu"
+    for entry in "${NORA_COMMANDS[@]}"; do
         local name="${entry%%:*}"
         local desc="${entry#*:}"
-        local display="mo $name"
-        [[ "$name" == "help" ]] && display="mo --help"
-        [[ "$name" == "version" ]] && display="mo --version"
+        local display="nr $name"
+        [[ "$name" == "help" ]] && display="nr --help"
+        [[ "$name" == "version" ]] && display="nr --version"
         printf "  %s%-28s%s %s\n" "$GREEN" "$display" "$NC" "$desc"
     done
     echo
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo clean --dry-run" "$NC" "Preview cleanup"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo clean --whitelist" "$NC" "Manage protected caches"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr clean --dry-run" "$NC" "Preview cleanup"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr clean --whitelist" "$NC" "Manage protected caches"
 
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo optimize --dry-run" "$NC" "Preview optimization"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo optimize --whitelist" "$NC" "Manage protected items"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo uninstall --dry-run" "$NC" "Preview app uninstall"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo history --json" "$NC" "Export cleanup history"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo purge --dry-run" "$NC" "Preview project purge"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo installer --dry-run" "$NC" "Preview installer cleanup"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo touchid enable --dry-run" "$NC" "Preview Touch ID setup"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo completion --dry-run" "$NC" "Preview shell completion edits"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo purge --paths" "$NC" "Configure scan directories"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo analyze /Volumes" "$NC" "Analyze external drives only"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo update --force" "$NC" "Force reinstall latest stable version"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo update --nightly" "$NC" "Install latest unreleased main branch build"
-    printf "  %s%-28s%s %s\n" "$GREEN" "mo remove --dry-run" "$NC" "Preview Mole removal"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr optimize --dry-run" "$NC" "Preview optimization"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr optimize --whitelist" "$NC" "Manage protected items"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr uninstall --dry-run" "$NC" "Preview app uninstall"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr history --json" "$NC" "Export cleanup history"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr purge --dry-run" "$NC" "Preview project purge"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr installer --dry-run" "$NC" "Preview installer cleanup"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr touchid enable --dry-run" "$NC" "Preview Touch ID setup"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr completion --dry-run" "$NC" "Preview shell completion edits"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr purge --paths" "$NC" "Configure scan directories"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr analyze /Volumes" "$NC" "Analyze external drives only"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr update --force" "$NC" "Force reinstall latest stable version"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr update --nightly" "$NC" "Install latest unreleased main branch build"
+    printf "  %s%-28s%s %s\n" "$GREEN" "nr remove --dry-run" "$NC" "Preview Nora removal"
     echo
     printf "%s%s%s\n" "$BLUE" "OPTIONS" "$NC"
     printf "  %s%-28s%s %s\n" "$GREEN" "--debug" "$NC" "Show detailed operation logs"
@@ -477,7 +477,7 @@ show_help() {
 }
 
 # Update flow (Homebrew or installer).
-update_mole() {
+update_nora() {
     local force_update="${1:-false}"
     local nightly_update="${2:-false}"
     local update_interrupted=false
@@ -493,23 +493,23 @@ update_mole() {
         if [[ "$nightly_update" == "true" ]]; then
             local review_icon="${ICON_REVIEW:-☞}"
             log_error "Nightly update is only available for script installations. Homebrew installs follow stable releases."
-            printf '%s Reinstall via script to use: mo update --nightly\n' "$review_icon"
+            printf '%s Reinstall via script to use: nr update --nightly\n' "$review_icon"
             exit 1
         fi
         update_via_homebrew "$VERSION"
         exit 0
     fi
 
-    # Resolve the invoked Mole up front so the installer targets this manual
-    # install, not another mole earlier in PATH. Fail before any download.
-    local mole_path
-    if ! mole_path=$(resolve_mole_source_path); then
-        log_error "Unable to resolve current Mole path"
+    # Resolve the invoked Nora up front so the installer targets this manual
+    # install, not another nora earlier in PATH. Fail before any download.
+    local nora_path
+    if ! nora_path=$(resolve_nora_source_path); then
+        log_error "Unable to resolve current Nora path"
         exit 1
     fi
     local install_dir
-    if ! install_dir="$(cd "$(dirname "$mole_path")" && pwd)"; then
-        log_error "Unable to resolve current Mole install directory"
+    if ! install_dir="$(cd "$(dirname "$nora_path")" && pwd)"; then
+        log_error "Unable to resolve current Nora install directory"
         exit 1
     fi
 
@@ -561,12 +561,12 @@ update_mole() {
         if [[ -z "$latest" ]]; then
             log_error "Unable to check for updates. Check network connection."
             echo -e "${ICON_REVIEW} Check if you can access GitHub, https://github.com"
-            echo -e "${ICON_REVIEW} Try again with: ${GRAY}mo update${NC}"
+            echo -e "${ICON_REVIEW} Try again with: ${GRAY}nr update${NC}"
             exit 1
         fi
         if [[ ! "$latest" =~ ^[Vv]?[0-9]+(\.[0-9]+)*$ ]]; then
             log_error "Invalid version response: $latest"
-            echo -e "${ICON_REVIEW} Try again later or use: ${GRAY}mo update --nightly${NC}"
+            echo -e "${ICON_REVIEW} Try again later or use: ${GRAY}nr update --nightly${NC}"
             exit 1
         fi
 
@@ -593,8 +593,8 @@ update_mole() {
 
     if [[ "$repair_install" == "true" ]]; then
         download_label="Downloading repair installer..."
-        install_label="Repairing Mole installation..."
-        log_warning "Mole installation needs repair: $repair_reason"
+        install_label="Repairing Nora installation..."
+        log_warning "Nora installation needs repair: $repair_reason"
     fi
 
     if [[ -t 1 ]]; then
@@ -607,7 +607,7 @@ update_mole() {
     if [[ "$nightly_update" != "true" ]]; then
         installer_ref="V${latest#V}"
     fi
-    local installer_url="https://raw.githubusercontent.com/tw93/mole/${installer_ref}/install.sh"
+    local installer_url="https://raw.githubusercontent.com/LaVieNguyenn/nora/${installer_ref}/install.sh"
     local tmp_installer
     tmp_installer="$(mktemp_file)" || {
         log_error "Update failed"
@@ -656,12 +656,12 @@ update_mole() {
     local requires_sudo="false"
     if [[ ! -w "$install_dir" ]]; then
         requires_sudo="true"
-    elif [[ -e "$install_dir/mole" && ! -w "$install_dir/mole" ]]; then
+    elif [[ -e "$install_dir/nora" && ! -w "$install_dir/nora" ]]; then
         requires_sudo="true"
     fi
 
     if [[ "$requires_sudo" == "true" ]]; then
-        if ! request_sudo_access "Mole update requires admin access"; then
+        if ! request_sudo_access "Nora update requires admin access"; then
             log_error "Update aborted, admin access denied"
             rm -f "$tmp_installer"
             exit 1
@@ -700,7 +700,7 @@ update_mole() {
                 new_version=$(printf '%s\n' "$output" | sed -n 's/.*version[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p' | head -1)
             fi
             if [[ -z "$new_version" ]]; then
-                new_version=$("$mole_path" --version 2> /dev/null | awk 'NR==1 && NF {print $NF}' || echo "")
+                new_version=$("$nora_path" --version 2> /dev/null | awk 'NR==1 && NF {print $NF}' || echo "")
             fi
             if [[ -z "$new_version" ]]; then
                 new_version="$fallback_version"
@@ -713,13 +713,13 @@ update_mole() {
 
     local install_output
     local update_tag="V${latest#V}"
-    local config_dir="${MOLE_CONFIG_DIR:-$SCRIPT_DIR}"
+    local config_dir="${NORA_CONFIG_DIR:-$SCRIPT_DIR}"
     if [[ ! -f "$config_dir/lib/core/common.sh" ]]; then
-        config_dir="$HOME/.config/mole"
+        config_dir="$HOME/.config/nora"
     fi
 
     if [[ "$nightly_update" == "true" ]]; then
-        if install_output=$(MOLE_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" MOLE_VERSION="main" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
+        if install_output=$(NORA_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" NORA_VERSION="main" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
             process_install_output "$install_output" "$latest" "$final_success_label"
         else
             if [[ -t 1 ]]; then stop_inline_spinner; fi
@@ -727,37 +727,37 @@ update_mole() {
             _update_cleanup
             log_error "Nightly update failed"
             echo "$install_output" | tail -10 >&2 # Show last 10 lines of error
-            echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash"
+            echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh | bash"
             exit 1
         fi
     elif [[ "$force_update" == "true" || "$switch_to_stable_channel" == "true" || "$repair_install" == "true" ]]; then
-        if install_output=$(MOLE_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" MOLE_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
+        if install_output=$(NORA_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" NORA_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
             process_install_output "$install_output" "$latest" "$final_success_label"
         else
             if [[ -t 1 ]]; then stop_inline_spinner; fi
-            if ! _update_self_heal_reinstall "$installer_assume_sudo_auth" "$update_tag" "$install_dir" "$config_dir" "$mole_path" "$final_success_label"; then
+            if ! _update_self_heal_reinstall "$installer_assume_sudo_auth" "$update_tag" "$install_dir" "$config_dir" "$nora_path" "$final_success_label"; then
                 rm -f "$tmp_installer"
                 _update_cleanup
                 log_error "Update failed"
                 echo "$install_output" | tail -10 >&2 # Show last 10 lines of error
-                echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash"
+                echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh | bash"
                 exit 1
             fi
         fi
     else
-        if install_output=$(MOLE_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" MOLE_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" --update 2>&1); then
+        if install_output=$(NORA_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" NORA_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" --update 2>&1); then
             process_install_output "$install_output" "$latest" "$final_success_label"
         else
-            if install_output=$(MOLE_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" MOLE_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
+            if install_output=$(NORA_ASSUME_SUDO_AUTH="$installer_assume_sudo_auth" NORA_VERSION="$update_tag" "$tmp_installer" --prefix "$install_dir" --config "$config_dir" 2>&1); then
                 process_install_output "$install_output" "$latest" "$final_success_label"
             else
                 if [[ -t 1 ]]; then stop_inline_spinner; fi
-                if ! _update_self_heal_reinstall "$installer_assume_sudo_auth" "$update_tag" "$install_dir" "$config_dir" "$mole_path" "$final_success_label"; then
+                if ! _update_self_heal_reinstall "$installer_assume_sudo_auth" "$update_tag" "$install_dir" "$config_dir" "$nora_path" "$final_success_label"; then
                     rm -f "$tmp_installer"
                     _update_cleanup
                     log_error "Update failed"
                     echo "$install_output" | tail -10 >&2 # Show last 10 lines of error
-                    echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/tw93/mole/main/install.sh | bash"
+                    echo -e "${ICON_REVIEW} Reinstall manually: curl -fsSL https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh | bash"
                     exit 1
                 fi
             fi
@@ -765,7 +765,7 @@ update_mole() {
     fi
 
     rm -f "$tmp_installer"
-    rm -f "$HOME/.cache/mole/update_message"
+    rm -f "$HOME/.cache/nora/update_message"
 
     # Cleanup and reset trap
     _update_cleanup

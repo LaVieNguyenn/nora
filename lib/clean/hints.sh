@@ -1,25 +1,25 @@
 #!/bin/bash
-# Hint notices used by `mo clean` (non-destructive guidance only).
+# Hint notices used by `nr clean` (non-destructive guidance only).
 
 set -euo pipefail
 
-mole_hints_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+nora_hints_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1090
-source "$mole_hints_dir/purge_shared.sh"
+source "$nora_hints_dir/purge_shared.sh"
 
-# Quick reminder probe for project build artifacts handled by `mo purge`.
+# Quick reminder probe for project build artifacts handled by `nr purge`.
 # Designed to be very fast: shallow directory checks only, no deep find scans.
 # shellcheck disable=SC2329
 load_quick_purge_hint_paths() {
-    local config_file="$HOME/.config/mole/purge_paths"
+    local config_file="$HOME/.config/nora/purge_paths"
     local -a paths=()
 
     while IFS= read -r line; do
         [[ -n "$line" ]] && paths+=("$line")
-    done < <(mole_purge_read_paths_config "$config_file")
+    done < <(nora_purge_read_paths_config "$config_file")
 
     if [[ ${#paths[@]} -eq 0 ]]; then
-        paths=("${MOLE_PURGE_DEFAULT_SEARCH_PATHS[@]}")
+        paths=("${NORA_PURGE_DEFAULT_SEARCH_PATHS[@]}")
     fi
 
     if [[ ${#paths[@]} -gt 0 ]]; then
@@ -64,7 +64,7 @@ hint_collect_child_dirs_with_timeout() {
     : > "$output_file" || return 1
 
     # 1s: shallow directory listing should be near-instant on healthy local
-    # paths. Slow/cloud-backed roots are skipped so `mo clean` never appears
+    # paths. Slow/cloud-backed roots are skipped so `nr clean` never appears
     # stuck while rendering this non-destructive hint.
     run_with_timeout "$timeout_seconds" find "$parent" -mindepth 1 -maxdepth 1 -type d -print0 > "$output_file" 2> /dev/null
 }
@@ -191,7 +191,7 @@ hint_collect_installed_gui_app_match_texts() {
                 "$(plutil -extract CFBundleDisplayName raw "$info" 2> /dev/null || echo "")"; do
                 [[ -n "$value" && "$value" != "(null)" ]] && printf '%s\n' "$value"
             done
-        done < <(run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" find "$app_root" -maxdepth 2 -name "*.app" -print0 2> /dev/null || true)
+        done < <(run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" find "$app_root" -maxdepth 2 -name "*.app" -print0 2> /dev/null || true)
     done
 
     local -a cask_roots=(
@@ -275,7 +275,7 @@ record_project_artifact_hint() {
 
 # shellcheck disable=SC2329
 is_quick_purge_project_root() {
-    mole_purge_is_project_root "$1"
+    nora_purge_is_project_root "$1"
 }
 
 # shellcheck disable=SC2329
@@ -299,14 +299,14 @@ probe_project_artifact_hints() {
     # capped at 1s, but with up to max_projects roots the cumulative scan can
     # stretch into minutes on busy machines and look hung (#1053). Checked
     # between iterations so the section degrades gracefully instead of stalling.
-    local hint_budget_seconds="${MOLE_TIMEOUT_HINT_SCAN_SEC:-15}"
+    local hint_budget_seconds="${NORA_TIMEOUT_HINT_SCAN_SEC:-15}"
     [[ "$hint_budget_seconds" =~ ^[0-9]+$ ]] || hint_budget_seconds=15
     local scan_deadline=$((SECONDS + hint_budget_seconds))
 
     local -a target_names=()
     while IFS= read -r target_name; do
         [[ -n "$target_name" ]] && target_names+=("$target_name")
-    done < <(mole_purge_quick_hint_target_names)
+    done < <(nora_purge_quick_hint_target_names)
 
     local -a scan_roots=()
     while IFS= read -r path; do
@@ -559,7 +559,7 @@ show_project_artifact_hint_notice() {
     if [[ "$PROJECT_ARTIFACT_HINT_DETECTED" != "true" ]]; then
         if [[ "${PROJECT_ARTIFACT_HINT_SCAN_SKIPPED:-false}" == "true" ]]; then
             note_activity
-            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Build artifacts · scan skipped · ${GRAY}mo purge${NC}"
+            echo -e "  ${YELLOW}${ICON_WARNING}${NC} Build artifacts · scan skipped · ${GRAY}nr purge${NC}"
         fi
         return 0
     fi
@@ -569,12 +569,12 @@ show_project_artifact_hint_notice() {
     local hint_count_label="$PROJECT_ARTIFACT_HINT_COUNT"
     [[ "$PROJECT_ARTIFACT_HINT_TRUNCATED" == "true" ]] && hint_count_label="${hint_count_label}+"
 
-    local review_command="mo purge"
+    local review_command="nr purge"
     if [[ $PROJECT_ARTIFACT_HINT_ESTIMATE_SAMPLES -gt 0 && $PROJECT_ARTIFACT_HINT_ESTIMATED_KB -eq 0 ]]; then
-        review_command="mo purge --include-empty"
+        review_command="nr purge --include-empty"
     fi
 
-    # One compact row: "Build artifacts · 15+ dirs, 985.6MB+ · mo purge".
+    # One compact row: "Build artifacts · 15+ dirs, 985.6MB+ · nr purge".
     local detail="${hint_count_label} dirs"
     if [[ $PROJECT_ARTIFACT_HINT_ESTIMATE_SAMPLES -gt 0 ]]; then
         local estimate_human
@@ -681,7 +681,7 @@ readonly ORPHAN_DOTDIR_KNOWN_SAFE=(
     ".ssh" ".gnupg" ".gpg" ".pass""word-store"
     # Git
     ".gitconfig" ".gitignore_global" ".git-credentials" ".gitattributes_global"
-    # Language tools (Mole handles their caches separately)
+    # Language tools (Nora handles their caches separately)
     ".pyenv" ".rbenv" ".nvm" ".nodenv" ".goenv" ".jenv"
     ".rustup" ".cargo" ".ghcup" ".stack" ".cabal"
     ".sdkman" ".jabba" ".asdf" ".mise" ".rtx" ".volta" ".fnm"
@@ -718,7 +718,7 @@ readonly ORPHAN_DOTDIR_KNOWN_SAFE=(
 )
 
 # Standard locations for installed GUI apps. Overridable from tests.
-_MOLE_DOTDIR_OWNER_APP_ROOTS=(
+_NORA_DOTDIR_OWNER_APP_ROOTS=(
     "/Applications"
     "/Applications/Setapp"
     "$HOME/Applications"
@@ -733,7 +733,7 @@ _dotdir_owner_collect_tokens() {
     # ~90 processes on a path that runs during every clean.
     local root entry name
     local -a names=()
-    for root in "${_MOLE_DOTDIR_OWNER_APP_ROOTS[@]}"; do
+    for root in "${_NORA_DOTDIR_OWNER_APP_ROOTS[@]}"; do
         [[ -d "$root" ]] || continue
         for entry in "$root"/*.app; do
             [[ -e "$entry" ]] || continue
@@ -744,7 +744,7 @@ _dotdir_owner_collect_tokens() {
 
     if command -v brew > /dev/null 2>&1; then
         local cask_list=""
-        cask_list=$(HOMEBREW_NO_ENV_HINTS=1 run_with_timeout "$MOLE_TIMEOUT_MEDIUM_PROBE_SEC" brew list --cask 2> /dev/null) || true
+        cask_list=$(HOMEBREW_NO_ENV_HINTS=1 run_with_timeout "$NORA_TIMEOUT_MEDIUM_PROBE_SEC" brew list --cask 2> /dev/null) || true
         if [[ -n "$cask_list" ]]; then
             local cask
             while IFS= read -r cask; do
@@ -771,7 +771,7 @@ dotdir_has_owning_gui_app() {
     [[ -z "$name" ]] && return 1
     [[ ${#name} -lt 4 ]] && return 1
 
-    local cache_dir="$HOME/.cache/mole"
+    local cache_dir="$HOME/.cache/nora"
     local cache_file="$cache_dir/installed_app_tokens_cache"
     local cache_ttl=300
     local now
@@ -847,7 +847,7 @@ hint_dotdir_owned_by_claude_plugin() {
 # shellcheck disable=SC2329
 show_orphan_dotdir_hint_notice() {
     local max_hits=5
-    local age_days="${MOLE_DOTDIR_ORPHAN_AGE_DAYS:-60}"
+    local age_days="${NORA_DOTDIR_ORPHAN_AGE_DAYS:-60}"
     local now
     now=$(date +%s)
 
@@ -925,7 +925,7 @@ show_orphan_dotdir_hint_notice() {
         fi
 
         if [[ -d "$HOME/Library/LaunchAgents" ]]; then
-            if run_with_timeout "$MOLE_TIMEOUT_QUICK_DETECT_SEC" grep -rlq "$basename" "$HOME/Library/LaunchAgents/" 2> /dev/null; then
+            if run_with_timeout "$NORA_TIMEOUT_QUICK_DETECT_SEC" grep -rlq "$basename" "$HOME/Library/LaunchAgents/" 2> /dev/null; then
                 continue
             fi
         fi
@@ -951,7 +951,7 @@ show_orphan_dotdir_hint_notice() {
         if [[ ${#labels[@]} -ge $max_hits ]]; then
             break
         fi
-    done < <(run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" find "$HOME" -maxdepth 1 -mindepth 1 -type d -name '.*' 2> /dev/null | LC_ALL=C sort)
+    done < <(run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" find "$HOME" -maxdepth 1 -mindepth 1 -type d -name '.*' 2> /dev/null | LC_ALL=C sort)
 
     stop_section_spinner
     [[ ${#labels[@]} -eq 0 ]] && return 0

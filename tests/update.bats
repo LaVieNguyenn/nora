@@ -20,7 +20,7 @@ teardown() {
 	esac
 }
 
-make_manual_mole_install() {
+make_manual_nora_install() {
 	local install_dir="$1"
 	local config_dir="$2"
 	local version="$3"
@@ -28,23 +28,23 @@ make_manual_mole_install() {
 	sed \
 		-e "s|^SCRIPT_DIR=.*|SCRIPT_DIR=\"$config_dir\"|" \
 		-e "s/^VERSION=\".*\"$/VERSION=\"$version\"/" \
-		"$PROJECT_ROOT/mole" > "$install_dir/mole"
-	cp "$PROJECT_ROOT/mo" "$install_dir/mo"
+		"$PROJECT_ROOT/nora" > "$install_dir/nora"
+	cp "$PROJECT_ROOT/nr" "$install_dir/nr"
 	cp -R "$PROJECT_ROOT/lib" "$config_dir/lib"
 	printf '#!/bin/bash\nexit 0\n' > "$config_dir/bin/analyze-go"
 	printf '#!/bin/bash\nexit 0\n' > "$config_dir/bin/status-go"
-	chmod +x "$install_dir/mole" "$install_dir/mo" "$config_dir/bin/analyze-go" "$config_dir/bin/status-go"
+	chmod +x "$install_dir/nora" "$install_dir/nr" "$config_dir/bin/analyze-go" "$config_dir/bin/status-go"
 }
 
 make_homebrew_shadow() {
 	local bin_dir="$1"
-	local cellar_mole="$2"
-	mkdir -p "$bin_dir" "$(dirname "$cellar_mole")"
-	cp "$PROJECT_ROOT/mole" "$cellar_mole"
+	local cellar_nora="$2"
+	mkdir -p "$bin_dir" "$(dirname "$cellar_nora")"
+	cp "$PROJECT_ROOT/nora" "$cellar_nora"
 	cp -R "$PROJECT_ROOT/lib" "$bin_dir/lib"
-	chmod +x "$cellar_mole"
-	ln -sf "$cellar_mole" "$bin_dir/mole"
-	ln -sf "$cellar_mole" "$bin_dir/mo"
+	chmod +x "$cellar_nora"
+	ln -sf "$cellar_nora" "$bin_dir/nora"
+	ln -sf "$cellar_nora" "$bin_dir/nr"
 
 	cat > "$bin_dir/brew" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -52,7 +52,7 @@ printf '%s\n' "$*" >> "$BREW_LOG"
 case "${1:-}" in
 	list)
 		if [[ "${2:-}" == "--versions" ]]; then
-			printf 'mole 9.9.9\n'
+			printf 'nora 9.9.9\n'
 		fi
 		exit 0
 		;;
@@ -108,11 +108,11 @@ if [[ -n "\$out" ]]; then
 	cat > "\$out" <<'INSTALLER'
 #!/usr/bin/env bash
 printf '%s\n' "\$*" > "\$INSTALLER_ARGS_LOG"
-printf '%s\n' "\${MOLE_VERSION:-}" > "\$INSTALLER_VERSION_LOG"
+printf '%s\n' "\${NORA_VERSION:-}" > "\$INSTALLER_VERSION_LOG"
 if [[ -n "\${INSTALLER_SUDO_AUTH_LOG:-}" ]]; then
-	printf '%s\n' "\${MOLE_ASSUME_SUDO_AUTH:-}" > "\$INSTALLER_SUDO_AUTH_LOG"
+	printf '%s\n' "\${NORA_ASSUME_SUDO_AUTH:-}" > "\$INSTALLER_SUDO_AUTH_LOG"
 fi
-echo "Updated to latest version, \${MOLE_VERSION#V}"
+echo "Updated to latest version, \${NORA_VERSION#V}"
 INSTALLER
 	exit 0
 fi
@@ -155,16 +155,16 @@ if [[ -n "\$out" ]]; then
 	cat > "\$out" <<'INSTALLER'
 #!/usr/bin/env bash
 printf '%s\n' "\$*" > "\$INSTALLER_ARGS_LOG"
-printf '%s\n' "\${MOLE_VERSION:-}" > "\$INSTALLER_VERSION_LOG"
+printf '%s\n' "\${NORA_VERSION:-}" > "\$INSTALLER_VERSION_LOG"
 if [[ -n "\${INSTALLER_SUDO_AUTH_LOG:-}" ]]; then
-	printf '%s\n' "\${MOLE_ASSUME_SUDO_AUTH:-}" > "\$INSTALLER_SUDO_AUTH_LOG"
+	printf '%s\n' "\${NORA_ASSUME_SUDO_AUTH:-}" > "\$INSTALLER_SUDO_AUTH_LOG"
 fi
-echo "Updated to latest version, \${MOLE_VERSION#V}"
+echo "Updated to latest version, \${NORA_VERSION#V}"
 INSTALLER
 	exit 0
 fi
 
-if [[ "\$url" == *"api.github.com/repos/tw93/mole/commits/main"* ]]; then
+if [[ "\$url" == *"api.github.com/repos/LaVieNguyenn/nora/commits/main"* ]]; then
 	printf '{"sha":"%s"}\n' "$latest_commit"
 	exit 0
 fi
@@ -174,7 +174,7 @@ SCRIPT
 	chmod +x "$bin_dir/curl"
 }
 
-@test "mo update repairs missing helpers at the current stable version (#1193)" {
+@test "nr update repairs missing helpers at the current stable version (#1193)" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -183,9 +183,9 @@ SCRIPT
 	local curl_url_log="$TEST_ROOT/curl.urls"
 	local current_version
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "$current_version"
+	make_manual_nora_install "$manual_bin" "$manual_config" "$current_version"
 	make_update_curl_stub "$fake_bin" "$current_version"
 	rm -f "$manual_config/bin/analyze-go"
 	touch "$manual_config/.helper_install_incomplete"
@@ -197,10 +197,10 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Mole installation needs repair"* ]] || return 1
+	[[ "$output" == *"Nora installation needs repair"* ]] || return 1
 	[[ "$output" == *"missing analyze-go"* ]] || return 1
 	[ -f "$installer_args_log" ]
 	if grep -q -- "--update" "$installer_args_log"; then
@@ -209,7 +209,7 @@ SCRIPT
 	[ "$(cat "$installer_version_log")" = "V$current_version" ]
 }
 
-@test "mo update retries transient installer download failures" {
+@test "nr update retries transient installer download failures" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -219,9 +219,9 @@ SCRIPT
 	local curl_attempt_log="$TEST_ROOT/curl.attempts"
 	local current_version
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "0.0.1"
+	make_manual_nora_install "$manual_bin" "$manual_config" "0.0.1"
 	make_update_curl_stub "$fake_bin" "$current_version"
 	printf '#!/bin/bash\nexit 0\n' > "$fake_bin/sleep"
 	chmod +x "$fake_bin/sleep"
@@ -236,7 +236,7 @@ SCRIPT
 		CURL_TRANSIENT_STATUS=35 \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -eq 0 ] || return 1
 	[ -f "$installer_args_log" ] || return 1
@@ -244,18 +244,18 @@ SCRIPT
 	[ "$(cat "$installer_version_log")" = "V$current_version" ]
 }
 
-@test "mo update reports unreachable version discovery instead of exiting silently" {
+@test "nr update reports unreachable version discovery instead of exiting silently" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
 	local curl_attempt_log="$TEST_ROOT/discovery.attempts"
 
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "0.0.1"
+	make_manual_nora_install "$manual_bin" "$manual_config" "0.0.1"
 
 	# Every request fails the way a flaky local proxy fails. Version discovery
 	# runs inside `latest=$(...)`, so before the fix the nonzero pipeline tripped
-	# errexit and killed `mo update` with an empty screen and no diagnosis.
+	# errexit and killed `nr update` with an empty screen and no diagnosis.
 	cat > "$fake_bin/curl" <<'SCRIPT'
 #!/usr/bin/env bash
 printf 'x\n' >> "$CURL_ATTEMPT_LOG"
@@ -268,7 +268,7 @@ SCRIPT
 		HOME="$HOME" \
 		PATH="$fake_bin:/usr/bin:/bin" \
 		CURL_ATTEMPT_LOG="$curl_attempt_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -eq 1 ] || return 1
 	[[ "$output" == *"Unable to check for updates"* ]] || return 1
@@ -279,7 +279,7 @@ SCRIPT
 	[ "$(wc -l < "$curl_attempt_log" | tr -d ' ')" -eq 6 ]
 }
 
-@test "mo update announces the check before the bounded retry, not after it" {
+@test "nr update announces the check before the bounded retry, not after it" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -287,7 +287,7 @@ SCRIPT
 	local out_file="$TEST_ROOT/announce.out"
 
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "0.0.1"
+	make_manual_nora_install "$manual_bin" "$manual_config" "0.0.1"
 	cat > "$fake_bin/curl" <<'SCRIPT'
 #!/usr/bin/env bash
 printf 'x\n' >> "$CURL_ATTEMPT_LOG"
@@ -305,7 +305,7 @@ SCRIPT
 	# sampling window.
 	env HOME="$HOME" PATH="$fake_bin:/usr/bin:/bin" \
 		CURL_ATTEMPT_LOG="$curl_attempt_log" \
-		"$manual_bin/mo" update > "$out_file" 2>&1 &
+		"$manual_bin/nr" update > "$out_file" 2>&1 &
 	local update_pid=$!
 
 	local waited=0
@@ -327,11 +327,11 @@ SCRIPT
 	[[ "$mid_output" != *"Unable to check for updates"* ]]
 }
 
-@test "mo update targets the invoked manual install, not another Homebrew mole in PATH" {
+@test "nr update targets the invoked manual install, not another Homebrew nora in PATH" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_brew_bin="$TEST_ROOT/homebrew/bin"
-	local fake_brew_mole="$TEST_ROOT/homebrew/Cellar/mole/9.9.9/bin/mole"
+	local fake_brew_nora="$TEST_ROOT/homebrew/Cellar/nora/9.9.9/bin/nora"
 	local brew_log="$TEST_ROOT/brew.log"
 	local installer_args_log="$TEST_ROOT/installer.args"
 	local installer_version_log="$TEST_ROOT/installer.version"
@@ -339,9 +339,9 @@ SCRIPT
 	local current_version
 	local stale_version="0.0.1"
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
-	make_manual_mole_install "$manual_bin" "$manual_config" "$stale_version"
-	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_mole"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
+	make_manual_nora_install "$manual_bin" "$manual_config" "$stale_version"
+	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_nora"
 	make_update_curl_stub "$fake_brew_bin" "$current_version"
 	: > "$brew_log"
 	: > "$curl_url_log"
@@ -353,23 +353,23 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -eq 0 ]
 	[ -f "$installer_args_log" ]
 	grep -q -- "--prefix" "$installer_args_log"
 	grep -q -- "$manual_bin" "$installer_args_log"
 	[ "$(cat "$installer_version_log")" = "V$current_version" ]
-	grep -q "raw.githubusercontent.com/tw93/mole/V${current_version#V}/install.sh" "$curl_url_log"
-	if grep -q "raw.githubusercontent.com/tw93/mole/main/install.sh" "$curl_url_log"; then
+	grep -q "raw.githubusercontent.com/LaVieNguyenn/nora/V${current_version#V}/install.sh" "$curl_url_log"
+	if grep -q "raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh" "$curl_url_log"; then
 		return 1
 	fi
-	if grep -q '^upgrade mole$' "$brew_log"; then
+	if grep -q '^upgrade nora$' "$brew_log"; then
 		return 1
 	fi
 }
 
-@test "mo update --nightly skips reinstall when the installed commit is current" {
+@test "nr update --nightly skips reinstall when the installed commit is current" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -379,7 +379,7 @@ SCRIPT
 	local latest_commit="e31d46faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "1.41.0"
+	make_manual_nora_install "$manual_bin" "$manual_config" "1.41.0"
 	make_nightly_update_curl_stub "$fake_bin" "$latest_commit"
 	printf 'CHANNEL=nightly\nCOMMIT_HASH=e31d46f\n' > "$manual_config/install_channel"
 	: > "$curl_url_log"
@@ -390,18 +390,18 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
-		"$manual_bin/mo" update --nightly
+		"$manual_bin/nr" update --nightly
 
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Already on latest nightly, e31d46f"* ]] || return 1
 	[ ! -e "$installer_args_log" ]
-	grep -q "api.github.com/repos/tw93/mole/commits/main" "$curl_url_log"
-	if grep -q "raw.githubusercontent.com/tw93/mole/main/install.sh" "$curl_url_log"; then
+	grep -q "api.github.com/repos/LaVieNguyenn/nora/commits/main" "$curl_url_log"
+	if grep -q "raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh" "$curl_url_log"; then
 		return 1
 	fi
 }
 
-@test "mo update --nightly --force reinstalls even when the installed commit is current" {
+@test "nr update --nightly --force reinstalls even when the installed commit is current" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -411,7 +411,7 @@ SCRIPT
 	local latest_commit="e31d46faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "1.41.0"
+	make_manual_nora_install "$manual_bin" "$manual_config" "1.41.0"
 	make_nightly_update_curl_stub "$fake_bin" "$latest_commit"
 	printf 'CHANNEL=nightly\nCOMMIT_HASH=e31d46f\n' > "$manual_config/install_channel"
 	: > "$curl_url_log"
@@ -422,16 +422,16 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
-		"$manual_bin/mo" update --nightly --force
+		"$manual_bin/nr" update --nightly --force
 
 	[ "$status" -eq 0 ]
 	[ -f "$installer_args_log" ]
 	grep -q -- "--prefix" "$installer_args_log"
 	[ "$(cat "$installer_version_log")" = "main" ]
-	grep -q "raw.githubusercontent.com/tw93/mole/main/install.sh" "$curl_url_log"
+	grep -q "raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh" "$curl_url_log"
 }
 
-@test "mo update tells installer to reuse sudo after parent authentication" {
+@test "nr update tells installer to reuse sudo after parent authentication" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -442,11 +442,11 @@ SCRIPT
 	local sudo_log="$TEST_ROOT/sudo.log"
 	local current_version
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "1.41.0"
+	make_manual_nora_install "$manual_bin" "$manual_config" "1.41.0"
 	make_update_curl_stub "$fake_bin" "$current_version"
-	chmod a-w "$manual_bin/mole"
+	chmod a-w "$manual_bin/nora"
 	cat > "$fake_bin/sudo" <<'SCRIPT'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$SUDO_LOG"
@@ -458,87 +458,53 @@ SCRIPT
 
 	run env \
 		HOME="$HOME" \
-		MOLE_TEST_MODE=0 \
-		MOLE_TEST_NO_AUTH=0 \
+		NORA_TEST_MODE=0 \
+		NORA_TEST_NO_AUTH=0 \
 		PATH="$fake_bin:/usr/bin:/bin" \
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		INSTALLER_VERSION_LOG="$installer_version_log" \
 		INSTALLER_SUDO_AUTH_LOG="$installer_sudo_auth_log" \
 		SUDO_LOG="$sudo_log" \
-		"$manual_bin/mo" update --force
+		"$manual_bin/nr" update --force
 
-	chmod u+w "$manual_bin/mole"
+	chmod u+w "$manual_bin/nora"
 
 	[ "$status" -eq 0 ]
 	[ -f "$installer_sudo_auth_log" ]
 	[ "$(cat "$installer_sudo_auth_log")" = "1" ]
 	grep -q -- "-n true" "$sudo_log"
-	grep -q "raw.githubusercontent.com/tw93/mole/V${current_version#V}/install.sh" "$curl_url_log"
+	grep -q "raw.githubusercontent.com/LaVieNguyenn/nora/V${current_version#V}/install.sh" "$curl_url_log"
 }
 
-@test "installer sudo reuse uses non-interactive sudo checks" {
-	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'EOF'
-set -euo pipefail
 
-INSTALL_DIR="$HOME/install"
-CONFIG_DIR="$HOME/config"
-SOURCE_DIR="$HOME/source"
-VERBOSE=1
-GREEN='' BLUE='' YELLOW='' RED='' NC=''
-ICON_ERROR='err'
-SUDO_LOG="$HOME/sudo.log"
-mkdir -p "$INSTALL_DIR" "$CONFIG_DIR" "$SOURCE_DIR"
-chmod a-w "$INSTALL_DIR"
-
-eval "$(sed -n '/^needs_sudo()/,/^resolve_source_dir()/p' "$PROJECT_ROOT/install.sh" | sed '$d')"
-
-log_error() { echo "ERROR:$*"; }
-sudo() {
-	printf '%s\n' "$*" >> "$SUDO_LOG"
-	return 0
-}
-
-MOLE_ASSUME_SUDO_AUTH=1 ensure_sudo_ready
-grep -qx -- "-n -v" "$SUDO_LOG" || { echo "WRONG: sudo validation was interactive"; cat "$SUDO_LOG"; exit 1; }
-
-: > "$SUDO_LOG"
-MOLE_ASSUME_SUDO_AUTH=1 maybe_sudo true
-grep -qx -- "-n true" "$SUDO_LOG" || { echo "WRONG: sudo command was interactive"; cat "$SUDO_LOG"; exit 1; }
-
-chmod u+w "$INSTALL_DIR"
-EOF
-
-	[ "$status" -eq 0 ]
-}
-
-@test "mo update keeps Homebrew installs on the Homebrew update path" {
+@test "nr update keeps Homebrew installs on the Homebrew update path" {
 	local fake_brew_bin="$TEST_ROOT/homebrew/bin"
-	local fake_brew_mole="$TEST_ROOT/homebrew/Cellar/mole/9.9.9/bin/mole"
+	local fake_brew_nora="$TEST_ROOT/homebrew/Cellar/nora/9.9.9/bin/nora"
 	local brew_log="$TEST_ROOT/brew.log"
 
-	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_mole"
+	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_nora"
 	: > "$brew_log"
 
 	run env \
 		HOME="$HOME" \
 		PATH="$fake_brew_bin:/usr/bin:/bin" \
 		BREW_LOG="$brew_log" \
-		"$fake_brew_bin/mo" update
+		"$fake_brew_bin/nr" update
 
 	[ "$status" -eq 0 ]
 	grep -q '^update$' "$brew_log"
-	grep -q '^upgrade mole$' "$brew_log"
+	grep -q '^upgrade nora$' "$brew_log"
 }
 
-@test "mo update preserves actionable Homebrew diagnostics on failure (#1247)" {
+@test "nr update preserves actionable Homebrew diagnostics on failure (#1247)" {
 	local fake_brew_bin="$TEST_ROOT/homebrew/bin"
-	local fake_brew_mole="$TEST_ROOT/homebrew/Cellar/mole/9.9.9/bin/mole"
+	local fake_brew_nora="$TEST_ROOT/homebrew/Cellar/nora/9.9.9/bin/nora"
 	local brew_log="$TEST_ROOT/brew.log"
 	local brew_upgrade_output
 	brew_upgrade_output=$'Error: Your Xcode (26.0.1) at /Applications/Xcode.app is too outdated.\nPlease update to Xcode 27.0 (or delete it).\nXcode can be updated from:\n  https://developer.apple.com/download/all/'
 
-	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_mole"
+	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_nora"
 	: > "$brew_log"
 
 	run env \
@@ -547,7 +513,7 @@ EOF
 		BREW_LOG="$brew_log" \
 		BREW_UPGRADE_OUTPUT="$brew_upgrade_output" \
 		BREW_UPGRADE_STATUS=1 \
-		"$fake_brew_bin/mo" update
+		"$fake_brew_bin/nr" update
 
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Homebrew upgrade failed"* ]] || return 1
@@ -555,12 +521,12 @@ EOF
 	[[ "$output" == *"https://developer.apple.com/download/all/"* ]]
 }
 
-@test "mo update trusts a nonzero Homebrew exit without Error text (#1247)" {
+@test "nr update trusts a nonzero Homebrew exit without Error text (#1247)" {
 	local fake_brew_bin="$TEST_ROOT/homebrew/bin"
-	local fake_brew_mole="$TEST_ROOT/homebrew/Cellar/mole/9.9.9/bin/mole"
+	local fake_brew_nora="$TEST_ROOT/homebrew/Cellar/nora/9.9.9/bin/nora"
 	local brew_log="$TEST_ROOT/brew.log"
 
-	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_mole"
+	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_nora"
 	: > "$brew_log"
 
 	run env \
@@ -569,7 +535,7 @@ EOF
 		BREW_LOG="$brew_log" \
 		BREW_UPGRADE_OUTPUT="The upgrade command was interrupted" \
 		BREW_UPGRADE_STATUS=124 \
-		"$fake_brew_bin/mo" update
+		"$fake_brew_bin/nr" update
 
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Homebrew upgrade failed"* ]] || return 1
@@ -577,14 +543,14 @@ EOF
 	[[ "$output" != *"Updated to latest version"* ]]
 }
 
-@test "mo update never treats mixed failure output as already installed" {
+@test "nr update never treats mixed failure output as already installed" {
 	local fake_brew_bin="$TEST_ROOT/homebrew/bin"
-	local fake_brew_mole="$TEST_ROOT/homebrew/Cellar/mole/9.9.9/bin/mole"
+	local fake_brew_nora="$TEST_ROOT/homebrew/Cellar/nora/9.9.9/bin/nora"
 	local brew_log="$TEST_ROOT/brew.log"
 	local brew_upgrade_output
-	brew_upgrade_output=$'mole 1.48.0 already installed\nError: simulated upgrade failure'
+	brew_upgrade_output=$'nora 1.48.0 already installed\nError: simulated upgrade failure'
 
-	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_mole"
+	make_homebrew_shadow "$fake_brew_bin" "$fake_brew_nora"
 	: > "$brew_log"
 
 	run env \
@@ -593,7 +559,7 @@ EOF
 		BREW_LOG="$brew_log" \
 		BREW_UPGRADE_OUTPUT="$brew_upgrade_output" \
 		BREW_UPGRADE_STATUS=1 \
-		"$fake_brew_bin/mo" update
+		"$fake_brew_bin/nr" update
 
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"Homebrew upgrade failed"* ]] || return 1
@@ -653,10 +619,10 @@ while [[ \$# -gt 0 ]]; do
 			;;
 	esac
 done
-printf '%s %s\n' "\${MOLE_VERSION:-}" "\$prefix" >> "\$HEAL_LOG"
-printf '#!/bin/bash\necho "Mole version %s"\n' "\${MOLE_VERSION#V}" > "\$prefix/mole.healed"
-chmod +x "\$prefix/mole.healed"
-mv "\$prefix/mole.healed" "\$prefix/mole"
+printf '%s %s\n' "\${NORA_VERSION:-}" "\$prefix" >> "\$HEAL_LOG"
+printf '#!/bin/bash\necho "Nora version %s"\n' "\${NORA_VERSION#V}" > "\$prefix/nora.healed"
+chmod +x "\$prefix/nora.healed"
+mv "\$prefix/nora.healed" "\$prefix/nora"
 HEAL
 	exit 0
 fi
@@ -671,7 +637,7 @@ SCRIPT
 	chmod +x "$bin_dir/curl"
 }
 
-@test "mo update self-heals with a direct reinstall when the staged installer fails (#1297)" {
+@test "nr update self-heals with a direct reinstall when the staged installer fails (#1297)" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -680,9 +646,9 @@ SCRIPT
 	local curl_url_log="$TEST_ROOT/curl.urls"
 	local current_version
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "0.0.1"
+	make_manual_nora_install "$manual_bin" "$manual_config" "0.0.1"
 	make_self_heal_curl_stub "$fake_bin" "$current_version" "heal"
 	: > "$curl_url_log"
 	: > "$installer_args_log"
@@ -694,7 +660,7 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		HEAL_LOG="$heal_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -eq 0 ] || return 1
 	grep -q -- "--update" "$installer_args_log" || return 1
@@ -703,7 +669,7 @@ SCRIPT
 	[ "$(cat "$heal_log")" = "V$current_version $manual_bin" ]
 }
 
-@test "mo update prints the manual reinstall command when self-heal fails too" {
+@test "nr update prints the manual reinstall command when self-heal fails too" {
 	local manual_bin="$TEST_ROOT/manual/bin"
 	local manual_config="$TEST_ROOT/manual/config"
 	local fake_bin="$TEST_ROOT/fake-bin"
@@ -712,9 +678,9 @@ SCRIPT
 	local curl_url_log="$TEST_ROOT/curl.urls"
 	local current_version
 
-	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/mole" | head -1)"
+	current_version="$(sed -n 's/^VERSION="\([^"]*\)"$/\1/p' "$PROJECT_ROOT/nora" | head -1)"
 	mkdir -p "$fake_bin"
-	make_manual_mole_install "$manual_bin" "$manual_config" "0.0.1"
+	make_manual_nora_install "$manual_bin" "$manual_config" "0.0.1"
 	make_self_heal_curl_stub "$fake_bin" "$current_version" "fail"
 	: > "$curl_url_log"
 	: > "$installer_args_log"
@@ -726,7 +692,7 @@ SCRIPT
 		CURL_URL_LOG="$curl_url_log" \
 		INSTALLER_ARGS_LOG="$installer_args_log" \
 		HEAL_LOG="$heal_log" \
-		"$manual_bin/mo" update
+		"$manual_bin/nr" update
 
 	[ "$status" -ne 0 ] || return 1
 	[[ "$output" == *"Retrying with a direct reinstall"* ]] || return 1

@@ -4,20 +4,20 @@
 
 set -euo pipefail
 
-if [[ -n "${MOLE_HEALTH_JSON_LOADED:-}" ]]; then
+if [[ -n "${NORA_HEALTH_JSON_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_HEALTH_JSON_LOADED=1
+readonly NORA_HEALTH_JSON_LOADED=1
 
 # Ensure dependencies are loaded (only if running standalone)
-if [[ -z "${MOLE_FILE_OPS_LOADED:-}" ]]; then
+if [[ -z "${NORA_FILE_OPS_LOADED:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     source "$SCRIPT_DIR/lib/core/file_ops.sh"
 fi
 
-_MOLE_HEALTH_JSON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly _MOLE_HEALTH_JSON_DIR
-source "$_MOLE_HEALTH_JSON_DIR/../optimize/catalog.sh"
+_NORA_HEALTH_JSON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly _NORA_HEALTH_JSON_DIR
+source "$_NORA_HEALTH_JSON_DIR/../optimize/catalog.sh"
 
 # Get memory info in GB
 get_memory_info() {
@@ -136,11 +136,11 @@ EOF
 
     local first=true
     local index action health_name desc safe
-    for ((index = 0; index < ${#MOLE_OPTIMIZE_ACTIONS[@]}; index++)); do
-        action=${MOLE_OPTIMIZE_ACTIONS[$index]}
-        health_name=${MOLE_OPTIMIZE_HEALTH_NAMES[$index]}
-        desc=${MOLE_OPTIMIZE_DESCRIPTIONS[$index]}
-        safe=${MOLE_OPTIMIZE_SAFE_VALUES[$index]}
+    for ((index = 0; index < ${#NORA_OPTIMIZE_ACTIONS[@]}; index++)); do
+        action=${NORA_OPTIMIZE_ACTIONS[$index]}
+        health_name=${NORA_OPTIMIZE_HEALTH_NAMES[$index]}
+        desc=${NORA_OPTIMIZE_DESCRIPTIONS[$index]}
+        safe=${NORA_OPTIMIZE_SAFE_VALUES[$index]}
 
         # Escape strings
         action=$(json_escape "$action")

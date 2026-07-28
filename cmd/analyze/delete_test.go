@@ -350,8 +350,8 @@ func TestValidateTrashTargetAllowsChildrenOfCriticalRoots(t *testing.T) {
 		"/Applications/Example.app",
 		"/Library/Caches/com.example.app",
 		"/Volumes/External/old-artifact",
-		"/private/tmp/mole-user-artifact",
-		"/private/var/tmp/mole-user-artifact",
+		"/private/tmp/nora-user-artifact",
+		"/private/var/tmp/nora-user-artifact",
 	}
 
 	for _, path := range tests {
@@ -569,7 +569,7 @@ func TestMoveToTrashViaBinaryMovesFile(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	probe, err := os.CreateTemp(dir, "mole-trash-binary-probe-*.txt")
+	probe, err := os.CreateTemp(dir, "nora-trash-binary-probe-*.txt")
 	if err != nil {
 		t.Fatalf("failed to create unique target: %v", err)
 	}

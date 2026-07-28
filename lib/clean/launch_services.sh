@@ -1,5 +1,5 @@
 #!/bin/bash
-# LaunchServices cleanup helpers for `mo clean`.
+# LaunchServices cleanup helpers for `nr clean`.
 
 set -euo pipefail
 
@@ -80,7 +80,7 @@ collect_stale_launch_services_app_paths() {
 
     [[ -x "$lsregister" ]] || return 0
 
-    run_with_timeout "$MOLE_TIMEOUT_PKG_LIST_SEC" "$lsregister" -dump 2> /dev/null |
+    run_with_timeout "$NORA_TIMEOUT_PKG_LIST_SEC" "$lsregister" -dump 2> /dev/null |
         launch_services_emit_missing_record_paths |
         LC_ALL=C sort -u
 }
@@ -104,7 +104,7 @@ clean_stale_launch_services_registrations() {
         return 0
     fi
 
-    local max_items="${MOLE_LAUNCH_SERVICES_STALE_LIMIT:-50}"
+    local max_items="${NORA_LAUNCH_SERVICES_STALE_LIMIT:-50}"
     [[ "$max_items" =~ ^[0-9]+$ ]] || max_items=50
     [[ "$max_items" -gt 0 ]] || max_items=50
 
@@ -133,7 +133,7 @@ clean_stale_launch_services_registrations() {
         count_label="${count}+"
     fi
 
-    if [[ "${DRY_RUN:-false}" == "true" || "${MOLE_DRY_RUN:-0}" == "1" ]]; then
+    if [[ "${DRY_RUN:-false}" == "true" || "${NORA_DRY_RUN:-0}" == "1" ]]; then
         echo -e "  ${YELLOW}${ICON_DRY_RUN}${NC} LaunchServices stale app registrations · would unregister ${count_label}"
         echo -e "  ${GRAY}${ICON_SUBLIST}${NC} Example: ${GRAY}${stale_apps[0]/#$HOME/~}${NC}"
         return 0
@@ -155,7 +155,7 @@ clean_stale_launch_services_registrations() {
 
         # Scale the budget with the batch: one path's worth of time is not
         # enough for twenty-five.
-        local batch_timeout=$((MOLE_TIMEOUT_SHORT_QUERY_SEC * 4))
+        local batch_timeout=$((NORA_TIMEOUT_SHORT_QUERY_SEC * 4))
 
         if run_with_timeout "$batch_timeout" "$lsregister" -u "${batch[@]}" > /dev/null 2>&1; then
             success_count=$((success_count + ${#batch[@]}))
@@ -167,7 +167,7 @@ clean_stale_launch_services_registrations() {
         # as the whole batch failing.
         local path
         for path in "${batch[@]}"; do
-            if run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" "$lsregister" -u "$path" > /dev/null 2>&1; then
+            if run_with_timeout "$NORA_TIMEOUT_SHORT_QUERY_SEC" "$lsregister" -u "$path" > /dev/null 2>&1; then
                 success_count=$((success_count + 1))
             else
                 failed_count=$((failed_count + 1))

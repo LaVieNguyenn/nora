@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const liveSortModeEnv = "MOLE_ANALYZE_LIVE_SORT"
+const liveSortModeEnv = "NORA_ANALYZE_LIVE_SORT"
 
 func liveScanSortModeFromEnv() liveSortMode {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(liveSortModeEnv))) {

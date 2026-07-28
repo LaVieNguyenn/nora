@@ -70,7 +70,7 @@ request_sudo_access() {
     local prompt_msg="${1:-Admin access required}"
 
     # Tests must never trigger real password or Touch ID prompts.
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
@@ -104,7 +104,7 @@ request_sudo_access() {
         local escaped_msg="${prompt_msg//\\/\\\\}"
         escaped_msg="${escaped_msg//\"/\\\"}"
         local password
-        password=$(osascript -e "display dialog \"$escaped_msg\" default answer \"\" with title \"Mole\" with icon caution with hidden answer" -e 'text returned of result' 2> /dev/null)
+        password=$(osascript -e "display dialog \"$escaped_msg\" default answer \"\" with title \"Nora\" with icon caution with hidden answer" -e 'text returned of result' 2> /dev/null)
 
         if [[ -z "$password" ]]; then
             # User cancelled the dialog
@@ -210,7 +210,7 @@ request_sudo_access_with_password() {
     local prompt_msg="${2:-Admin access required}"
 
     # Tests must never trigger real password or Touch ID prompts.
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
@@ -235,8 +235,8 @@ request_sudo_access_with_password() {
 # ============================================================================
 
 # Global state
-MOLE_SUDO_KEEPALIVE_PID=""
-MOLE_SUDO_ESTABLISHED="false"
+NORA_SUDO_KEEPALIVE_PID=""
+NORA_SUDO_ESTABLISHED="false"
 
 # Start sudo keepalive
 _start_sudo_keepalive() {
@@ -278,7 +278,7 @@ _stop_sudo_keepalive() {
 
 # Check if sudo session is active
 has_sudo_session() {
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
         return 1
     fi
 
@@ -286,32 +286,32 @@ has_sudo_session() {
 }
 
 adopt_sudo_session() {
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-        MOLE_SUDO_ESTABLISHED="false"
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+        NORA_SUDO_ESTABLISHED="false"
         return 1
     fi
 
-    if [[ "$MOLE_SUDO_ESTABLISHED" == "true" && -n "$MOLE_SUDO_KEEPALIVE_PID" ]]; then
+    if [[ "$NORA_SUDO_ESTABLISHED" == "true" && -n "$NORA_SUDO_KEEPALIVE_PID" ]]; then
         if has_sudo_session; then
             return 0
         fi
-        _stop_sudo_keepalive "$MOLE_SUDO_KEEPALIVE_PID"
-        MOLE_SUDO_KEEPALIVE_PID=""
-        MOLE_SUDO_ESTABLISHED="false"
+        _stop_sudo_keepalive "$NORA_SUDO_KEEPALIVE_PID"
+        NORA_SUDO_KEEPALIVE_PID=""
+        NORA_SUDO_ESTABLISHED="false"
     fi
 
     if ! sudo -n -v 2> /dev/null; then
-        MOLE_SUDO_ESTABLISHED="false"
+        NORA_SUDO_ESTABLISHED="false"
         return 1
     fi
 
-    if [[ -n "$MOLE_SUDO_KEEPALIVE_PID" ]]; then
-        _stop_sudo_keepalive "$MOLE_SUDO_KEEPALIVE_PID"
-        MOLE_SUDO_KEEPALIVE_PID=""
+    if [[ -n "$NORA_SUDO_KEEPALIVE_PID" ]]; then
+        _stop_sudo_keepalive "$NORA_SUDO_KEEPALIVE_PID"
+        NORA_SUDO_KEEPALIVE_PID=""
     fi
 
-    MOLE_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
-    MOLE_SUDO_ESTABLISHED="true"
+    NORA_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
+    NORA_SUDO_ESTABLISHED="true"
     return 0
 }
 
@@ -336,31 +336,31 @@ ensure_sudo_session() {
     local prompt="${1:-Admin access required}"
 
     # Check if already established
-    if has_sudo_session && [[ "$MOLE_SUDO_ESTABLISHED" == "true" ]]; then
+    if has_sudo_session && [[ "$NORA_SUDO_ESTABLISHED" == "true" ]]; then
         return 0
     fi
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-        MOLE_SUDO_ESTABLISHED="false"
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+        NORA_SUDO_ESTABLISHED="false"
         return 1
     fi
 
     # Stop old keepalive if exists
-    if [[ -n "$MOLE_SUDO_KEEPALIVE_PID" ]]; then
-        _stop_sudo_keepalive "$MOLE_SUDO_KEEPALIVE_PID"
-        MOLE_SUDO_KEEPALIVE_PID=""
+    if [[ -n "$NORA_SUDO_KEEPALIVE_PID" ]]; then
+        _stop_sudo_keepalive "$NORA_SUDO_KEEPALIVE_PID"
+        NORA_SUDO_KEEPALIVE_PID=""
     fi
 
     # Request sudo access
     if ! request_sudo "$prompt"; then
-        MOLE_SUDO_ESTABLISHED="false"
+        NORA_SUDO_ESTABLISHED="false"
         return 1
     fi
 
     # Start keepalive
-    MOLE_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
+    NORA_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
 
-    MOLE_SUDO_ESTABLISHED="true"
+    NORA_SUDO_ESTABLISHED="true"
     return 0
 }
 
@@ -369,26 +369,26 @@ ensure_sudo_session_with_password() {
     local prompt="${2:-Admin access required}"
 
     # Check if already established
-    if has_sudo_session && [[ "$MOLE_SUDO_ESTABLISHED" == "true" ]]; then
+    if has_sudo_session && [[ "$NORA_SUDO_ESTABLISHED" == "true" ]]; then
         unset password
         return 0
     fi
 
-    if [[ "${MOLE_TEST_MODE:-0}" == "1" || "${MOLE_TEST_NO_AUTH:-0}" == "1" ]]; then
-        MOLE_SUDO_ESTABLISHED="false"
+    if [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]]; then
+        NORA_SUDO_ESTABLISHED="false"
         unset password
         return 1
     fi
 
     # Stop old keepalive if exists
-    if [[ -n "$MOLE_SUDO_KEEPALIVE_PID" ]]; then
-        _stop_sudo_keepalive "$MOLE_SUDO_KEEPALIVE_PID"
-        MOLE_SUDO_KEEPALIVE_PID=""
+    if [[ -n "$NORA_SUDO_KEEPALIVE_PID" ]]; then
+        _stop_sudo_keepalive "$NORA_SUDO_KEEPALIVE_PID"
+        NORA_SUDO_KEEPALIVE_PID=""
     fi
 
     # Request sudo access
     if ! request_sudo_access_with_password "$password" "$prompt"; then
-        MOLE_SUDO_ESTABLISHED="false"
+        NORA_SUDO_ESTABLISHED="false"
         unset password
         return 1
     fi
@@ -396,17 +396,17 @@ ensure_sudo_session_with_password() {
     unset password
 
     # Start keepalive
-    MOLE_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
+    NORA_SUDO_KEEPALIVE_PID=$(_start_sudo_keepalive)
 
-    MOLE_SUDO_ESTABLISHED="true"
+    NORA_SUDO_ESTABLISHED="true"
     return 0
 }
 
 # Stop sudo session and cleanup
 stop_sudo_session() {
-    if [[ -n "$MOLE_SUDO_KEEPALIVE_PID" ]]; then
-        _stop_sudo_keepalive "$MOLE_SUDO_KEEPALIVE_PID"
-        MOLE_SUDO_KEEPALIVE_PID=""
+    if [[ -n "$NORA_SUDO_KEEPALIVE_PID" ]]; then
+        _stop_sudo_keepalive "$NORA_SUDO_KEEPALIVE_PID"
+        NORA_SUDO_KEEPALIVE_PID=""
     fi
-    MOLE_SUDO_ESTABLISHED="false"
+    NORA_SUDO_ESTABLISHED="false"
 }

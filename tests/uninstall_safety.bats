@@ -310,7 +310,7 @@ EOF
 	[[ "$result" != *"TestApplication"* ]] || { echo "matched sibling bundle prefix"; printf '%s\n' "$result"; exit 1; }
 }
 
-@test "ByHost cleanup routes through user-mode mole_delete (no sudo prompt)" {
+@test "ByHost cleanup routes through user-mode nora_delete (no sudo prompt)" {
 	mkdir -p "$HOME/Library/Preferences/ByHost"
 	touch "$HOME/Library/Preferences/ByHost/com.example.TestApp.ABC123.plist"
 	mkdir -p "$HOME/Applications/TestApp.app"
@@ -320,8 +320,8 @@ set -euo pipefail
 source "$PROJECT_ROOT/lib/core/common.sh"
 source "$PROJECT_ROOT/lib/uninstall/batch.sh"
 
-trace="$HOME/mole_delete.log"
-mole_delete() {
+trace="$HOME/nora_delete.log"
+nora_delete() {
 	printf '%s|%s\n' "$1" "${2:-false}" >> "$trace"
 	return 0
 }
@@ -351,7 +351,7 @@ total_size_cleaned=0
 printf '\n' | batch_uninstall_applications
 
 if grep -q "ByHost.*com.example.TestApp.*plist|true" "$trace"; then
-	echo "ByHost plist routed through sudo mole_delete"
+	echo "ByHost plist routed through sudo nora_delete"
 	cat "$trace" >&2
 	exit 1
 fi
@@ -378,8 +378,8 @@ defaults() {
 	printf 'defaults:%s\n' "$*" >> "$trace"
 	return 0
 }
-mole_delete() {
-	printf 'mole_delete:%s|%s\n' "$1" "${2:-false}" >> "$trace"
+nora_delete() {
+	printf 'nora_delete:%s|%s\n' "$1" "${2:-false}" >> "$trace"
 	return 0
 }
 find_app_files() { return 0; }

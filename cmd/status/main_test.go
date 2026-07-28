@@ -34,7 +34,7 @@ func TestShouldUseJSONOutput_NonTTYPipe(t *testing.T) {
 }
 
 func TestShouldUseJSONOutput_NonTTYFile(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "mole-status-stdout-*.txt")
+	tmpFile, err := os.CreateTemp("", "nora-status-stdout-*.txt")
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}

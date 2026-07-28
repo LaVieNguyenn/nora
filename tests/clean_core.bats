@@ -11,22 +11,22 @@ setup_file() {
     export HOME
 
     # Prevent AppleScript permission dialogs during tests
-    MOLE_TEST_MODE=1
-    export MOLE_TEST_MODE
+    NORA_TEST_MODE=1
+    export NORA_TEST_MODE
 
-    # Two tests below run the real pipeline (MOLE_TEST_MODE=0), which otherwise
+    # Two tests below run the real pipeline (NORA_TEST_MODE=0), which otherwise
     # scans the host: du -sk over every mounted CoreSimulator runtime volume
     # plus a full lsregister -dump. That cost ~32s per test and scaled with
     # whatever Xcode and LaunchServices happened to hold, which made this file
     # the critical path of the whole CI suite. Neither scan feeds an assertion
     # here, so point both at nothing. The paths stay absent: setup() wipes
     # $HOME between tests.
-    MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$HOME/absent-sim-runtime-volumes"
-    MOLE_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$HOME/absent-sim-runtime-cryptex"
-    MOLE_LSREGISTER_PATH=""
-    export MOLE_XCODE_SIM_RUNTIME_VOLUMES_ROOT
-    export MOLE_XCODE_SIM_RUNTIME_CRYPTEX_ROOT
-    export MOLE_LSREGISTER_PATH
+    NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT="$HOME/absent-sim-runtime-volumes"
+    NORA_XCODE_SIM_RUNTIME_CRYPTEX_ROOT="$HOME/absent-sim-runtime-cryptex"
+    NORA_LSREGISTER_PATH=""
+    export NORA_XCODE_SIM_RUNTIME_VOLUMES_ROOT
+    export NORA_XCODE_SIM_RUNTIME_CRYPTEX_ROOT
+    export NORA_LSREGISTER_PATH
 
     mkdir -p "$HOME"
 }
@@ -49,7 +49,7 @@ setup() {
     export TERM="xterm-256color"
     rm -rf "${HOME:?}"/*
     rm -rf "$HOME/Library" "$HOME/.config"
-    mkdir -p "$HOME/Library/Caches" "$HOME/.config/mole"
+    mkdir -p "$HOME/Library/Caches" "$HOME/.config/nora"
     unset TEST_MOCK_BIN MOCK_TOOLCHAIN_BIN
 }
 
@@ -85,8 +85,8 @@ run_clean_dry_run() {
         test_path="$TEST_MOCK_BIN:$PATH"
     fi
 
-    run env HOME="$HOME" MOLE_TEST_MODE=1 PATH="$test_path" \
-        "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=1 PATH="$test_path" \
+        "$PROJECT_ROOT/nora" clean --dry-run
 }
 
 # Stub the two host toolchains the real pipeline shells out to, so what these
@@ -131,7 +131,7 @@ MOCK
     printf 'xxxx' > "$base/b"
     printf 'xxxx' > "$base/keep"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=1 /bin/bash --noprofile --norc <<EOF
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<EOF
 set -euo pipefail
 source "\$PROJECT_ROOT/lib/core/common.sh"
 source "\$PROJECT_ROOT/bin/clean.sh"
@@ -163,16 +163,16 @@ EOF
     rm -rf "$base"
 }
 
-@test "mo clean --dry-run skips system cleanup in non-interactive mode" {
+@test "nr clean --dry-run skips system cleanup in non-interactive mode" {
     set_mock_sudo_uncached
     run_clean_dry_run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Dry Run Mode"* ]] || return 1
-    [[ "$output" == *"sudo -v && mo clean --dry-run"* ]]
+    [[ "$output" == *"sudo -v && nr clean --dry-run"* ]]
     [[ "$output" != *"system preview included"* ]]
 }
 
-@test "mo clean --dry-run does not probe sudo in test mode" {
+@test "nr clean --dry-run does not probe sudo in test mode" {
     set_mock_sudo_cached
     cat > "$TEST_MOCK_BIN/sudo" << 'MOCK'
 #!/bin/bash
@@ -183,21 +183,21 @@ MOCK
 
     run_clean_dry_run
     [ "$status" -eq 0 ]
-    [[ "$output" == *"sudo -v && mo clean --dry-run"* ]]
+    [[ "$output" == *"sudo -v && nr clean --dry-run"* ]]
     [[ "$output" != *"sudo should not be called"* ]]
 }
 
-@test "mo clean rejects removed cleanup selection flags" {
+@test "nr clean rejects removed cleanup selection flags" {
     local removed_flag
     for removed_flag in "--select" "--categories" "--exclude"; do
-        run env HOME="$HOME" MOLE_TEST_MODE=1 "$PROJECT_ROOT/mole" clean "$removed_flag"
+        run env HOME="$HOME" NORA_TEST_MODE=1 "$PROJECT_ROOT/nora" clean "$removed_flag"
         [ "$status" -eq 1 ]
         [[ "$output" == *"was removed in this release"* ]] || return 1
-        [[ "$output" == *"mo clean --dry-run"* ]] || return 1
+        [[ "$output" == *"nr clean --dry-run"* ]] || return 1
     done
 }
 
-@test "mo clean --dry-run shows hint when sudo is not cached" {
+@test "nr clean --dry-run shows hint when sudo is not cached" {
     set_mock_sudo_uncached
     run_clean_dry_run
     [ "$status" -eq 0 ]
@@ -205,8 +205,8 @@ MOCK
     [[ "$output" == *"full preview"* ]]
 }
 
-@test "mo clean adopts cached sudo before system cleanup (#1084)" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
+@test "nr clean adopts cached sudo before system cleanup (#1084)" {
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=0 /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 TRACE="$HOME/sudo-adopt.log"
 > "$TRACE"
@@ -229,19 +229,19 @@ _stop_sudo_keepalive() { :; }
 start_cleanup
 cat "$TRACE"
 printf 'SYSTEM_CLEAN=%s\n' "$SYSTEM_CLEAN"
-printf 'MOLE_SUDO_ESTABLISHED=%s\n' "$MOLE_SUDO_ESTABLISHED"
-printf 'MOLE_SUDO_KEEPALIVE_PID=%s\n' "$MOLE_SUDO_KEEPALIVE_PID"
+printf 'NORA_SUDO_ESTABLISHED=%s\n' "$NORA_SUDO_ESTABLISHED"
+printf 'NORA_SUDO_KEEPALIVE_PID=%s\n' "$NORA_SUDO_KEEPALIVE_PID"
 SCRIPT
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"sudo -n -v"* ]] || return 1
     [[ "$output" == *"keepalive"* ]] || return 1
     [[ "$output" == *"SYSTEM_CLEAN=true"* ]] || return 1
-    [[ "$output" == *"MOLE_SUDO_ESTABLISHED=true"* ]] || return 1
-    [[ "$output" == *"MOLE_SUDO_KEEPALIVE_PID=keepalive-pid"* ]]
+    [[ "$output" == *"NORA_SUDO_ESTABLISHED=true"* ]] || return 1
+    [[ "$output" == *"NORA_SUDO_KEEPALIVE_PID=keepalive-pid"* ]]
 }
 
-@test "mo clean sudo prompt preserves a directly typed password (#1059)" {
+@test "nr clean sudo prompt preserves a directly typed password (#1059)" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
         /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
@@ -278,7 +278,7 @@ SCRIPT
     [[ "$output" != *"Skipped"* ]]
 }
 
-@test "mo clean sudo prompt still skips on explicit Space (#1059)" {
+@test "nr clean sudo prompt still skips on explicit Space (#1059)" {
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
         /bin/bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
@@ -311,12 +311,12 @@ SCRIPT
     [ "$status" -eq 0 ]
 }
 
-@test "mo clean summary separates tracked cleanup from free space change" {
+@test "nr clean summary separates tracked cleanup from free space change" {
     local mock_bin="$HOME/bin"
     mkdir -p "$mock_bin"
     cat > "$mock_bin/df" <<'MOCK'
 #!/bin/bash
-count_file="${MOLE_DF_COUNT:?}"
+count_file="${NORA_DF_COUNT:?}"
 count=0
 if [[ -f "$count_file" ]]; then
     count=$(cat "$count_file")
@@ -334,7 +334,7 @@ printf '/dev/disk1 200000000 126599680 %s 64%% /\n' "$available"
 MOCK
     chmod +x "$mock_bin/df"
 
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$mock_bin:$PATH" MOLE_DF_COUNT="$HOME/df.count" MOLE_TEST_MODE=0 /bin/bash --noprofile --norc <<'EOF'
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="$mock_bin:$PATH" NORA_DF_COUNT="$HOME/df.count" NORA_TEST_MODE=0 /bin/bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/bin/clean.sh"
 
@@ -388,7 +388,7 @@ EOF
     [ "$(cat "$HOME/df.count")" = "2" ]
 }
 
-@test "mo clean --dry-run survives an unwritable TMPDIR" {
+@test "nr clean --dry-run survives an unwritable TMPDIR" {
     local blocked_tmp="$HOME/blocked-tmp"
     mkdir -p "$blocked_tmp"
     chmod 500 "$blocked_tmp"
@@ -399,27 +399,27 @@ EOF
         test_path="$TEST_MOCK_BIN:$PATH"
     fi
 
-    run env HOME="$HOME" TMPDIR="$blocked_tmp" MOLE_TEST_MODE=1 PATH="$test_path" \
-        "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" TMPDIR="$blocked_tmp" NORA_TEST_MODE=1 PATH="$test_path" \
+        "$PROJECT_ROOT/nora" clean --dry-run
 
     [ "$status" -eq 0 ]
     [[ "$output" != *"mktemp:"* ]] || return 1
     [[ "$output" != *"Failed to create temporary file"* ]] || return 1
-    [ -d "$HOME/.cache/mole/tmp" ]
+    [ -d "$HOME/.cache/nora/tmp" ]
 }
 
-@test "mo clean --dry-run reports user cache without deleting it" {
+@test "nr clean --dry-run reports user cache without deleting it" {
     mkdir -p "$HOME/Library/Caches/TestApp"
     echo "cache data" > "$HOME/Library/Caches/TestApp/cache.tmp"
 
-    run env HOME="$HOME" MOLE_TEST_MODE=1 "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=1 "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"User app cache"* ]] || return 1
     [[ "$output" == *"Potential space"* ]] || return 1
     [ -f "$HOME/Library/Caches/TestApp/cache.tmp" ]
 }
 
-@test "mo clean --dry-run reports stale login item without deleting it" {
+@test "nr clean --dry-run reports stale login item without deleting it" {
     mkdir -p "$HOME/Library/LaunchAgents"
     cat > "$HOME/Library/LaunchAgents/com.example.stale.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -436,37 +436,37 @@ EOF
 </plist>
 PLIST
 
-    # MOLE_TEST_MODE=1 short-circuits clean into a stub that never reaches
+    # NORA_TEST_MODE=1 short-circuits clean into a stub that never reaches
     # the App leftovers section, so the report assertion needs the real
     # sections to run. Dry-run keeps this side-effect free.
     set_mock_host_toolchains
-    run env HOME="$HOME" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=1 \
-        PATH="$MOCK_TOOLCHAIN_BIN:$PATH" "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=1 \
+        PATH="$MOCK_TOOLCHAIN_BIN:$PATH" "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Stale login item · com.example.stale.plist"* ]] || return 1
     [ -f "$HOME/Library/LaunchAgents/com.example.stale.plist" ]
 }
 
-@test "mo clean --dry-run does not export duplicate targets across sections" {
+@test "nr clean --dry-run does not export duplicate targets across sections" {
     mkdir -p "$HOME/Library/Application Support/Code/CachedData"
     echo "cache" > "$HOME/Library/Application Support/Code/CachedData/data.bin"
 
     set_mock_host_toolchains
-    run env HOME="$HOME" MOLE_TEST_MODE=0 \
-        PATH="$MOCK_TOOLCHAIN_BIN:$PATH" "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=0 \
+        PATH="$MOCK_TOOLCHAIN_BIN:$PATH" "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ]
 
-    run grep -c "Application Support/Code/CachedData" "$HOME/.config/mole/clean-list.txt"
+    run grep -c "Application Support/Code/CachedData" "$HOME/.config/nora/clean-list.txt"
     [ "$status" -eq 0 ]
     [ "$output" -eq 1 ]
 }
 
-@test "mo clean --dry-run keeps container totals and preview paths consistent (#1282)" {
+@test "nr clean --dry-run keeps container totals and preview paths consistent (#1282)" {
     # This assertion depends on an exact total. Give it a private HOME so
     # hidden directories left by earlier cases cannot add cleanup candidates.
     local test_home
     test_home="$(mktemp -d "${BATS_TEST_TMPDIR}/clean-1282-home.XXXXXX")"
-    mkdir -p "$test_home/.config/mole"
+    mkdir -p "$test_home/.config/nora"
 
     local explicit_cache="$test_home/Library/Containers/com.apple.mediaanalysisd/Data/Library/Caches"
     local generic_cache="$test_home/Library/Containers/com.example.generic/Data/Library/Caches"
@@ -479,7 +479,7 @@ PLIST
     dd if=/dev/zero of="$compiled_cache/model.bin" bs=1024 count=1024 2> /dev/null
     dd if=/dev/zero of="$whitelisted_cache/keep.bin" bs=1024 count=1024 2> /dev/null
     dd if=/dev/zero of="$protected_cache/protected.bin" bs=1024 count=1024 2> /dev/null
-    printf '%s\n' "$whitelisted_cache/keep.bin" > "$test_home/.config/mole/whitelist"
+    printf '%s\n' "$whitelisted_cache/keep.bin" > "$test_home/.config/nora/whitelist"
     local explicit_bytes generic_bytes explicit_kb generic_kb expected_human
     explicit_bytes=$(stat -f%z "$explicit_cache/explicit.bin")
     generic_bytes=$(stat -f%z "$generic_cache/generic.bin")
@@ -491,12 +491,12 @@ PLIST
 
     set_mock_sudo_uncached "$test_home"
     set_mock_host_toolchains "$test_home"
-    run env HOME="$test_home" MOLE_TEST_MODE=0 MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$test_home" NORA_TEST_MODE=0 NORA_TEST_NO_AUTH=1 \
         PATH="$TEST_MOCK_BIN:$MOCK_TOOLCHAIN_BIN:$PATH" \
-        "$PROJECT_ROOT/mole" clean --dry-run
+        "$PROJECT_ROOT/nora" clean --dry-run
 
     [ "$status" -eq 0 ] || return 1
-    local preview="$test_home/.config/mole/clean-list.txt"
+    local preview="$test_home/.config/nora/clean-list.txt"
     [[ -f "$preview" ]] || return 1
     [[ "$(grep -cF "$explicit_cache/explicit.bin" "$preview")" -eq 1 ]] || return 1
     [[ "$(grep -cF "$generic_cache/generic.bin" "$preview")" -eq 1 ]] || return 1
@@ -516,7 +516,7 @@ PLIST
 }
 
 @test "dry-run ledger keeps shell-timeout child candidates and unknown sizes" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         bash --noprofile --norc <<'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/bin/clean.sh"
@@ -547,39 +547,39 @@ EOF
     [[ "$output" == *"cache.bin  # size unknown"* ]] || return 1
 }
 
-@test "mo clean honors whitelist entries" {
+@test "nr clean honors whitelist entries" {
     mkdir -p "$HOME/Library/Caches/WhitelistedApp"
     echo "keep me" > "$HOME/Library/Caches/WhitelistedApp/data.tmp"
 
-    cat > "$HOME/.config/mole/whitelist" << EOF
+    cat > "$HOME/.config/nora/whitelist" << EOF
 $HOME/Library/Caches/WhitelistedApp*
 EOF
 
-    run env HOME="$HOME" MOLE_TEST_MODE=1 "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=1 "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Protected"* ]] || return 1
     [ -f "$HOME/Library/Caches/WhitelistedApp/data.tmp" ]
 }
 
-@test "mo clean honors whitelist entries with $HOME literal" {
+@test "nr clean honors whitelist entries with $HOME literal" {
     mkdir -p "$HOME/Library/Caches/WhitelistedApp"
     echo "keep me" > "$HOME/Library/Caches/WhitelistedApp/data.tmp"
 
-    cat > "$HOME/.config/mole/whitelist" << 'EOF'
+    cat > "$HOME/.config/nora/whitelist" << 'EOF'
 $HOME/Library/Caches/WhitelistedApp*
 EOF
 
-    run env HOME="$HOME" MOLE_TEST_MODE=1 "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=1 "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ]
     [[ "$output" == *"Protected"* ]] || return 1
     [ -f "$HOME/Library/Caches/WhitelistedApp/data.tmp" ]
 }
 
-@test "mo clean protects Maven repository by default" {
+@test "nr clean protects Maven repository by default" {
     mkdir -p "$HOME/.m2/repository/org/example"
     echo "dependency" > "$HOME/.m2/repository/org/example/lib.jar"
 
-    run env HOME="$HOME" MOLE_TEST_MODE=1 "$PROJECT_ROOT/mole" clean --dry-run
+    run env HOME="$HOME" NORA_TEST_MODE=1 "$PROJECT_ROOT/nora" clean --dry-run
     [ "$status" -eq 0 ] || return 1
     # The jar must survive, and the dry-run must not offer the Maven repo as a
     # cleanup target. The label is "Maven local repository" (maven.sh); the old
@@ -594,7 +594,7 @@ EOF
 
     # The sentinel's value is FINDER_METADATA; FINDER_METADATA_SENTINEL is the
     # variable name and matches nothing in a whitelist file.
-    cat > "$HOME/.config/mole/whitelist" << EOF
+    cat > "$HOME/.config/nora/whitelist" << EOF
 FINDER_METADATA
 EOF
 
@@ -713,7 +713,7 @@ EOF
     touch "$HOME/Library/Mail Downloads/old.pdf"
     touch -t 202301010000 "$HOME/Library/Mail Downloads/old.pdf"
 
-    # MOLE_MAIL_DOWNLOADS_MIN_KB is readonly in base.sh, so an env override is
+    # NORA_MAIL_DOWNLOADS_MIN_KB is readonly in base.sh, so an env override is
     # discarded and the sweep stays below threshold. Grow the directory instead,
     # the same way the non-dry-run case above does.
     if command -v mkfile > /dev/null 2>&1; then
@@ -836,7 +836,7 @@ EOF
     raw="$HOME/section-recycle.raw"
     # shellcheck disable=SC2016  # inner bash expands these from its environment
     env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-        MOLE_TEST_NO_AUTH=1 TERM=xterm-256color \
+        NORA_TEST_NO_AUTH=1 TERM=xterm-256color \
         /usr/bin/script -q "$raw" /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "Idle Alpha"
@@ -863,7 +863,7 @@ EOF
     raw="$HOME/section-log-activity.raw"
     # shellcheck disable=SC2016  # inner bash expands these from its environment
     env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" \
-        MOLE_TEST_NO_AUTH=1 TERM=xterm-256color \
+        NORA_TEST_NO_AUTH=1 TERM=xterm-256color \
         /usr/bin/script -q "$raw" /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "System"
@@ -884,7 +884,7 @@ EOF
 
 @test "sections whose rows come only from log_success are not marked idle in pipes" {
     # shellcheck disable=SC2016  # inner bash expands these from its environment
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "System"
@@ -899,7 +899,7 @@ EOF
 @test "safe_clean skips caches that hold a compiled model cache" {
     export_file="$HOME/e5rt-list.txt"
     # shellcheck disable=SC2016  # inner bash expands these from its environment
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             DRY_RUN=true
@@ -921,7 +921,7 @@ EOF
 
 @test "active clean sections report isolated category totals" {
     # shellcheck disable=SC2016  # inner bash expands these from its environment
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "First"
@@ -940,7 +940,7 @@ EOF
 
 @test "report-only clean sections omit the category total" {
     # shellcheck disable=SC2016  # inner bash expands these from its environment
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "Large files"
@@ -958,7 +958,7 @@ EOF
     export_file="$HOME/purge-log-activity.txt"
     # shellcheck disable=SC2016  # inner bash expands these from its environment
     run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" EXPORT_LIST_FILE="$export_file" \
-        MOLE_SKIP_MAIN=1 MOLE_TEST_NO_AUTH=1 /bin/bash --noprofile --norc -c '
+        NORA_SKIP_MAIN=1 NORA_TEST_NO_AUTH=1 /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/purge.sh"
             start_section "Project artifacts"
             log_success "Project cache"
@@ -970,7 +970,7 @@ EOF
 }
 
 @test "root preview staging is published through the invoking-user boundary" {
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc << 'EOF'
 set -euo pipefail
 source "$PROJECT_ROOT/bin/clean.sh"
@@ -999,7 +999,7 @@ EOF
 
 @test "end_section keeps the Nothing-to-clean fallback for piped output" {
     # shellcheck disable=SC2016  # inner bash expands these from its environment
-    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" MOLE_TEST_NO_AUTH=1 \
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" NORA_TEST_NO_AUTH=1 \
         /bin/bash --noprofile --norc -c '
             source "$PROJECT_ROOT/bin/clean.sh"
             start_section "Idle Alpha"

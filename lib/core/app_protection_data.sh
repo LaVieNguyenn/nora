@@ -1,14 +1,14 @@
 #!/bin/bash
-# Mole - Application Protection Data
+# Nora - Application Protection Data
 # Static bundle ID and pattern lists, sourced by lib/core/app_protection.sh.
 # Keep this file data-only. Logic belongs in app_protection.sh.
 
 set -euo pipefail
 
-if [[ -n "${MOLE_APP_PROTECTION_DATA_LOADED:-}" ]]; then
+if [[ -n "${NORA_APP_PROTECTION_DATA_LOADED:-}" ]]; then
     return 0
 fi
-readonly MOLE_APP_PROTECTION_DATA_LOADED=1
+readonly NORA_APP_PROTECTION_DATA_LOADED=1
 
 # Application Management
 
