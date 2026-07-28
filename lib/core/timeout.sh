@@ -267,10 +267,12 @@ run_with_timeout() {
                 kill "TERM", $pid unless $sent;
 
                 my $grace_deadline = time() + 2;
+                my $grace_nap = 0.002;
                 while (time() < $grace_deadline) {
                     my $result = waitpid($pid, WNOHANG);
                     return if $result == $pid || $result == -1;
-                    sleep 0.1;
+                    sleep $grace_nap;
+                    $grace_nap = $grace_nap * 2 if $grace_nap < 0.05;
                 }
 
                 $sent = kill "KILL", -$pid;
@@ -279,6 +281,14 @@ run_with_timeout() {
             };
 
             my $deadline = time() + $duration;
+
+            # macOS ships no timeout(1), so every run_with_timeout call site
+            # lands here. A fixed 0.1s poll rounded every wrapped command up to
+            # at least 100ms: a 2ms `du` cost 125ms, and `get_path_size_kb` runs
+            # it once per sized directory. Start the poll tight and widen it, so
+            # short commands return at their own speed while a long one still
+            # settles to a cheap 100ms tick.
+            my $nap = 0.002;
 
             while (1) {
                 my $result = waitpid($pid, WNOHANG);
@@ -310,7 +320,8 @@ run_with_timeout() {
                     exit 124;
                 }
 
-                sleep 0.1;
+                sleep $nap;
+                $nap = $nap * 2 if $nap < 0.1;
             }
         ' "$duration" "$@"
         return $?

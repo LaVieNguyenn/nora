@@ -308,18 +308,24 @@ func scanPathConcurrentWithLimiter(root string, filesScanned, dirsScanned, bytes
 
 			// Folded dirs: fast size without expanding.
 			if shouldFoldDirWithPath(child.Name(), fullPath) {
-				duQueueSem <- struct{}{}
+				// A cache hit skips the `du` fork entirely, so it must not
+				// occupy a queue slot: the queue is acquired inside the worker,
+				// after the cache has had its say.
 				wg.Go(func() {
-					defer func() { <-duQueueSem }()
+					size := foldedDirSize(fullPath, cachePolicy, func() int64 {
+						duQueueSem <- struct{}{}
+						defer func() { <-duQueueSem }()
 
-					size, err := func() (int64, error) {
-						duSem <- struct{}{}
-						defer func() { <-duSem }()
-						return getDirectorySizeFromDu(fullPath)
-					}()
-					if err != nil || size <= 0 {
-						size = calculateDirSizeFastWithLimiter(fullPath, limiter, filesScanned, dirsScanned, bytesScanned, currentPath)
-					}
+						size, err := func() (int64, error) {
+							duSem <- struct{}{}
+							defer func() { <-duSem }()
+							return getDirectorySizeFromDu(fullPath)
+						}()
+						if err != nil || size <= 0 {
+							return calculateDirSizeFastWithLimiter(fullPath, limiter, filesScanned, dirsScanned, bytesScanned, currentPath)
+						}
+						return size
+					})
 					atomic.AddInt64(&total, size)
 					atomic.AddInt64(dirsScanned, 1)
 
@@ -493,6 +499,39 @@ func scanSubdirWithCache(root string, largeFileChan chan<- fileEntry, largeFileM
 	}
 
 	return scanResult{TotalSize: calculateDirSizeConcurrent(root, largeFileChan, largeFileMinSize, limiter, dirSem, duSem, duQueueSem, filesScanned, dirsScanned, bytesScanned, currentPath)}
+}
+
+// foldedDirSize returns the size of a folded directory, reusing the analyzer
+// cache before paying for a measurement.
+//
+// Folded directories — node_modules, .git, Caches, target, DerivedData,
+// .gradle, .cargo — are the largest and slowest subtrees on a developer's
+// machine, and they were the only ones that bypassed the cache layer entirely:
+// every scan re-forked `du` over every one of them, at up to 30s each.
+//
+// Freshness comes from the same rules the rest of the analyzer cache uses
+// (`loadCacheFromDisk`): schema version, TTL, and the directory's own mtime
+// with a grace window. That is deliberately the existing contract rather than a
+// new one — a folded directory is no more or less likely than any other subtree
+// to change without its own mtime moving.
+func foldedDirSize(path string, policy scanCachePolicy, measure func() int64) int64 {
+	if policy == scanCacheReuse {
+		if entry, err := loadCacheFromDisk(path); err == nil && entry.TotalSize > 0 {
+			return entry.TotalSize
+		}
+	}
+
+	size := measure()
+
+	// Only worth a cache file if re-measuring it would actually cost something;
+	// mirrors shouldPersistSubdirCache's size arm.
+	if size >= subdirCacheMinSize {
+		_ = saveCacheToDiskWithOptions(path, scanResult{TotalSize: size}, true)
+	} else if policy == scanCacheBypass {
+		removeCacheEntry(path)
+	}
+
+	return size
 }
 
 func shouldFoldDirWithPath(name, path string) bool {

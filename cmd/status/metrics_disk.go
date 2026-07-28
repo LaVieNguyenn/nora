@@ -195,7 +195,10 @@ var (
 	trashSizeCachedAt     time.Time
 	trashSizeCachedValue  uint64
 	trashSizeCachedApprox bool
-	trashSizeCacheTTL     = 5 * time.Second
+	// Sized by walking every entry under ~/.Trash with a per-file stat. At 5s
+	// the cache could never hit, because the only caller is the 30s full
+	// collect, so that walk ran every cycle.
+	trashSizeCacheTTL = 5 * time.Minute
 )
 
 func annotateDiskMetadata(disks []DiskStatus) {

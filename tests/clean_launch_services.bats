@@ -215,3 +215,57 @@ EOF
     [[ "$output" == "" ]] || return 1
     grep -q 'arg=-dump' "$log_file"
 }
+
+@test "clean_stale_launch_services_registrations batches unregister calls" {
+    # One lsregister call per stale app charged the run a process spawn plus a
+    # timeout wrapper each, and a machine can accumulate dozens of stale
+    # registrations. lsregister -u takes many paths, so the whole set should go
+    # out in a single invocation.
+    local lsregister="$TEST_ROOT/bin/lsregister"
+    local dump_file="$TEST_ROOT/lsregister.dump"
+    local log_file="$TEST_ROOT/lsregister.log"
+    write_lsregister_stub "$lsregister"
+
+    : > "$dump_file"
+    local i
+    for i in $(seq 1 8); do
+        local missing="$TEST_ROOT/Missing $i.app"
+        {
+            printf 'bundle id: %s\n' "$i"
+            printf '    path: %s\n' "$missing"
+            printf '    Bundle node not found on disk\n\n'
+        } >> "$dump_file"
+    done
+    : > "$log_file"
+
+    run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" LSREGISTER_BIN="$lsregister" LSREGISTER_DUMP="$dump_file" LSREGISTER_LOG="$log_file" /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+source "$PROJECT_ROOT/lib/core/common.sh"
+source "$PROJECT_ROOT/lib/clean/launch_services.sh"
+get_lsregister_path() { printf '%s\n' "$LSREGISTER_BIN"; }
+run_with_timeout() { shift; "$@"; }
+note_activity() { printf 'activity\n'; }
+DRY_RUN=false
+MOLE_DRY_RUN=0
+clean_stale_launch_services_registrations
+EOF
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"8 removed"* ]] || return 1
+
+    # One -dump call plus one batched -u call. Counting invocations rather than
+    # arguments is what pins the batching: the per-path shape logged eight.
+    local invocations
+    invocations=$(grep -c '^argc=' "$log_file")
+    [ "$invocations" -eq 2 ] || {
+        echo "expected 2 lsregister invocations, got $invocations" >&2
+        cat "$log_file" >&2
+        return 1
+    }
+
+    # And the batched call really did carry every path.
+    grep -q 'argc=9' "$log_file" || {
+        echo "batched -u call did not carry all 8 paths" >&2
+        return 1
+    }
+}

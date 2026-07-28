@@ -142,15 +142,51 @@ clean_stale_launch_services_registrations() {
     local success_count=0
     local failed_count=0
     start_section_spinner "Cleaning stale launch services..."
+
+    # lsregister -u accepts many paths per invocation. One call per app charged
+    # the run a process spawn plus a timeout wrapper for each of up to 50 stale
+    # registrations; batching collapses that to a couple of calls. A batch that
+    # fails is retried per path, so the success/failure counts below stay exact.
+    local -a batch=()
+    local batch_limit=25
+
+    _unregister_batch() {
+        [[ ${#batch[@]} -gt 0 ]] || return 0
+
+        # Scale the budget with the batch: one path's worth of time is not
+        # enough for twenty-five.
+        local batch_timeout=$((MOLE_TIMEOUT_SHORT_QUERY_SEC * 4))
+
+        if run_with_timeout "$batch_timeout" "$lsregister" -u "${batch[@]}" > /dev/null 2>&1; then
+            success_count=$((success_count + ${#batch[@]}))
+            batch=()
+            return 0
+        fi
+
+        # Fall back to one call per path so a single bad entry is not reported
+        # as the whole batch failing.
+        local path
+        for path in "${batch[@]}"; do
+            if run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" "$lsregister" -u "$path" > /dev/null 2>&1; then
+                success_count=$((success_count + 1))
+            else
+                failed_count=$((failed_count + 1))
+                debug_log "Failed to unregister stale LaunchServices app: $path"
+            fi
+        done
+        batch=()
+    }
+
     for app_path in "${stale_apps[@]}"; do
         debug_log "Unregistering stale LaunchServices app: $app_path"
-        if run_with_timeout "$MOLE_TIMEOUT_SHORT_QUERY_SEC" "$lsregister" -u "$app_path" > /dev/null 2>&1; then
-            success_count=$((success_count + 1))
-        else
-            failed_count=$((failed_count + 1))
-            debug_log "Failed to unregister stale LaunchServices app: $app_path"
+        batch+=("$app_path")
+        if [[ ${#batch[@]} -ge $batch_limit ]]; then
+            _unregister_batch
         fi
     done
+    _unregister_batch
+    unset -f _unregister_batch
+
     stop_section_spinner
 
     if [[ $success_count -gt 0 ]]; then

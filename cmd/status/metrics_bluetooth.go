@@ -9,7 +9,11 @@ import (
 )
 
 const (
-	bluetoothCacheTTL   = 30 * time.Second
+	// Full collects are 30s apart, so a 30s TTL never hit and every cycle paid
+	// for system_profiler SPBluetoothDataType — one of the slowest datatypes,
+	// routinely seconds. Accessory battery levels move a percent every few
+	// minutes at most.
+	bluetoothCacheTTL   = 5 * time.Minute
 	bluetoothctlTimeout = 1500 * time.Millisecond
 )
 

@@ -188,3 +188,98 @@ setup() {
     local limit_ms="${MOLE_PERF_SECTION_LIMIT_MS:-2000}"
     [ "$elapsed" -lt "$limit_ms" ]
 }
+
+@test "run_with_timeout does not round short commands up to the poll interval" {
+    # macOS has no timeout(1), so every run_with_timeout call takes the perl
+    # fallback. A fixed poll there charged every wrapped command a full tick:
+    # a 2ms `du` cost 125ms, and get_path_size_kb runs one per sized directory.
+    source "$PROJECT_ROOT/lib/core/timeout.sh"
+
+    local start end elapsed
+    start=$(date +%s%N)
+    for _ in 1 2 3 4 5; do
+        run_with_timeout 30 true > /dev/null 2>&1
+    done
+    end=$(date +%s%N)
+
+    elapsed=$(((end - start) / 1000000 / 5))
+
+    # The floor is perl interpreter startup (~5ms); the old fixed 0.1s poll put
+    # this at 100ms+. Anything at or above the old tick means the backoff was
+    # lost.
+    local limit_ms="${MOLE_PERF_TIMEOUT_LIMIT_MS:-60}"
+    [ "$elapsed" -lt "$limit_ms" ] || {
+        echo "run_with_timeout averaged ${elapsed}ms per call (limit ${limit_ms}ms)" >&2
+        return 1
+    }
+}
+
+@test "perl timeout fallback polls with backoff, not a fixed tick" {
+    # Source invariant: pins the class rather than one measurement, so a future
+    # edit that reinstates `sleep 0.1` in the wait loop fails here even on a
+    # machine fast enough to pass the timing test above.
+    local perl_block
+    perl_block=$(sed -n '/my \$deadline = time() + \$duration;/,/^            }/p' \
+        "$PROJECT_ROOT/lib/core/timeout.sh")
+
+    [ -n "$perl_block" ] || {
+        echo "could not locate the perl wait loop" >&2
+        return 1
+    }
+
+    echo "$perl_block" | grep -q 'sleep \$nap' || {
+        echo "wait loop no longer sleeps on the backoff variable" >&2
+        return 1
+    }
+
+    echo "$perl_block" | grep -q '\$nap = \$nap \* 2' || {
+        echo "wait loop lost its backoff growth" >&2
+        return 1
+    }
+}
+
+@test "entrypoint dispatches exec-only subcommands before sourcing libraries" {
+    # `mole` exec's into bin/<cmd>.sh, and that target re-sources the same
+    # library set in its own process. Sourcing first cost ~35ms on every
+    # `mo clean`, `mo status`, and friends for libraries the router then threw
+    # away by exec'ing.
+    #
+    # Source invariant rather than a timing check: it pins the ordering, which
+    # is the thing that regresses when someone moves the dispatch back into
+    # `main`.
+    local entry="$PROJECT_ROOT/mole"
+
+    local dispatch_line source_line
+    dispatch_line=$(grep -n '^mole_dispatch_exec_early "\$@"' "$entry" | head -1 | cut -d: -f1)
+    source_line=$(grep -n '^source .*lib/core/common.sh' "$entry" | head -1 | cut -d: -f1)
+
+    [ -n "$dispatch_line" ] || {
+        echo "early exec dispatch is gone" >&2
+        return 1
+    }
+    [ -n "$source_line" ] || {
+        echo "could not find the common.sh source line" >&2
+        return 1
+    }
+    [ "$dispatch_line" -lt "$source_line" ] || {
+        echo "dispatch (line $dispatch_line) must run before sourcing (line $source_line)" >&2
+        return 1
+    }
+}
+
+@test "early exec dispatch covers every subcommand main only exec's" {
+    # If a subcommand is added to main's case as a bare exec but not to the
+    # early dispatch, it silently keeps paying the sourcing cost.
+    local entry="$PROJECT_ROOT/mole"
+    local cmd missing=""
+
+    for cmd in optimize clean uninstall analyze status purge installer touchid completion; do
+        grep -q "^        $cmd[)| ]" "$entry" || continue
+        awk '/^mole_dispatch_exec_early\(\)/,/^}/' "$entry" | grep -q "$cmd" || missing="$missing $cmd"
+    done
+
+    [ -z "$missing" ] || {
+        echo "missing from early dispatch:$missing" >&2
+        return 1
+    }
+}

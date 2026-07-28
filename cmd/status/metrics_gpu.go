@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -165,10 +166,16 @@ func (c *Collector) getMacGPUUsage(now time.Time) float64 {
 
 // getMacGPUUsage reads GPU active residency from powermetrics.
 func getMacGPUUsage() float64 {
+	// powermetrics refuses to run without root, and `mo status` is normally
+	// invoked as the user. Forking it anyway spent a process spawn plus up to
+	// powermetricsTimeout on every full collect to relearn the same refusal.
+	if os.Geteuid() != 0 {
+		return -1
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), powermetricsTimeout)
 	defer cancel()
 
-	// powermetrics may require root.
 	out, err := runCmd(ctx, "powermetrics", "--samplers", "gpu_power", "-i", "500", "-n", "1")
 	if err != nil {
 		return -1

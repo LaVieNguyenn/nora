@@ -48,6 +48,44 @@ mole_dispatch_history_early() {
 
 mole_dispatch_history_early "$@"
 
+# Subcommands that this file only ever exec's into. Each target re-sources the
+# same library set in its fresh process, so sourcing here first was pure waste:
+# measured at ~50ms per invocation, on every `mo clean`, `mo status`, and so on.
+# Dispatch before the sources; the branches that genuinely need the libraries
+# (interactive menu, update, remove, version, help) fall through to `main`.
+#
+# Same shape as `mole_dispatch_history_early` above, which is why `history` is
+# not repeated here.
+mole_dispatch_exec_early() {
+    [[ "${MOLE_TEST_MODE:-0}" == "1" && "${MOLE_SKIP_MAIN:-0}" == "1" ]] && return 0
+
+    mole_collect_cli_args "$@"
+
+    local target=""
+    case "${MOLE_CLI_ARGS[0]:-}" in
+        optimize | optimise) target="optimize.sh" ;;
+        clean) target="clean.sh" ;;
+        uninstall) target="uninstall.sh" ;;
+        analyze | analyse) target="analyze.sh" ;;
+        status) target="status.sh" ;;
+        purge) target="purge.sh" ;;
+        installer) target="installer.sh" ;;
+        touchid) target="touchid.sh" ;;
+        completion) target="completion.sh" ;;
+        *) return 0 ;;
+    esac
+
+    [[ -x "$SCRIPT_DIR/bin/$target" ]] || return 0
+
+    [[ "$MOLE_CLI_DEBUG" == "true" ]] && export MO_DEBUG=1
+    if [[ "${#MOLE_CLI_ARGS[@]}" -gt 1 ]]; then
+        exec "$SCRIPT_DIR/bin/$target" "${MOLE_CLI_ARGS[@]:1}"
+    fi
+    exec "$SCRIPT_DIR/bin/$target"
+}
+
+mole_dispatch_exec_early "$@"
+
 source "$SCRIPT_DIR/lib/core/common.sh"
 source "$SCRIPT_DIR/lib/core/commands.sh"
 

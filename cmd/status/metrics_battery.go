@@ -22,7 +22,11 @@ var (
 	lastPowerJSONAt time.Time
 	cachedPower     string
 	cachedPowerJSON string
-	powerCacheTTL   = 30 * time.Second
+	// A full collect only happens every slowRefreshInterval (30s), so a 30s TTL
+	// never once returned a cached value: every cycle re-ran system_profiler
+	// SPPowerDataType, which takes seconds. Battery health, cycle count and
+	// design capacity move over days, so minutes of staleness costs nothing.
+	powerCacheTTL = 10 * time.Minute
 )
 
 func collectBatteries() (batts []BatteryStatus, err error) {
@@ -35,7 +39,14 @@ func collectBatteries() (batts []BatteryStatus, err error) {
 
 	// macOS: pmset for real-time percentage/status.
 	if runtime.GOOS == "darwin" && commandExists("pmset") {
-		if out, err := runCmd(context.Background(), "pmset", "-g", "batt"); err == nil {
+		// Every other collector bounds its subprocess; this one passed
+		// context.Background(), so a wedged pmset would block a collection
+		// goroutine forever and collectConcurrently would wait on it, stalling
+		// the whole snapshot.
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if out, err := runCmd(ctx, "pmset", "-g", "batt"); err == nil {
 			// Health/cycles/capacity from AppleSmartBattery and cached system_profiler.
 			health, cycles, capacity := getCachedPowerData()
 			if batts := parsePMSet(out, health, cycles, capacity); len(batts) > 0 {
