@@ -70,9 +70,17 @@ for item in nora nr bin lib internal scripts LICENSE NOTICE; do
 done
 chmod +x "$INSTALL_DIR/nora" "$INSTALL_DIR/nr"
 
+# Wrappers, not symlinks. The entrypoint derives its library root from
+# `dirname "${BASH_SOURCE[0]}"`, which does not resolve symlinks — through a
+# symlink it would look for lib/ next to the link and fail to source anything.
 mkdir -p "$BIN_DIR"
-ln -sf "$INSTALL_DIR/nora" "$BIN_DIR/nora"
-ln -sf "$INSTALL_DIR/nr" "$BIN_DIR/nr"
+for name in nora nr; do
+    cat > "$BIN_DIR/$name" <<WRAPPER
+#!/bin/bash
+exec "$INSTALL_DIR/$name" "\$@"
+WRAPPER
+    chmod +x "$BIN_DIR/$name"
+done
 ok "Đã cài CLI"
 
 # ---------------------------------------------------------------- build app

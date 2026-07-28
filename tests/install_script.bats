@@ -59,3 +59,18 @@ setup_file() {
     [[ "$copied" != *"tests"* ]] || return 1
     [[ "$copied" != *" app"* ]] || return 1
 }
+
+@test "install.sh writes wrappers, not symlinks, into PATH" {
+    # The entrypoint resolves its library root from `dirname "${BASH_SOURCE[0]}"`,
+    # which does not follow symlinks: through a symlink it looks for lib/ beside
+    # the link and dies with "common.sh: No such file or directory" on every
+    # invocation. Caught by an end-to-end install, not by any unit test.
+    run grep -q 'ln -sf "\$INSTALL_DIR' "$PROJECT_ROOT/install.sh"
+    [ "$status" -ne 0 ] || {
+        echo "install.sh symlinks the entrypoint into PATH; use a wrapper" >&2
+        return 1
+    }
+
+    run grep -q 'exec "\$INSTALL_DIR/\$name"' "$PROJECT_ROOT/install.sh"
+    [ "$status" -eq 0 ]
+}
