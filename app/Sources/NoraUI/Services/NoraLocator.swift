@@ -69,7 +69,7 @@ enum NoraLocator {
         return nil
     }
 
-    /// Path to the cleanup preview that `mo clean --dry-run` writes.
+    /// Path to the cleanup preview that `nora clean --dry-run` writes.
     static var cleanListFile: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appending(path: ".config/nora/clean-list.txt")

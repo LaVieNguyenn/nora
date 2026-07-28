@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One entry of `mo history --json`.
+/// One entry of `nora history --json`.
 struct HistorySession: Decodable, Identifiable {
     struct Actions: Decodable {
         let removed: Int?

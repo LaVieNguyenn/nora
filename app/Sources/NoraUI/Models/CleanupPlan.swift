@@ -53,7 +53,7 @@ struct CleanupGroup: Identifiable {
     }
 }
 
-/// Parses the `~/.config/nora/clean-list.txt` ledger that `mo clean --dry-run`
+/// Parses the `~/.config/nora/clean-list.txt` ledger that `nora clean --dry-run`
 /// writes.
 ///
 /// Format, per `bin/clean.sh`:

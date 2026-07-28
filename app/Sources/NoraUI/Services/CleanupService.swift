@@ -4,7 +4,7 @@ import Combine
 
 /// Drives the scan-then-remove flow behind the Cleanup tab.
 ///
-/// The candidate list always comes from `mo clean --dry-run`, so every path the
+/// The candidate list always comes from `nora clean --dry-run`, so every path the
 /// UI can offer has already passed Nora's protection and whitelist checks. The
 /// app never invents a path of its own to delete.
 /// Lifecycle of CleanupService.

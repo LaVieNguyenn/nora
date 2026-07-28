@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import Combine
 
-/// One row of `mo uninstall --list`.
+/// One row of `nora uninstall --list`.
 struct InstalledApp: Decodable, Identifiable {
     let name: String
     let bundleId: String
@@ -27,7 +27,7 @@ struct InstalledApp: Decodable, Identifiable {
     var isAppleApp: Bool { bundleId.hasPrefix("com.apple.") }
 }
 
-/// Lists installed apps and drives `mo uninstall` for a chosen one.
+/// Lists installed apps and drives `nora uninstall` for a chosen one.
 /// Lifecycle of UninstallService.
 ///
 /// Top-level on purpose. Nested inside the `@MainActor` service it inherited

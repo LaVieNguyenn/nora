@@ -126,7 +126,7 @@ enum SelfTest {
             let existing = items.prefix(60).filter(\.exists).count
             check("path còn tồn tại", existing > 0, "\(existing)/60 mẫu đầu")
         } else {
-            check("đọc file", false, "chưa có \(ledger.path) — chạy `mo clean --dry-run`")
+            check("đọc file", false, "chưa có \(ledger.path) — chạy `nora clean --dry-run`")
         }
 
         print("\n=== analyze --json ===")

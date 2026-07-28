@@ -59,7 +59,7 @@ struct CleanupTab: View {
             Text("Chưa có danh sách")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(Theme.textPrimary)
-            Text("Quét thử chạy `mo clean --dry-run` và chỉ liệt kê, không xóa gì.")
+            Text("Quét thử chạy `nora clean --dry-run` và chỉ liệt kê, không xóa gì.")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)

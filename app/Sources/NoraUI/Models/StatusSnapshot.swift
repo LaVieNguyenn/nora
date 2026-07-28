@@ -1,6 +1,6 @@
 import Foundation
 
-/// Mirrors the JSON emitted by `mo status --json` / `--watch`.
+/// Mirrors the JSON emitted by `nora status --json` / `--watch`.
 /// Every field is optional because the collector degrades gracefully when a
 /// probe is denied or unavailable, and a missing key must not drop the frame.
 struct StatusSnapshot: Decodable {

@@ -3,7 +3,7 @@ import Combine
 
 /// One maintenance task from Nora's optimize catalog.
 ///
-/// The list is fixed rather than read back from the CLI: `mo optimize` has no
+/// The list is fixed rather than read back from the CLI: `nora optimize` has no
 /// machine-readable listing, and parsing its rendered output would break the
 /// first time a label changed. Names mirror `lib/optimize/catalog.sh`.
 struct OptimizeTask: Identifiable {
@@ -102,9 +102,9 @@ struct OptimizeTask: Identifiable {
     }
 }
 
-/// Runs `mo optimize`, streaming its output into the activity log.
+/// Runs `nora optimize`, streaming its output into the activity log.
 ///
-/// Unlike cleanup, the app does not pick individual tasks: `mo optimize` has no
+/// Unlike cleanup, the app does not pick individual tasks: `nora optimize` has no
 /// per-task flag, and driving it by any other means would bypass the CLI's own
 /// ordering and sudo handling. The task list above is what the run will cover.
 /// Lifecycle of OptimizeService.
@@ -184,7 +184,7 @@ final class OptimizeService: ObservableObject {
             self.process = process
         } catch {
             phase = .idle
-            append(.failed, "Không chạy được mo optimize", detail: error.localizedDescription)
+            append(.failed, "Không chạy được nora optimize", detail: error.localizedDescription)
         }
     }
 

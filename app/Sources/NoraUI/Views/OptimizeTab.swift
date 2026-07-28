@@ -118,7 +118,7 @@ struct OptimizeTab: View {
             Divider().overlay(Theme.hairline)
             HStack(spacing: 10) {
                 Text(service.phase == .idle
-                     ? "Xem trước chạy `mo optimize --dry-run`, không thay đổi gì."
+                     ? "Xem trước chạy `nora optimize --dry-run`, không thay đổi gì."
                      : "Nhật ký được lưu vào lịch sử của Nora.")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.textMuted)
