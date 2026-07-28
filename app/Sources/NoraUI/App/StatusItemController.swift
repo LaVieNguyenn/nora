@@ -80,31 +80,50 @@ final class StatusItemController: NSObject, @unchecked Sendable {
     func apply(title: String, tint: NSColor) {
         guard let button = statusItem?.button else { return }
 
-        // A template image renders in the menubar's own foreground colour —
-        // black on a light bar, which is what made this unreadable. Bake the
-        // metric's colour into the bitmap instead.
-        let base = NSImage(
-            systemSymbolName: "circle.hexagongrid.fill",
-            accessibilityDescription: "Nora"
-        )?.withSymbolConfiguration(.init(pointSize: 14, weight: .medium))
-
-        button.image = base.map { Self.tinted($0, with: tint) }
+        let mark = Self.orbitMark(tint: tint)
+        button.image = mark
         // Never leave both image and title empty: a zero-width button takes no
         // menubar space and simply never appears.
-        button.title = title.isEmpty ? (base == nil ? "Nora" : "") : " \(title)"
+        button.title = title.isEmpty ? "" : " \(title)"
         button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     }
 
-    /// Return a copy of `image` filled with `color`, keeping its alpha shape.
-    private static func tinted(_ image: NSImage, with color: NSColor) -> NSImage {
-        let copy = NSImage(size: image.size)
-        copy.lockFocus()
-        image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 1)
-        color.set()
-        NSRect(origin: .zero, size: image.size).fill(using: .sourceAtop)
-        copy.unlockFocus()
-        copy.isTemplate = false
-        return copy
+    /// Nora's menubar mark: a filled body with an orbit ring around it.
+    ///
+    /// Drawn rather than taken from SF Symbols. The stock glyph that was here
+    /// belonged to no particular app, and a template symbol renders in the
+    /// menubar's own foreground colour — black on a light bar — which threw
+    /// away the one thing the mark carries: the colour of whichever metric is
+    /// running hottest.
+    private static func orbitMark(tint: NSColor) -> NSImage {
+        let side: CGFloat = 16
+        let image = NSImage(size: NSSize(width: side, height: side))
+
+        image.lockFocus()
+        defer { image.unlockFocus() }
+
+        guard let context = NSGraphicsContext.current?.cgContext else { return image }
+        context.setShouldAntialias(true)
+
+        let centre = CGPoint(x: side / 2, y: side / 2)
+
+        // Orbit: a flattened ellipse, tilted, echoing the popover's starfield.
+        context.saveGState()
+        context.translateBy(x: centre.x, y: centre.y)
+        context.rotate(by: -.pi / 7)
+        context.setStrokeColor(tint.withAlphaComponent(0.85).cgColor)
+        context.setLineWidth(1.1)
+        context.strokeEllipse(in: CGRect(x: -7, y: -3.1, width: 14, height: 6.2))
+        context.restoreGState()
+
+        // Body: solid, so the mark still reads at a glance when the ring is
+        // reduced to a couple of pixels.
+        context.setFillColor(tint.cgColor)
+        context.fillEllipse(in: CGRect(
+            x: centre.x - 3.1, y: centre.y - 3.1, width: 6.2, height: 6.2))
+
+        image.isTemplate = false
+        return image
     }
 
     /// AppKit calls this on the main thread, outside any task. It touches only

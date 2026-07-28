@@ -28,6 +28,17 @@ rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 cp "$BINARY" "$BUNDLE/Contents/MacOS/$APP_NAME"
 
+# Regenerate the icon when the generator is newer than the .icns, so editing
+# the artwork does not silently ship the previous build's icon.
+if [[ ! -f "$SCRIPT_DIR/Resources/Nora.icns" ||
+      "$SCRIPT_DIR/Resources/make_icon.swift" -nt "$SCRIPT_DIR/Resources/Nora.icns" ]]; then
+    echo "==> Dựng lại icon"
+    (cd "$SCRIPT_DIR" \
+        && swift Resources/make_icon.swift Resources/Nora.iconset > /dev/null \
+        && iconutil -c icns Resources/Nora.iconset -o Resources/Nora.icns)
+fi
+cp "$SCRIPT_DIR/Resources/Nora.icns" "$BUNDLE/Contents/Resources/Nora.icns"
+
 cat > "$BUNDLE/Contents/Info.plist" << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -41,6 +52,8 @@ cat > "$BUNDLE/Contents/Info.plist" << 'PLIST'
     <string>NoraUI</string>
     <key>CFBundleIdentifier</key>
     <string>com.nora.ui</string>
+    <key>CFBundleIconFile</key>
+    <string>Nora</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
