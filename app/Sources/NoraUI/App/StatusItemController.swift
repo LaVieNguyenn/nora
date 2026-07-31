@@ -11,10 +11,8 @@ import Combine
 /// target/action or a `Timer` callback never executes, `Task.sleep` never
 /// resumes, and `MainActor.assumeIsolated` segfaults. So the click handler
 /// cannot hop to the main actor, cannot await, and cannot assert isolation —
-/// every one of those routes is a silent no-op or a crash. What it can do is
-/// operate on objects prepared in advance, during launch, where the main actor
-/// still works. Everything the click needs is therefore built in `install()`
-/// and cached here as plain references.
+/// every one of those routes is a silent no-op or a crash.
+///
 /// `@unchecked Sendable` because every member is touched from the main thread
 /// only — AppKit callbacks, the launch task, and the collector's Combine sink
 /// all run there. The compiler cannot see that, and the usual way to prove it
@@ -23,7 +21,7 @@ final class StatusItemController: NSObject, @unchecked Sendable {
     static let shared = StatusItemController()
 
     private var statusItem: NSStatusItem?
-    /// Built once at install time so the click path never constructs a view.
+    /// Alive only while the popover is on screen; released in `popoverDidClose`.
     private var popover: NSPopover?
 
     /// True when macOS actually gave the item a place on the menubar.
@@ -64,11 +62,11 @@ final class StatusItemController: NSObject, @unchecked Sendable {
         button.action = #selector(handleClick)
         button.imagePosition = .imageLeading
 
-        // Build the popover now, while the main actor is usable. Constructing
-        // it lazily on click would put SwiftUI view creation on the very path
-        // that cannot reach the main actor.
-        popover = makePopover()
-
+        // The popover is built on first click and torn down when it closes —
+        // see `handleClick`. Building it here left a live SwiftUI view graph
+        // subscribed to the collector for the whole session: every snapshot
+        // re-laid-out bubbles nobody was looking at. Measured after three days
+        // of that: 12% CPU and 93 MB, against 0.07% and 47 MB at launch.
         apply(title: AppState.shared.menubarText, tint: NSColor(AppState.shared.menubarTint))
         Self.trace("install: status item đã tạo, visible=\(item.isVisible)")
     }
@@ -129,22 +127,26 @@ final class StatusItemController: NSObject, @unchecked Sendable {
     /// AppKit calls this on the main thread, outside any task. It touches only
     /// the cached AppKit objects — no main-actor state, no hop, no await.
     @objc private func handleClick() {
-        guard let popover, let button = statusItem?.button else { return }
+        guard let button = statusItem?.button else { return }
 
-        if popover.isShown {
+        if let popover, popover.isShown {
             popover.performClose(nil)
             return
         }
 
+        // Built here, not at install time: the view tree should exist only
+        // while it is on screen.
+        let popover = makePopover()
+        self.popover = popover
+
         NSApp.activate(ignoringOtherApps: true)
         // `.minY` is the button's bottom edge — the popover hangs directly
         // under the menubar. `.maxY` asks for it *above* the item, where there
-        // is no screen, so AppKit relocates it and it lands far from the icon.
+        // is no screen, so AppKit relocates it and it lands far from the edge.
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
     }
 
-    @MainActor
     private func makePopover() -> NSPopover {
         let popover = NSPopover()
         popover.behavior = .transient
@@ -162,7 +164,47 @@ final class StatusItemController: NSObject, @unchecked Sendable {
         // leaves either dead space or a clipped footer.
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
+        popover.delegate = self
         return popover
+    }
+
+    /// Regression probe: open and close the popover repeatedly, reporting
+    /// resident memory each round.
+    ///
+    /// Closing an NSPopover does not free its hosting controller by itself, and
+    /// a view tree that outlives the popover keeps re-rendering off every
+    /// snapshot. A cycle test is the only way to see that: a single open, or a
+    /// long hold, both look fine.
+    func cycleForTest(rounds: Int = 6) {
+        var round = 0
+        let timer = Timer(timeInterval: 3, repeats: true) { [weak self] t in
+            guard let self else { t.invalidate(); return }
+            if round >= rounds * 2 {
+                Self.trace("cycletest: xong \(rounds) vòng, RSS=\(Self.residentMB()) MB")
+                t.invalidate()
+                return
+            }
+            self.statusItem?.button?.performClick(nil)
+            if round % 2 == 1 {
+                Self.trace("cycletest: sau vòng \((round + 1) / 2), RSS=\(Self.residentMB()) MB")
+            }
+            round += 1
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// This process's resident size, in MB.
+    static func residentMB() -> Int {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)
+            / mach_msg_type_number_t(MemoryLayout<natural_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return -1 }
+        return Int(info.resident_size / 1024 / 1024)
     }
 
     /// Regression probe: open the popover the way a click does and hold it.
@@ -181,5 +223,19 @@ final class StatusItemController: NSObject, @unchecked Sendable {
             RunLoop.main.add(hold, forMode: .common)
         }
         RunLoop.main.add(timer, forMode: .common)
+    }
+}
+
+extension StatusItemController: NSPopoverDelegate {
+    /// Drop the view tree the moment the popover closes.
+    ///
+    /// Closing an NSPopover only hides it; the hosting controller, its SwiftUI
+    /// view graph and every `@EnvironmentObject` subscription stay alive. That
+    /// left the collector re-laying-out invisible bubbles on every snapshot for
+    /// as long as the app ran, which is where the drift from 0.07% to 12% CPU
+    /// came from.
+    func popoverDidClose(_ notification: Notification) {
+        popover?.contentViewController = nil
+        popover = nil
     }
 }

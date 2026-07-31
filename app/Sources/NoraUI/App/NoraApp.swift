@@ -48,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if CommandLine.arguments.contains("--popovertest") {
                 StatusItemController.shared.showForTest()
             }
+
+            if CommandLine.arguments.contains("--popovercycle") {
+                StatusItemController.shared.cycleForTest()
+            }
         }
 
         // On a notched Mac with a crowded menubar the status item can end up

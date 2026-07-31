@@ -156,6 +156,12 @@ final class UninstallService: ObservableObject {
                     message: output.succeeded ? "Đã gỡ \(app.name)" : "Gỡ \(app.name) thất bại",
                     detail: output.succeeded ? nil : output.stderr
                 ))
+                // Bounded like the cleanup and optimize logs. Uninstalling app
+                // after app in one session otherwise grows this for as long as
+                // the app runs; nobody scrolls back past a few hundred lines.
+                if self.log.count > 2000 {
+                    self.log.removeFirst(self.log.count - 2000)
+                }
                 self.phase = .listed
                 self.loadApps()
             }
