@@ -11,6 +11,7 @@ struct MainWindow: View {
             sidebar
             Divider().overlay(Theme.hairline)
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background(Theme.void)
         .preferredColorScheme(.dark)
@@ -33,8 +34,13 @@ struct MainWindow: View {
 
             Spacer()
         }
+        // Fixed and un-squeezable: in an HStack a flexible sidebar is the
+        // first thing SwiftUI compresses when the content asks for more room,
+        // which is how it ended up clipped to a sliver.
         .frame(width: 158)
         .padding(.horizontal, 8)
+        .frame(width: 174)
+        .fixedSize(horizontal: true, vertical: false)
         .background(Theme.panel)
     }
 

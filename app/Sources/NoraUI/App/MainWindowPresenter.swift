@@ -31,8 +31,11 @@ final class MainWindowPresenter: NSObject {
 
         let window = NSWindow(contentViewController: hosting)
         window.title = "Nora"
-        window.setContentSize(NSSize(width: 940, height: 620))
-        window.minSize = NSSize(width: 820, height: 540)
+        window.setContentSize(NSSize(width: 1020, height: 700))
+        // Below this the two-column rows collapse into unreadable slivers, so
+        // the window refuses to go there rather than rendering something the
+        // user has to guess at.
+        window.minSize = NSSize(width: 900, height: 560)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden

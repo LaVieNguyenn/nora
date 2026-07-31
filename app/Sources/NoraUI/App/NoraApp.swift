@@ -52,6 +52,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if CommandLine.arguments.contains("--popovercycle") {
                 StatusItemController.shared.cycleForTest()
             }
+
+            // `--snapshot=<path>[:<tab>]` renders the window offscreen and
+            // quits. Give the collector a moment first, so the shot shows real
+            // numbers rather than every card in its placeholder state.
+            if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--snapshot=") }) {
+                let spec = arg.replacingOccurrences(of: "--snapshot=", with: "")
+                let parts = spec.split(separator: ":", maxSplits: 2).map(String.init)
+                let path = parts[0]
+                let tab = parts.count > 1 ? (MainTab(rawValue: parts[1]) ?? .overview) : .overview
+
+                let timer = Timer(timeInterval: 6, repeats: false) { _ in
+                    // `--snapshot=<path>:<tab>:<width>` so the narrow end of
+                    // the supported range can be checked too.
+                    let width = parts.count > 2 ? (Double(parts[2]) ?? 1020) : 1020
+                    LayoutSnapshot.render(
+                        to: path, tab: tab, size: NSSize(width: width, height: 700))
+                    NSApp.terminate(nil)
+                }
+                RunLoop.main.add(timer, forMode: .common)
+            }
         }
 
         // On a notched Mac with a crowded menubar the status item can end up
