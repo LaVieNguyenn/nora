@@ -14,6 +14,7 @@ struct HistorySession: Decodable, Identifiable {
     let endedAt: String?
     let items: Int?
     let size: String?
+    let operationCount: Int?
     let actions: Actions?
 
     var id: String { command + startedAt }
@@ -22,6 +23,7 @@ struct HistorySession: Decodable, Identifiable {
         case command, items, size, actions
         case startedAt = "started_at"
         case endedAt = "ended_at"
+        case operationCount = "operation_count"
     }
 }
 
@@ -32,6 +34,7 @@ struct HistoryResponse: Decodable {
 
 final class HistoryService: ObservableObject {
     @Published private(set) var sessions: [HistorySession] = []
+    @Published private(set) var hiddenCount = 0
     @Published private(set) var isLoading = false
     @Published private(set) var logPaths: [String: String] = [:]
 
@@ -50,7 +53,13 @@ final class HistoryService: ObservableObject {
                       let data = String(output.stdout[start...]).data(using: .utf8),
                       let decoded = try? JSONDecoder().decode(HistoryResponse.self, from: data)
                 else { return }
-                self.sessions = decoded.sessions ?? []
+                // Every CLI invocation logs a session, including `uninstall
+                // --list`, which the app itself runs each time the tab opens.
+                // Those zero-operation rows outnumbered the real ones twelve
+                // to four on a live machine and buried them.
+                let all = decoded.sessions ?? []
+                self.sessions = all.filter { ($0.operationCount ?? 0) > 0 || ($0.items ?? 0) > 0 }
+                self.hiddenCount = all.count - self.sessions.count
                 self.logPaths = decoded.logs ?? [:]
             }
         }
@@ -71,7 +80,7 @@ struct HistoryTab: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
                 } else if service.sessions.isEmpty {
-                    Text("Chưa có phiên nào được ghi lại.")
+                    Text("Chưa có phiên nào thực sự thay đổi gì.")
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.textMuted)
                 }
@@ -82,6 +91,12 @@ struct HistoryTab: View {
                             sessionRow(session)
                         }
                     }
+                }
+
+                if service.hiddenCount > 0 {
+                    Text("Đã ẩn \(service.hiddenCount) phiên không thao tác gì (mở app, liệt kê…).")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.textMuted)
                 }
 
                 if let operations = service.logPaths["operations"] {
