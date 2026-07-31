@@ -7,6 +7,12 @@ import Foundation
 /// the standard install, then a source checkout — a machine with both should
 /// use what was installed.
 enum NoraLocator {
+    /// Resolved once per launch. `MenuBarPopover` read this in `body`, which
+    /// meant four executable stats every 2s while the popover was open — for
+    /// an answer that cannot change without restarting the app (the settings
+    /// field even says so).
+    static let cachedSetupProblem: String? = setupProblem
+
     static let repoPathDefaultsKey = "noraCLIPath"
 
     /// Where `install.sh` puts the CLI.

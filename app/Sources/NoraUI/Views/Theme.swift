@@ -35,7 +35,6 @@ enum Theme {
     static let heatDeep = Color(red: 0.239, green: 0.165, blue: 0.020)  // #3d2a05
 
     static let good = Color(red: 0.592, green: 0.769, blue: 0.349)      // #97C459
-    static let goodLight = Color(red: 0.753, green: 0.867, blue: 0.592) // #C0DD97
     static let goodDeep = Color(red: 0.102, green: 0.239, blue: 0.035)  // #1a3d09
 
     static let danger = Color(red: 0.886, green: 0.294, blue: 0.290)    // #E24B4A

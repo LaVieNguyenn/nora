@@ -29,13 +29,4 @@ final class LineBuffer: @unchecked Sendable {
         return lines
     }
 
-    /// Whatever is left after the producer closes the pipe.
-    func drain() -> String? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !buffer.isEmpty else { return nil }
-        let tail = String(decoding: buffer, as: UTF8.self)
-        buffer.removeAll(keepingCapacity: false)
-        return tail
-    }
 }

@@ -15,6 +15,7 @@ final class StatusStream: ObservableObject {
     private let historyLimit = 60
 
     private var process: Process?
+    private var stdoutPipe: Pipe?
     /// Restart backoff, so a collector that dies instantly is not respawned in
     /// a tight loop.
     private var restartDelay: TimeInterval = 1
@@ -39,6 +40,7 @@ final class StatusStream: ObservableObject {
         process.environment = env
 
         let pipe = Pipe()
+        stdoutPipe = pipe
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
 
@@ -87,6 +89,11 @@ final class StatusStream: ObservableObject {
             process.terminationHandler = nil
             process.terminate()
         }
+        // Disarm the read source. Left set, it re-fires continuously with
+        // empty data once the child's write end closes, and the pipe's fd is
+        // never released — one leaked fd per interval change.
+        stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe = nil
         process = nil
         isRunning = false
     }
@@ -103,6 +110,8 @@ final class StatusStream: ObservableObject {
     }
 
     private func handleTermination() {
+        stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe = nil
         process = nil
         isRunning = false
         // The collector should never exit on its own; if it does, bring it back

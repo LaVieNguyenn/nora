@@ -38,7 +38,21 @@ final class CleanupService: ObservableObject {
     @Published var moveToTrash: Bool = true
 
     private var scanProcess: Process?
+    private var scanPipe: Pipe?
     private var cancelRequested = false
+
+    /// Cached totals for the current selection. Recomputing them from all
+    /// ~3300 items on every body evaluation made rendering during a clean
+    /// quadratic — the log appends per item, and each append re-evaluated
+    /// half a dozen O(n) filters.
+    @Published private(set) var selectedCount = 0
+    @Published private(set) var selectedBytesCached: Int64 = 0
+
+    private func recalcSelection() {
+        let items = selectedItems
+        selectedCount = items.count
+        selectedBytesCached = items.compactMap(\.sizeBytes).reduce(0, +)
+    }
 
     // MARK: - Scan
 
@@ -98,6 +112,8 @@ final class CleanupService: ObservableObject {
 
     func cancelScan() {
         scanProcess?.terminate()
+        scanPipe?.fileHandleForReading.readabilityHandler = nil
+        scanPipe = nil
         scanProcess = nil
         phase = .idle
         scanProgress = ""
@@ -113,6 +129,8 @@ final class CleanupService: ObservableObject {
     }
 
     private func finishScan() {
+        scanPipe?.fileHandleForReading.readabilityHandler = nil
+        scanPipe = nil
         scanProcess = nil
         let file = NoraLocator.cleanListFile
 
@@ -131,6 +149,7 @@ final class CleanupService: ObservableObject {
         selection = Set(
             parsed.filter(\.isSafeByDefault).flatMap(\.items).map(\.id)
         )
+        recalcSelection()
 
         phase = parsed.isEmpty ? .idle : .ready
         scanProgress = ""
@@ -155,6 +174,7 @@ final class CleanupService: ObservableObject {
 
     func toggle(_ item: CleanupItem) {
         if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) }
+        recalcSelection()
     }
 
     func toggle(group: CleanupGroup) {
@@ -164,6 +184,7 @@ final class CleanupService: ObservableObject {
         } else {
             selection.formUnion(ids)
         }
+        recalcSelection()
     }
 
     func selectionState(of group: CleanupGroup) -> (checked: Bool, partial: Bool) {
@@ -191,35 +212,38 @@ final class CleanupService: ObservableObject {
                 : "Bắt đầu xóa \(targets.count) mục"
         )
 
+        let useTrash = moveToTrash
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let useTrash = await self.moveToTrash
 
             for target in targets {
-                if await self.cancelRequested {
-                    await self.appendLog(.skipped, "Đã dừng theo yêu cầu")
+                if self.cancelRequested {
+                    DispatchQueue.main.async { self.appendLog(.skipped, "Đã dừng theo yêu cầu") }
                     break
                 }
-                await self.process(target, useTrash: useTrash)
+                self.process(target, useTrash: useTrash)
             }
 
-            await self.completeClean()
+            DispatchQueue.main.async { self.completeClean() }
         }
     }
 
     func requestCancel() { cancelRequested = true }
 
-    private func process(_ item: CleanupItem, useTrash: Bool) async {
+    private func process(_ item: CleanupItem, useTrash: Bool) {
         let fileManager = FileManager()
 
         guard fileManager.fileExists(atPath: item.path) else {
-            appendLog(.skipped, "Bỏ qua \(item.lastComponent)", detail: "không còn tồn tại")
-            itemsProcessed += 1
+            DispatchQueue.main.async { [weak self] in
+                self?.appendLog(.skipped, "Bỏ qua \(item.lastComponent)", detail: "không còn tồn tại")
+                self?.itemsProcessed += 1
+            }
             return
         }
 
-        // Size the path now rather than trusting the ledger: the scan may have
-        // run minutes ago and a cache grows while you read the list.
+        // The ledger's size, not a fresh stat: re-measuring ~3300 paths at
+        // delete time would repeat the entire scan. The freed-space figure is
+        // therefore as old as the scan, which the UI already timestamps.
         let actualSize = item.sizeBytes ?? 0
         let url = URL(fileURLWithPath: item.path)
 
@@ -229,15 +253,17 @@ final class CleanupService: ObservableObject {
             } else {
                 try fileManager.removeItem(at: url)
             }
-            bytesFreed += actualSize
-            itemsProcessed += 1
-            appendLog(
-                .removed,
-                useTrash ? "Chuyển \(item.lastComponent)" : "Xóa \(item.lastComponent)",
-                detail: actualSize > 0 ? ByteFormatter.string(actualSize) : nil
-            )
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.bytesFreed += actualSize
+                self.itemsProcessed += 1
+                self.appendLog(
+                    .removed,
+                    useTrash ? "Chuyển \(item.lastComponent)" : "Xóa \(item.lastComponent)",
+                    detail: actualSize > 0 ? ByteFormatter.string(actualSize) : nil
+                )
+            }
         } catch let error as NSError {
-            itemsProcessed += 1
             let reason: String
             switch error.code {
             case NSFileWriteNoPermissionError, NSFileReadNoPermissionError:
@@ -247,7 +273,10 @@ final class CleanupService: ObservableObject {
             default:
                 reason = error.localizedDescription
             }
-            appendLog(.skipped, "Bỏ qua \(item.lastComponent)", detail: reason)
+            DispatchQueue.main.async { [weak self] in
+                self?.itemsProcessed += 1
+                self?.appendLog(.skipped, "Bỏ qua \(item.lastComponent)", detail: reason)
+            }
         }
     }
 
@@ -336,10 +365,16 @@ enum RateFormatter {
 }
 
 enum ByteFormatter {
-    static func string(_ bytes: Int64) -> String {
+    // One instance: this is called from nearly every row of every list, and a
+    // fresh ByteCountFormatter per call showed up as pure allocation churn.
+    private static let formatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         formatter.allowedUnits = [.useKB, .useMB, .useGB, .useTB]
-        return formatter.string(fromByteCount: bytes)
+        return formatter
+    }()
+
+    static func string(_ bytes: Int64) -> String {
+        formatter.string(fromByteCount: bytes)
     }
 }

@@ -68,23 +68,21 @@ struct BubbleView: View {
         }
         .frame(width: diameter, height: diameter)
         .offset(y: drift)
-        .onAppear {
-            // A `repeatForever` animation never lets SwiftUI settle: the view
-            // graph keeps interpolating at display rate for as long as the
-            // view exists, which cost ~12% CPU continuously even with the
-            // popover closed. The bob only runs while the popover is actually
-            // on screen, and is torn down the moment it closes.
-            guard animatesDrift else { return }
-            withAnimation(
-                .easeInOut(duration: 3.6 + driftSeed * 1.4).repeatForever(autoreverses: true)
-            ) {
-                drift = driftSeed.truncatingRemainder(dividingBy: 2) < 1 ? 4 : -4
+        // Driven by onChange, not onAppear: a child's onAppear fires before
+        // its parent's, so `animatesDrift` was still false when the guard ran
+        // and the bob never started at all. The repeatForever animation is
+        // still cancelled the moment the flag drops — leaving it running cost
+        // 12% CPU with the popover closed.
+        .onChange(of: animatesDrift) { _, active in
+            if active {
+                withAnimation(
+                    .easeInOut(duration: 3.6 + driftSeed * 1.4).repeatForever(autoreverses: true)
+                ) {
+                    drift = driftSeed.truncatingRemainder(dividingBy: 2) < 1 ? 4 : -4
+                }
+            } else {
+                withAnimation(.linear(duration: 0)) { drift = 0 }
             }
-        }
-        .onDisappear {
-            // Cancel the repeating animation, otherwise it survives the view
-            // and keeps the render loop warm.
-            withAnimation(.linear(duration: 0)) { drift = 0 }
         }
         .animation(.easeInOut(duration: 0.6), value: diameter)
     }

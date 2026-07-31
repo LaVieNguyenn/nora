@@ -147,9 +147,11 @@ struct LogLine: Identifiable {
     let message: String
     let detail: String?
 
-    var timeText: String {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: time)
-    }
+        return formatter
+    }()
+
+    var timeText: String { Self.timeFormatter.string(from: time) }
 }

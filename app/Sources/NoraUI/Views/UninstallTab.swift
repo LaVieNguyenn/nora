@@ -254,9 +254,20 @@ struct UninstallTab: View {
 struct AppIconView: View {
     let path: String
 
+    /// `icon(forFile:)` hits the icon services daemon; uncached it ran per row
+    /// per keystroke while filtering the list.
+    private static let cache = NSCache<NSString, NSImage>()
+
     var body: some View {
-        Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+        Image(nsImage: Self.icon(for: path))
             .resizable()
             .interpolation(.high)
+    }
+
+    private static func icon(for path: String) -> NSImage {
+        if let hit = cache.object(forKey: path as NSString) { return hit }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        cache.setObject(icon, forKey: path as NSString)
+        return icon
     }
 }

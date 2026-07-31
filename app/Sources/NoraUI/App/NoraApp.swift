@@ -45,9 +45,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Handled here, not in `App.init`: the probe clicks the status
             // item, which does not exist until `install()` above has run.
-            if CommandLine.arguments.contains("--popovertest") {
-                StatusItemController.shared.showForTest()
-            }
 
             if CommandLine.arguments.contains("--popovercycle") {
                 StatusItemController.shared.cycleForTest()
@@ -89,9 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async { MainWindowPresenter.shared.open(tab: tab) }
         }
 
-        if CommandLine.arguments.contains("--uitest") {
-            DispatchQueue.main.async { UITest.run() }
-        }
+
     }
 
     func applicationWillTerminate(_ notification: Notification) {

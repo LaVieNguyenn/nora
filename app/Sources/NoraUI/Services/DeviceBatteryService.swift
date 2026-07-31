@@ -14,6 +14,13 @@ final class DeviceBatteryService: ObservableObject {
 
     private var bluetoothTimer: Timer?
     private var phoneTimer: Timer?
+    /// Re-entrancy guards: the popover-open refresh can land while the timer's
+    /// is still in flight, and two concurrent writers to the device arrays is
+    /// a data race. Touched on the main queue only.
+    private var bluetoothRefreshInFlight = false
+    private var phonesRefreshInFlight = false
+    /// `DeviceName` for a UDID never changes; asking again is a wasted fork.
+    private var phoneNameCache: [String: String] = [:]
 
     private var macBattery: DeviceBattery?
     private var bluetoothDevices: [DeviceBattery] = []
@@ -114,6 +121,16 @@ final class DeviceBatteryService: ObservableObject {
 
     func refreshBluetooth() async {
         guard let profiler = ProcessRunner.which("system_profiler") else { return }
+
+        let started: Bool = await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                if self.bluetoothRefreshInFlight { continuation.resume(returning: false) }
+                else { self.bluetoothRefreshInFlight = true; continuation.resume(returning: true) }
+            }
+        }
+        guard started else { return }
+        defer { DispatchQueue.main.async { self.bluetoothRefreshInFlight = false } }
+
         let result = await ProcessRunner.run(
             profiler, arguments: ["SPBluetoothDataType", "-json"], timeout: 10)
         guard result.succeeded, let data = result.stdout.data(using: .utf8) else { return }
@@ -139,15 +156,26 @@ final class DeviceBatteryService: ObservableObject {
 
         // Drop disconnected devices we have never had a reading for — a paired
         // speaker that never reports battery is noise in a battery list.
-        bluetoothDevices = parsed.filter { $0.isConnected || $0.effectivePercent != nil }
-        rebuild()
+        //
+        // Published state moves on main: everything after the first await runs
+        // on the cooperative pool, and assigning arrays the popover is
+        // rendering from was a cross-thread race.
+        let final = parsed.filter { $0.isConnected || $0.effectivePercent != nil }
+        DispatchQueue.main.async {
+            self.bluetoothDevices = final
+            self.rebuild()
+        }
     }
 
-    nonisolated static func relativeTime(_ date: Date) -> String {
+    private nonisolated static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.locale = Locale(identifier: "vi_VN")
         formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return formatter
+    }()
+
+    nonisolated static func relativeTime(_ date: Date) -> String {
+        relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 
     /// Parse `system_profiler SPBluetoothDataType -json`.
@@ -240,11 +268,23 @@ final class DeviceBatteryService: ObservableObject {
         guard let listTool = ProcessRunner.which("idevice_id"),
               let infoTool = ProcessRunner.which("ideviceinfo")
         else {
-            iPhoneAvailable = false
-            phoneStatus = .toolMissing
+            DispatchQueue.main.async {
+                self.iPhoneAvailable = false
+                self.phoneStatus = .toolMissing
+            }
             return
         }
-        iPhoneAvailable = true
+
+        let started: Bool = await withCheckedContinuation { continuation in
+            DispatchQueue.main.async {
+                if self.phonesRefreshInFlight { continuation.resume(returning: false) }
+                else { self.phonesRefreshInFlight = true; continuation.resume(returning: true) }
+            }
+        }
+        guard started else { return }
+        defer { DispatchQueue.main.async { self.phonesRefreshInFlight = false } }
+
+        DispatchQueue.main.async { self.iPhoneAvailable = true }
 
         // `-l` lists devices on USB; `-n` lists ones reachable over Wi-Fi. A
         // phone that is only on Wi-Fi is invisible to the first, so both have
@@ -261,8 +301,9 @@ final class DeviceBatteryService: ObservableObject {
 
         var found: [DeviceBattery] = []
         for udid in udids {
-            let name = await ProcessRunner.run(
-                infoTool, arguments: ["-u", udid, "-k", "DeviceName"], timeout: 8)
+            let cachedName = await withCheckedContinuation { continuation in
+                DispatchQueue.main.async { continuation.resume(returning: self.phoneNameCache[udid]) }
+            }
             let level = await ProcessRunner.run(
                 infoTool,
                 arguments: ["-u", udid, "-q", "com.apple.mobile.battery", "-k", "BatteryCurrentCapacity"],
@@ -276,7 +317,15 @@ final class DeviceBatteryService: ObservableObject {
                   let percent = Int(level.stdout.trimmingCharacters(in: .whitespacesAndNewlines))
             else { continue }
 
-            let deviceName = name.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            var deviceName = cachedName ?? ""
+            if deviceName.isEmpty {
+                let name = await ProcessRunner.run(
+                    infoTool, arguments: ["-u", udid, "-k", "DeviceName"], timeout: 8)
+                deviceName = name.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !deviceName.isEmpty {
+                    DispatchQueue.main.async { self.phoneNameCache[udid] = deviceName }
+                }
+            }
             let isCharging = charging.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
 
             found.append(DeviceBattery(
@@ -290,21 +339,24 @@ final class DeviceBatteryService: ObservableObject {
             ))
         }
 
-        phoneStatus = found.isEmpty ? .noDeviceReachable : .connected(found.count)
+        let devices = found
+        DispatchQueue.main.async {
+            self.phoneStatus = devices.isEmpty ? .noDeviceReachable : .connected(devices.count)
 
-        // Keep a device that has gone out of range visible with its last
-        // reading rather than having the row vanish from under the pointer.
-        if found.isEmpty {
-            phoneDevices = phoneDevices.map {
-                var stale = $0
-                stale.isConnected = false
-                stale.detail = "ngoài vùng phủ sóng"
-                return stale
+            // Keep a device that has gone out of range visible with its last
+            // reading rather than having the row vanish from under the pointer.
+            if devices.isEmpty {
+                self.phoneDevices = self.phoneDevices.map {
+                    var stale = $0
+                    stale.isConnected = false
+                    stale.detail = "ngoài vùng phủ sóng"
+                    return stale
+                }
+            } else {
+                self.phoneDevices = devices
             }
-        } else {
-            phoneDevices = found
+            self.rebuild()
         }
-        rebuild()
     }
 
     private func rebuild() {

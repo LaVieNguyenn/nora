@@ -127,6 +127,7 @@ final class OptimizeService: ObservableObject {
     @Published private(set) var lastRun: Date?
 
     private var process: Process?
+    private var outputPipe: Pipe?
 
     var isBusy: Bool { phase == .previewing || phase == .running }
 
@@ -158,6 +159,7 @@ final class OptimizeService: ObservableObject {
         process.environment = env
 
         let pipe = Pipe()
+        outputPipe = pipe
         process.standardOutput = pipe
         process.standardError = pipe
 
@@ -169,7 +171,10 @@ final class OptimizeService: ObservableObject {
                 .map { CleanupService.stripANSI($0).trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
             guard !lines.isEmpty else { return }
-            Task { @MainActor [weak self] in
+            // DispatchQueue, not `Task { @MainActor }`: measured in this
+            // process, tasks created from a pipe callback never execute, so
+            // the streamed log would simply not appear.
+            DispatchQueue.main.async { [weak self] in
                 for line in lines { self?.appendCLILine(line) }
             }
         }
@@ -190,6 +195,8 @@ final class OptimizeService: ObservableObject {
 
     func cancel() {
         process?.terminate()
+        outputPipe?.fileHandleForReading.readabilityHandler = nil
+        outputPipe = nil
         process = nil
         phase = .idle
         append(.skipped, "Đã dừng theo yêu cầu")
@@ -214,6 +221,8 @@ final class OptimizeService: ObservableObject {
     }
 
     private func finish(exitCode: Int32) {
+        outputPipe?.fileHandleForReading.readabilityHandler = nil
+        outputPipe = nil
         process = nil
         let preview = phase == .previewing
         phase = .finished

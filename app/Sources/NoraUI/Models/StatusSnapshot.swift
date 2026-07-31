@@ -93,7 +93,9 @@ struct StatusSnapshot: Decodable {
         var external: Bool?
         var smartStatus: String?
 
-        var id: String { mount ?? device ?? UUID().uuidString }
+        // Stable even when both fields are nil: a UUID fallback minted a new
+        // identity on every read, so those rows rebuilt every frame.
+        var id: String { mount ?? device ?? "disk" }
 
         enum CodingKeys: String, CodingKey {
             case mount, device, used, total, fstype, external
@@ -113,7 +115,7 @@ struct StatusSnapshot: Decodable {
     }
 
     struct NetworkInterface: Decodable, Identifiable {
-        var id: String { name ?? UUID().uuidString }
+        var id: String { name ?? ip ?? "interface" }
         var name: String?
         var rxRateMBs: Double?
         var txRateMBs: Double?

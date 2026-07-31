@@ -52,10 +52,12 @@ final class UninstallService: ObservableObject {
     @Published var search = ""
 
     var filteredApps: [InstalledApp] {
-        let base = search.isEmpty
+        // `apps` is stored pre-sorted (see loadApps), so filtering is the only
+        // per-keystroke work; sorting on every body evaluation parsed every
+        // size string O(n log n) times per keypress.
+        search.isEmpty
             ? apps
             : apps.filter { $0.name.localizedCaseInsensitiveContains(search) }
-        return base.sorted { ($0.sizeBytes ?? 0) > ($1.sizeBytes ?? 0) }
     }
 
     func loadApps() {
@@ -84,7 +86,7 @@ final class UninstallService: ObservableObject {
                     self.error = "Không đọc được danh sách ứng dụng"
                     return
                 }
-                self.apps = decoded
+                self.apps = decoded.sorted { ($0.sizeBytes ?? 0) > ($1.sizeBytes ?? 0) }
                 self.phase = .listed
             }
         }

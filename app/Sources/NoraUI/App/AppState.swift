@@ -51,13 +51,14 @@ final class AppState: ObservableObject {
     private var appNapAssertion: NSObjectProtocol?
 
     private init() {
-        // The menubar label reads through `AppState`, so changes in the
-        // services it wraps have to surface as changes to `AppState` itself.
-        for publisher in [stream.objectWillChange, settings.objectWillChange] {
-            publisher
-                .sink { [weak self] in self?.objectWillChange.send() }
-                .store(in: &forwarders)
-        }
+        // Only settings changes surface as AppState changes. Forwarding the
+        // stream's 2s heartbeat here invalidated the entire main window —
+        // sidebar and whichever tab was open, Settings and History included —
+        // on every snapshot. Views that show live data observe StatusStream
+        // directly; the menubar button is driven by the sink in start().
+        settings.objectWillChange
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &forwarders)
     }
 
     func start() {
@@ -80,7 +81,11 @@ final class AppState: ObservableObject {
         // timer still wakes the CPU — a minute is plenty for a battery meter,
         // and the tolerance lets the system coalesce the wake-up.
         let timer = Timer(timeInterval: 60, repeats: true) { _ in
-            Task { @MainActor [weak self] in
+            // DispatchQueue, not `Task { @MainActor }`: measured in this
+            // process, a task created from a Timer callback never executes —
+            // which meant this evaluation, and with it every low-battery and
+            // low-disk notification, silently never ran.
+            DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.batteries.refreshMac()
                 self.notifications.evaluate(
@@ -95,11 +100,16 @@ final class AppState: ObservableObject {
         // main-actor state from an AppKit callback.
         stream.$snapshot
             .sink { [weak self] _ in
-                guard let self else { return }
-                StatusItemController.shared.apply(
-                    title: self.menubarText,
-                    tint: NSColor(self.menubarTint)
-                )
+                // `$snapshot` emits in willSet, so reading state synchronously
+                // here shows the previous frame — the menubar ran permanently
+                // one frame stale. Hop once so the new value has landed.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    StatusItemController.shared.apply(
+                        title: self.menubarText,
+                        tint: NSColor(self.menubarTint)
+                    )
+                }
             }
             .store(in: &forwarders)
         timer.tolerance = 15
@@ -155,7 +165,6 @@ final class AppState: ObservableObject {
     /// chose; while it is closed the menubar only shows one figure, so a much
     /// slower cadence is indistinguishable and costs far less.
     func popoverDidOpen() {
-        isPopoverOpen = true
         batteries.setActive(true)
         // The accessory batteries are the reason the popover was opened often
         // enough to be worth a fresh read on the way in.
@@ -164,19 +173,9 @@ final class AppState: ObservableObject {
     }
 
     func popoverDidClose() {
-        isPopoverOpen = false
         batteries.setActive(false)
     }
 
-    /// The collector runs at one cadence for the whole session and is never
-    /// restarted to follow the popover.
-    ///
-    /// Throughput is a rate between two samples, so a restart throws away the
-    /// baseline and reports 0 for the first two frames — which landed exactly
-    /// when the popover opened, making the network bubble read 0.0 every time
-    /// it was looked at. Its measured cost is a fraction of a percent of one
-    /// core, so there is nothing to win by cycling it.
-    private(set) var isPopoverOpen = false
 
     /// Text shown next to the menubar icon.
     var menubarText: String {

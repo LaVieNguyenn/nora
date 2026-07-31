@@ -38,8 +38,13 @@ final class StatusItemController: NSObject, @unchecked Sendable {
 
         // Read-modify-write rather than an appending FileHandle: the handle
         // path silently dropped every write after the first, which cost a whole
-        // debugging round by making working timers look dead.
-        let existing = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        // debugging round by making working timers look dead. Keep only the
+        // tail so the file cannot grow without bound across months of
+        // launches.
+        var existing = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        if existing.count > 64_000 {
+            existing = String(existing.suffix(32_000))
+        }
         try? (existing + line).write(to: url, atomically: true, encoding: .utf8)
     }
 
@@ -75,10 +80,27 @@ final class StatusItemController: NSObject, @unchecked Sendable {
     ///
     /// Takes plain `String`/`NSColor` rather than reading `AppState`, so it is
     /// safe to call from anywhere without an isolation check.
+    private var lastApplied: (title: String, tint: NSColor)?
+    private var markCache: [String: NSImage] = [:]
+
     func apply(title: String, tint: NSColor) {
         guard let button = statusItem?.button else { return }
 
-        let mark = Self.orbitMark(tint: tint)
+        // A frame arrives every 2s; redrawing the mark and reassigning the
+        // image forced a status-bar relayout each time even when nothing
+        // changed. The tint only has a handful of values, so cache by tint and
+        // skip entirely when both parts are unchanged.
+        if let last = lastApplied, last.title == title, last.tint == tint { return }
+        lastApplied = (title, tint)
+
+        let key = tint.description
+        let mark: NSImage
+        if let cached = markCache[key] {
+            mark = cached
+        } else {
+            mark = Self.orbitMark(tint: tint)
+            markCache[key] = mark
+        }
         button.image = mark
         // Never leave both image and title empty: a zero-width button takes no
         // menubar space and simply never appears.
@@ -207,23 +229,6 @@ final class StatusItemController: NSObject, @unchecked Sendable {
         return Int(info.resident_size / 1024 / 1024)
     }
 
-    /// Regression probe: open the popover the way a click does and hold it.
-    ///
-    /// The crash only appeared once the popover stayed open while fresh
-    /// snapshots re-evaluated its body, so a click-and-close test missed it.
-    func showForTest() {
-        Self.trace("clicktest: chờ 20s rồi bấm")
-        let timer = Timer(timeInterval: 20, repeats: false) { [weak self] _ in
-            Self.trace("clicktest: bấm nút menubar")
-            self?.statusItem?.button?.performClick(nil)
-
-            let hold = Timer(timeInterval: 70, repeats: false) { _ in
-                Self.trace("clicktest: popover mở 70s sau cú bấm, không crash")
-            }
-            RunLoop.main.add(hold, forMode: .common)
-        }
-        RunLoop.main.add(timer, forMode: .common)
-    }
 }
 
 extension StatusItemController: NSPopoverDelegate {

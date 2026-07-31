@@ -40,8 +40,10 @@ struct SettingsTab: View {
                                 .foregroundStyle(Theme.textMuted)
 
                             Button("Áp dụng nhịp mới") {
-                                stream.stop()
-                                stream.start(interval: settings.refreshInterval)
+                                // setInterval skips the restart when the rate
+                                // is unchanged; open-coding stop/start here
+                                // bounced the collector for nothing.
+                                stream.setInterval(settings.refreshInterval)
                             }
                             .font(.system(size: 11))
                         }
@@ -61,6 +63,12 @@ struct SettingsTab: View {
 
                     Card(title: "Thông báo") {
                         VStack(alignment: .leading, spacing: 10) {
+                            if let reason = AppState.shared.notifications.notificationsUnavailable {
+                                Text("Thông báo đang tắt: \(reason)")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Theme.heatLight)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                             Toggle("Báo khi thiết bị sắp hết pin (dưới 20%)", isOn: $settings.notifyLowBattery)
                                 .toggleStyle(.checkbox)
                             Toggle("Báo khi ổ đĩa sắp đầy", isOn: $settings.notifyLowDisk)

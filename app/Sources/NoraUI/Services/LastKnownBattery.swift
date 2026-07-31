@@ -33,6 +33,11 @@ enum LastKnownBattery {
 
         var all = raw()
         all[device.id] = entry
+        // Prune here as well as on load: `load` only filters, so entries for
+        // accessories paired once and never seen again accumulated forever in
+        // a blob that is rewritten wholesale on every store.
+        let cutoff = Date().timeIntervalSince1970 - maxAge
+        all = all.filter { ($0.value["date"] as? TimeInterval ?? 0) >= cutoff }
         UserDefaults.standard.set(all, forKey: key)
     }
 

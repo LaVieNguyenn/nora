@@ -16,7 +16,7 @@ struct MenuBarPopover: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let problem = NoraLocator.setupProblem {
+            if let problem = NoraLocator.cachedSetupProblem {
                 setupBanner(problem)
             }
 

@@ -133,11 +133,30 @@ enum ProcessRunner {
     }
 
     /// Whether a command exists on the app's PATH.
+    ///
+    /// Memoised: callers ask for the same handful of tools on every refresh,
+    /// and each miss walked five directories of stats for an answer that does
+    /// not change while the app runs.
+    private static let whichLock = NSLock()
+    private static var whichCache: [String: URL?] = [:]
+
     static func which(_ name: String) -> URL? {
+        whichLock.lock()
+        if let hit = whichCache[name] {
+            whichLock.unlock()
+            return hit
+        }
+        whichLock.unlock()
+
+        var found: URL?
         for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin"] {
             let url = URL(fileURLWithPath: dir).appending(path: name)
-            if FileManager.default.isExecutableFile(atPath: url.path) { return url }
+            if FileManager.default.isExecutableFile(atPath: url.path) { found = url; break }
         }
-        return nil
+
+        whichLock.lock()
+        whichCache[name] = found
+        whichLock.unlock()
+        return found
     }
 }
