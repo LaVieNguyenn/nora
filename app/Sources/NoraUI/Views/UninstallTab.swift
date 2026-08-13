@@ -5,21 +5,15 @@ struct UninstallTab: View {
     @State private var pendingApp: InstalledApp?
 
     var body: some View {
-        TabScaffold(title: "Gỡ ứng dụng", subtitle: subtitle) {
+        Page(title: "Gỡ ứng dụng", subtitle: subtitle) {
             VStack(alignment: .leading, spacing: 12) {
                 if let error = service.error {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.heat)
-                        Text(error).font(.system(size: 11)).foregroundStyle(Theme.heatLight)
-                        Spacer()
-                    }
-                    .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.heatDeep))
+                    NoticeBanner(message: error)
                 }
 
                 switch service.phase {
                 case .idle, .loading:
-                    loadingView
+                    BusyState(title: "Đang đọc danh sách ứng dụng…")
                 case .removing(let name):
                     removingView(name)
                 default:
@@ -41,53 +35,30 @@ struct UninstallTab: View {
             : "\(service.apps.count) ứng dụng · sắp xếp theo dung lượng"
     }
 
-    private var loadingView: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            ProgressView().controlSize(.large)
-            Text("Đang đọc danh sách ứng dụng…")
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
     private func removingView(_ name: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Đang gỡ \(name)…")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textPrimary)
+                Text("Đang gỡ \(name)…").font(.callout)
                 Spacer()
             }
-            LogView(lines: service.log)
+            LogPane(lines: service.log)
         }
     }
 
     private var listView: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textMuted)
+            HStack(spacing: 10) {
                 TextField("Tìm ứng dụng", text: $service.search)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
+                    .textFieldStyle(.roundedBorder)
                 Button("Tải lại") { service.loadApps() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textSecondary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
 
             ScrollView {
-                VStack(spacing: 2) {
+                // Lazy: the machine this was measured on lists 180 apps, each
+                // row carrying a real bundle icon. Building them all up front
+                // was pure cost for the eight that fit on screen.
+                LazyVStack(spacing: 2) {
                     ForEach(service.filteredApps) { app in
                         appRow(app)
                     }
@@ -95,7 +66,7 @@ struct UninstallTab: View {
             }
 
             if !service.log.isEmpty {
-                LogView(lines: service.log).frame(height: 110)
+                LogPane(lines: service.log).frame(height: 110)
             }
         }
     }
@@ -108,105 +79,80 @@ struct UninstallTab: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Text(app.name)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.textPrimary)
+                        .font(.callout)
                     if app.isAppleApp {
                         Text("hệ thống")
-                            .font(.system(size: 9))
-                            .foregroundStyle(Theme.heatLight)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.warning)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
-                            .background(Capsule().fill(Theme.heatDeep))
+                            .background(Theme.warning.opacity(0.15), in: Capsule())
                     }
                 }
                 Text(app.bundleId)
-                    .font(.system(size: 9.5, design: .monospaced))
-                    .foregroundStyle(Theme.textMuted)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(app.sizeBytes.map { ByteFormatter.string($0) } ?? "—")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textSecondary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 .monospacedDigit()
-                .frame(width: 74, alignment: .trailing)
+                .frame(width: 76, alignment: .trailing)
 
-            Button {
-                service.reveal(app)
-            } label: {
-                Image(systemName: "folder")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Theme.card))
-            }
-            .buttonStyle(.plain)
-            .help("Hiện trong Finder")
+            RevealButton { service.reveal(app) }
 
-            Button {
+            Button("Gỡ", role: .destructive) {
                 service.preview(app)
                 pendingApp = app
-            } label: {
-                Text("Gỡ")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.dangerLight)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Theme.dangerDeep))
             }
-            .buttonStyle(.plain)
+            .controlSize(.small)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
+        .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
     }
 
     private func confirmSheet(_ app: InstalledApp) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                AppIconView(path: app.path).frame(width: 34, height: 34)
+                AppIconView(path: app.path).frame(width: 36, height: 36)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Gỡ \(app.name)?")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Theme.textPrimary)
+                        .font(.headline)
                     Text(app.path)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(Theme.textMuted)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 Spacer()
             }
 
             if app.isAppleApp {
-                HStack(spacing: 7) {
-                    Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.heat)
-                    Text("Đây là ứng dụng hệ thống của Apple. Gỡ có thể ảnh hưởng tới macOS.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.heatLight)
-                }
-                .padding(9)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Theme.heatDeep))
+                NoticeBanner(
+                    message: "Đây là ứng dụng hệ thống của Apple. Gỡ có thể ảnh hưởng tới macOS."
+                )
             }
 
-            Text("Những gì sẽ bị xóa (xem trước)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Theme.textSecondary)
+            SectionHeading(text: "Những gì sẽ bị xóa (xem trước)")
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: 2) {
                     if service.previewLines.isEmpty {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
                             Text("Đang xem trước…")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.textMuted)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
                     } else {
                         ForEach(Array(service.previewLines.enumerated()), id: \.offset) { _, line in
                             Text(line)
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Theme.textSecondary)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -214,39 +160,27 @@ struct UninstallTab: View {
                 .padding(9)
             }
             .frame(height: 220)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.35)))
+            .background(
+                Theme.sunkenBackground,
+                in: RoundedRectangle(cornerRadius: Theme.controlRadius)
+            )
 
             HStack {
                 Text("Nora chuyển app vào Thùng rác, có thể khôi phục.")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textMuted)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
-                Button("Huỷ") { pendingApp = nil }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(Theme.card))
-
-                Button {
+                Button("Huỷ", role: .cancel) { pendingApp = nil }
+                Button("Gỡ \(app.name)", role: .destructive) {
                     let target = app
                     pendingApp = nil
                     service.uninstall(target)
-                } label: {
-                    Text("Gỡ \(app.name)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.danger))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderedProminent)
             }
         }
         .padding(18)
         .frame(width: 560)
-        .background(Theme.void)
     }
 }
 
@@ -255,18 +189,28 @@ struct AppIconView: View {
     let path: String
 
     /// `icon(forFile:)` hits the icon services daemon; uncached it ran per row
-    /// per keystroke while filtering the list.
-    private static let cache = NSCache<NSString, NSImage>()
+    /// per keystroke while filtering the list. Bounded, so a long session
+    /// browsing a large /Applications cannot pin every icon it ever drew.
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 120
+        return cache
+    }()
 
     var body: some View {
         Image(nsImage: Self.icon(for: path))
             .resizable()
             .interpolation(.high)
+            .accessibilityHidden(true)
     }
 
     private static func icon(for path: String) -> NSImage {
         if let hit = cache.object(forKey: path as NSString) { return hit }
         let icon = NSWorkspace.shared.icon(forFile: path)
+        // The daemon hands back a multi-representation image sized for Finder's
+        // largest thumbnail; these rows draw it at 26pt. Keeping the full set
+        // pinned a few megabytes per screenful of apps for nothing.
+        icon.size = NSSize(width: 64, height: 64)
         cache.setObject(icon, forKey: path as NSString)
         return icon
     }

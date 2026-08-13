@@ -30,6 +30,17 @@ final class ProcessMemoryService: ObservableObject {
         refresh()
     }
 
+    /// Drop the grouped list when the view that wanted it goes away.
+    ///
+    /// A full `ps -A` on a busy machine is several hundred entries, each with a
+    /// name string, and the panel that displays it is closed far more of the
+    /// time than it is open. Holding the last sample for a viewer that no longer
+    /// exists is pure resident memory.
+    func discard() {
+        apps = []
+        sampledAt = nil
+    }
+
     func refresh() {
         guard !isLoading else { return }
         guard let ps = ProcessRunner.which("ps") else { return }

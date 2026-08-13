@@ -127,7 +127,7 @@ final class StatusItemController: NSObject, @unchecked Sendable {
 
         let centre = CGPoint(x: side / 2, y: side / 2)
 
-        // Orbit: a flattened ellipse, tilted, echoing the popover's starfield.
+        // Orbit: a flattened ellipse, tilted — Nora's mark.
         context.saveGState()
         context.translateBy(x: centre.x, y: centre.y)
         context.rotate(by: -.pi / 7)
@@ -216,19 +216,7 @@ final class StatusItemController: NSObject, @unchecked Sendable {
     }
 
     /// This process's resident size, in MB.
-    static func residentMB() -> Int {
-        var info = mach_task_basic_info()
-        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)
-            / mach_msg_type_number_t(MemoryLayout<natural_t>.size)
-        let result = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
-            }
-        }
-        guard result == KERN_SUCCESS else { return -1 }
-        return Int(info.resident_size / 1024 / 1024)
-    }
-
+    static func residentMB() -> Int { MemoryRelief.residentMB() }
 }
 
 extension StatusItemController: NSPopoverDelegate {
@@ -242,5 +230,9 @@ extension StatusItemController: NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         popover?.contentViewController = nil
         popover = nil
+        // Every open builds a fresh view tree and its backing store; hand the
+        // pages back rather than accumulating a high-water mark across a day of
+        // glancing at the menubar.
+        MemoryRelief.release()
     }
 }

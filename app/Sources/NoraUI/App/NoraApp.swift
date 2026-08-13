@@ -50,6 +50,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StatusItemController.shared.cycleForTest()
             }
 
+            // `--popovershot=<path>[:<metric>]` renders the popover offscreen
+            // and quits, the same way `--snapshot` does for the window.
+            if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--popovershot=") }) {
+                let spec = arg.replacingOccurrences(of: "--popovershot=", with: "")
+                let parts = spec.split(separator: ":", maxSplits: 1).map(String.init)
+                let metric = parts.count > 1 ? Metric(rawValue: parts[1]) : nil
+
+                let timer = Timer(timeInterval: 6, repeats: false) { _ in
+                    LayoutSnapshot.renderPopover(to: parts[0], metric: metric)
+                    NSApp.terminate(nil)
+                }
+                RunLoop.main.add(timer, forMode: .common)
+            }
+
             // `--snapshot=<path>[:<tab>]` renders the window offscreen and
             // quits. Give the collector a moment first, so the shot shows real
             // numbers rather than every card in its placeholder state.

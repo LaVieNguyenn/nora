@@ -39,7 +39,9 @@ final class MainWindowPresenter: NSObject {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.backgroundColor = NSColor(Theme.void)
+        // No background override: the split view's sidebar draws the system's
+        // translucent material, and painting an opaque colour behind it is what
+        // made the window look like a foreign app in light mode.
         window.isReleasedWhenClosed = false
         window.center()
         window.delegate = self
@@ -55,5 +57,13 @@ extension MainWindowPresenter: NSWindowDelegate {
         // Drop the reference so the next open builds a fresh view tree rather
         // than resurrecting one whose observers were torn down.
         window = nil
+
+        // The window's backing stores are the single largest allocation this
+        // process makes — 32 MB of IOSurface for a 1020×700 window on a Retina
+        // display. Releasing the view tree is what lets them go, and the
+        // cleanup ledger below is the largest thing on the heap that a closed
+        // window has no reader for.
+        AppState.shared.cleanup.discardIfSettled()
+        MemoryRelief.release()
     }
 }

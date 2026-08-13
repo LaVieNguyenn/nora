@@ -9,8 +9,16 @@ struct OverviewTab: View {
 
     private var snapshot: StatusSnapshot? { stream.snapshot }
 
+    private var readouts: [MetricReadout] {
+        MetricReadout.all(
+            snapshot: snapshot,
+            cpuHistory: stream.cpuHistory,
+            ramHistory: stream.ramHistory
+        )
+    }
+
     var body: some View {
-        TabScaffold(title: "Tổng quan", subtitle: hardwareLine) {
+        Page(title: "Tổng quan", subtitle: hardwareLine) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     headline
@@ -24,6 +32,7 @@ struct OverviewTab: View {
             }
         }
         .onAppear { processMemory.refreshIfStale() }
+        .onDisappear { processMemory.discard() }
     }
 
     private var hardwareLine: String {
@@ -35,87 +44,69 @@ struct OverviewTab: View {
 
     // MARK: - Headline
 
-    /// Score plus the four live metrics, on one row.
-    ///
-    /// The ring was 168pt of mostly empty space next to a grid that pushed its
-    /// fourth card onto a line of its own — so the one comparison the row
-    /// exists for, four metrics side by side, was the thing it broke.
+    /// The health score beside the live metrics, on one row.
     private var headline: some View {
         HStack(alignment: .top, spacing: 14) {
             healthCard
 
             // Four fixed columns, not an adaptive grid: adaptive dropped the
-            // fourth card onto a row of its own as soon as the window narrowed,
-            // and a row of three metrics beside one stranded card is exactly
-            // the comparison this strip exists to prevent.
+            // fourth tile onto a row of its own as soon as the window narrowed,
+            // and a row of three metrics beside one stranded tile is exactly the
+            // comparison this strip exists to prevent.
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
                 spacing: 10
             ) {
-                MetricCard(
-                    title: "CPU",
-                    value: "\(Int((snapshot?.cpu?.usage ?? 0).rounded()))%",
-                    accent: Theme.cpu,
-                    footnote: snapshot?.cpu?.load1.map { String(format: "tải %.2f", $0) },
-                    sparkline: stream.cpuHistory
-                )
-                MetricCard(
-                    title: "Bộ nhớ",
-                    value: memoryText,
-                    accent: Theme.ram,
-                    footnote: memoryFootnote,
-                    sparkline: stream.ramHistory
-                )
-                MetricCard(
-                    title: "Ổ đĩa",
-                    value: diskText,
-                    accent: Theme.disk,
-                    footnote: diskFootnote,
-                    progress: (snapshot?.primaryDisk?.usedPercent ?? 0) / 100
-                )
-                MetricCard(
-                    title: "Mạng",
-                    value: "↓ " + RateFormatter.string(snapshot?.networkRates.down ?? 0),
-                    accent: Theme.net,
-                    footnote: "↑ " + RateFormatter.string(snapshot?.networkRates.up ?? 0)
-                )
+                ForEach(readouts.prefix(4)) { readout in
+                    // Only CPU gets the trend line, matching the popover rows.
+                    // Memory barely moves minute to minute, so its series drew
+                    // as a filled slab that carried no information; a meter
+                    // says "how full" directly, which is the useful question.
+                    let trend = readout.metric == .cpu ? readout.series : []
+                    StatTile(
+                        metric: readout.metric,
+                        value: readout.value,
+                        caption: readout.caption,
+                        series: trend,
+                        progress: trend.isEmpty ? readout.fraction : nil
+                    )
+                }
             }
-            // Without this the grid takes its ideal width and leaves the right
-            // side of the row empty while its own cards truncate.
             .frame(maxWidth: .infinity)
         }
     }
 
     private var healthCard: some View {
-        VStack(spacing: 7) {
-            Text("SỨC KHỎE MÁY")
-                .font(.system(size: 9, weight: .medium))
-                .tracking(0.5)
-                .foregroundStyle(Theme.textSecondary)
+        VStack(spacing: 8) {
+            SectionHeading(text: "Sức khỏe máy")
 
             ZStack {
-                Circle().stroke(Theme.hairline, lineWidth: 7)
+                Circle()
+                    .stroke(Theme.separator, lineWidth: 8)
                 Circle()
                     .trim(from: 0, to: CGFloat(snapshot?.healthScore ?? 0) / 100)
-                    .stroke(healthColor, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                    .stroke(healthTint, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.5), value: snapshot?.healthScore)
 
                 VStack(spacing: 0) {
                     Text(snapshot?.healthScore.map(String.init) ?? "—")
-                        .font(.system(size: 30, weight: .medium))
-                        .foregroundStyle(Theme.textPrimary)
+                        .font(.system(size: 32, weight: .medium, design: .rounded))
+                        .monospacedDigit()
                     Text(snapshot?.healthScoreMsg ?? "")
-                        .font(.system(size: 9))
-                        .foregroundStyle(healthColor)
+                        .font(.caption2)
+                        .foregroundStyle(healthTint)
                 }
             }
             .frame(width: 112, height: 112)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Sức khỏe máy")
+            .accessibilityValue("\(snapshot?.healthScore ?? 0) trên 100")
 
             if let uptime = snapshot?.uptime, !uptime.isEmpty {
                 Text("bật \(uptime) · \(snapshot?.procs ?? 0) tiến trình")
-                    .font(.system(size: 9))
-                    .foregroundStyle(Theme.textMuted)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -124,67 +115,56 @@ struct OverviewTab: View {
         .padding(.top, 2)
     }
 
-    private var healthColor: Color {
+    private var healthTint: Color {
         switch snapshot?.healthScore ?? 0 {
-        case 80...: return Theme.good
-        case 55..<80: return Theme.heat
+        case 80...: return Theme.success
+        case 55..<80: return Theme.warning
         case 1..<55: return Theme.danger
-        default: return Theme.textMuted
+        default: return Theme.tertiaryLabel
         }
     }
 
     // MARK: - Breakdown
 
-    /// Per-core load and the memory split — what the headline cards can only
+    /// Per-core load and the memory split — what the headline tiles can only
     /// summarise into one number.
     private var breakdownRow: some View {
         HStack(alignment: .top, spacing: 14) {
-            Card(title: "Từng nhân CPU", trailing: coreSummary) {
+            SectionCard(title: "Từng nhân CPU", subtitle: coreSummary, systemImage: Metric.cpu.symbol) {
                 if let cores = snapshot?.cpu?.perCore, !cores.isEmpty {
                     LazyVGrid(
-                        columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 5),
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5),
                         spacing: 6
                     ) {
                         ForEach(Array(cores.enumerated()), id: \.offset) { index, usage in
                             VStack(spacing: 2) {
-                                Capsule()
-                                    .fill(Theme.hairline)
-                                    .frame(height: 5)
-                                    .overlay(alignment: .leading) {
-                                        GeometryReader { geo in
-                                            Capsule()
-                                                .fill(Theme.loadColor(usage))
-                                                .frame(width: geo.size.width
-                                                       * CGFloat(min(usage, 100) / 100))
-                                        }
-                                    }
-                                    .frame(height: 5)
+                                Meter(value: min(usage, 100) / 100, tint: Theme.loadTint(usage))
                                 Text("\(index + 1)")
                                     .font(.system(size: 8))
-                                    .foregroundStyle(Theme.textMuted)
+                                    .foregroundStyle(.tertiary)
                             }
                         }
                     }
                 } else {
                     Text("Chưa có dữ liệu")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.textMuted)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            Card(title: "Bộ nhớ", trailing: pressureLabel) {
-                VStack(alignment: .leading, spacing: 8) {
+            SectionCard(title: "Bộ nhớ", subtitle: pressureLabel, systemImage: Metric.memory.symbol) {
+                VStack(alignment: .leading, spacing: 10) {
                     memoryBar
-                    HStack(spacing: 14) {
-                        legend("Đang dùng", Theme.ram, bytes(snapshot?.memory?.used))
-                        legend("Cache", Theme.ramLight.opacity(0.55), bytes(snapshot?.memory?.cached))
-                        legend("Trống", Theme.hairline, bytes(snapshot?.memory?.available))
+                    HStack(spacing: 16) {
+                        legend("Đang dùng", Metric.memory.tint, bytes(snapshot?.memory?.used))
+                        legend("Cache", Metric.memory.tint.opacity(0.45), bytes(snapshot?.memory?.cached))
+                        legend("Trống", Theme.separator, bytes(snapshot?.memory?.available))
                     }
                     if let swap = snapshot?.memory?.swapUsed, swap > 0 {
                         Text("Swap \(ByteFormatter.string(swap)) — RAM đang thiếu nên macOS "
                              + "phải đẩy bớt ra ổ đĩa.")
-                            .font(.system(size: 9.5))
-                            .foregroundStyle(Theme.heatLight)
+                            .font(.caption)
+                            .foregroundStyle(Theme.warning)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -193,6 +173,9 @@ struct OverviewTab: View {
     }
 
     /// Stacked bar: used, then cache, then free.
+    ///
+    /// The one place a `GeometryReader` earns its keep — three segments have to
+    /// share one width, which no stock control expresses.
     private var memoryBar: some View {
         let total = Double(snapshot?.memory?.total ?? 1)
         let used = min(Double(snapshot?.memory?.used ?? 0) / total, 1)
@@ -200,26 +183,27 @@ struct OverviewTab: View {
 
         return GeometryReader { geo in
             HStack(spacing: 1) {
-                Rectangle().fill(Theme.ram)
+                Rectangle().fill(Metric.memory.tint)
                     .frame(width: geo.size.width * CGFloat(used))
-                Rectangle().fill(Theme.ramLight.opacity(0.55))
+                Rectangle().fill(Metric.memory.tint.opacity(0.45))
                     .frame(width: geo.size.width * CGFloat(cached))
-                Rectangle().fill(Theme.hairline)
+                Rectangle().fill(Theme.separator)
             }
             .clipShape(Capsule())
         }
         .frame(height: 9)
+        .accessibilityHidden(true)
     }
 
     private func legend(_ label: String, _ color: Color, _ value: String) -> some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.system(size: 9)).foregroundStyle(Theme.textMuted)
-                Text(value).font(.system(size: 10)).foregroundStyle(Theme.textPrimary)
-                    .monospacedDigit()
+                Text(label).font(.caption2).foregroundStyle(.secondary)
+                Text(value).font(.caption).monospacedDigit()
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Processes
@@ -229,25 +213,25 @@ struct OverviewTab: View {
     /// the busiest process is routinely not the heaviest one.
     private var processRow: some View {
         HStack(alignment: .top, spacing: 14) {
-            Card(title: "Ngốn CPU nhất") {
+            SectionCard(title: "Ngốn CPU nhất", systemImage: "bolt") {
                 VStack(spacing: 0) {
                     ForEach((snapshot?.topProcesses ?? []).prefix(6)) { process in
                         HStack(spacing: 10) {
                             Text(process.name ?? "—")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.textPrimary)
+                                .font(.callout)
                                 .lineLimit(1)
+                                .truncationMode(.middle)
                             Spacer(minLength: 6)
                             if let memory = process.memoryBytes, memory > 0 {
                                 Text(ByteFormatter.string(memory))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(Theme.textMuted)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                     .monospacedDigit()
                             }
                             Text(String(format: "%.0f%%", process.cpu ?? 0))
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(Theme.loadColor(process.cpu ?? 0))
-                                .frame(width: 42, alignment: .trailing)
+                                .font(.callout.weight(.medium))
+                                .foregroundStyle(Theme.loadTint(process.cpu ?? 0))
+                                .frame(width: 44, alignment: .trailing)
                                 .monospacedDigit()
                         }
                         .padding(.vertical, 4)
@@ -255,56 +239,35 @@ struct OverviewTab: View {
 
                     if (snapshot?.topProcesses ?? []).isEmpty {
                         Text("Đang chờ dữ liệu…")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Theme.textMuted)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            Card(title: "Ngốn RAM nhất",
-                 trailing: processMemory.isLoading ? "đang đọc…" : "gộp theo app") {
+            SectionCard(
+                title: "Ngốn RAM nhất",
+                subtitle: processMemory.isLoading ? "đang đọc…" : "gộp theo app",
+                systemImage: Metric.memory.symbol
+            ) {
                 VStack(spacing: 0) {
                     let top = Array(processMemory.apps.prefix(6))
-                    let widest = top.first?.bytes ?? 1
+                    let widest = max(top.first?.bytes ?? 1, 1)
 
                     ForEach(top) { app in
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: 8) {
-                                Text(app.name)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .lineLimit(1)
-                                if app.processCount > 1 {
-                                    Text("\(app.processCount)")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(Theme.textMuted)
-                                }
-                                Spacer(minLength: 6)
-                                Text(ByteFormatter.string(app.bytes))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Theme.ramLight)
-                                    .monospacedDigit()
-                            }
-                            Capsule()
-                                .fill(Theme.hairline)
-                                .frame(height: 3)
-                                .overlay(alignment: .leading) {
-                                    GeometryReader { geo in
-                                        Capsule().fill(Theme.ram).frame(
-                                            width: geo.size.width
-                                                * CGFloat(Double(app.bytes) / Double(max(widest, 1)))
-                                        )
-                                    }
-                                }
-                                .frame(height: 3)
-                        }
-                        .padding(.vertical, 3)
+                        RankedBarRow(
+                            name: app.name,
+                            badge: app.processCount > 1 ? "\(app.processCount)" : nil,
+                            value: ByteFormatter.string(app.bytes),
+                            fraction: Double(app.bytes) / Double(widest),
+                            tint: Metric.memory.tint
+                        )
                     }
 
                     if top.isEmpty {
                         Text("Đang đọc danh sách tiến trình…")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Theme.textMuted)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -314,48 +277,40 @@ struct OverviewTab: View {
     // MARK: - Storage and devices
 
     private var storageCard: some View {
-        Card(title: "Ổ đĩa", trailing: diskIOLabel) {
+        SectionCard(title: "Ổ đĩa", subtitle: diskIOLabel, systemImage: Metric.disk.symbol) {
             VStack(spacing: 10) {
                 ForEach(snapshot?.disks ?? []) { disk in
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 6) {
                             Text(disk.mount ?? "—")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(Theme.textPrimary)
+                                .font(.callout.weight(.medium))
                             if let fs = disk.fstype, !fs.isEmpty {
                                 Text(fs)
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(Theme.textMuted)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
                             }
                             if disk.external == true {
                                 Text("gắn ngoài")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(Theme.diskLight)
+                                    .font(.caption2)
+                                    .foregroundStyle(Metric.disk.tint)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(Capsule().fill(Theme.diskDeep))
+                                    .background(Metric.disk.tint.opacity(0.15), in: Capsule())
                             }
                             Spacer()
                             Text("\(ByteFormatter.string((disk.total ?? 0) - (disk.used ?? 0))) trống")
-                                .font(.system(size: 10))
-                                .foregroundStyle(Theme.textMuted)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                             Text("\(Int((disk.usedPercent ?? 0).rounded()))%")
-                                .font(.system(size: 11))
-                                .foregroundStyle(diskColor(disk.usedPercent ?? 0))
+                                .font(.callout)
+                                .foregroundStyle(diskTint(disk.usedPercent ?? 0))
                                 .monospacedDigit()
                         }
-                        Capsule()
-                            .fill(Theme.hairline)
-                            .frame(height: 6)
-                            .overlay(alignment: .leading) {
-                                GeometryReader { geo in
-                                    Capsule()
-                                        .fill(diskColor(disk.usedPercent ?? 0))
-                                        .frame(width: geo.size.width
-                                               * CGFloat((disk.usedPercent ?? 0) / 100))
-                                }
-                            }
-                            .frame(height: 6)
+                        Meter(
+                            value: (disk.usedPercent ?? 0) / 100,
+                            tint: diskTint(disk.usedPercent ?? 0)
+                        )
                     }
                 }
             }
@@ -363,11 +318,11 @@ struct OverviewTab: View {
     }
 
     private var devicesCard: some View {
-        Card(title: "Pin thiết bị") {
+        SectionCard(title: "Pin thiết bị", systemImage: "battery.100") {
             if batteries.devices.isEmpty {
                 Text("Chưa thấy thiết bị nào có báo pin")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.textMuted)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 0) {
                     ForEach(batteries.devices) { device in
@@ -380,8 +335,8 @@ struct OverviewTab: View {
 
     // MARK: - Derived text
 
-    private func diskColor(_ percent: Double) -> Color {
-        percent >= 90 ? Theme.danger : (percent >= 75 ? Theme.heat : Theme.disk)
+    private func diskTint(_ percent: Double) -> Color {
+        percent >= 90 ? Theme.danger : (percent >= 75 ? Theme.warning : Metric.disk.tint)
     }
 
     private func bytes(_ value: Int64?) -> String {
@@ -407,112 +362,5 @@ struct OverviewTab: View {
         let read = RateFormatter.string((io.readRate ?? 0) / 1_000_000)
         let write = RateFormatter.string((io.writeRate ?? 0) / 1_000_000)
         return "đọc \(read) · ghi \(write)"
-    }
-
-    private var memoryText: String {
-        guard let used = snapshot?.memory?.used else { return "—" }
-        return String(format: "%.1f GB", Double(used) / 1_073_741_824)
-    }
-
-    private var memoryFootnote: String? {
-        guard let percent = snapshot?.memory?.usedPercent else { return nil }
-        // Swap deliberately left out: it did not fit here and was truncated
-        // mid-number ("swap 95…"), and the breakdown card below already calls
-        // it out in full, with the reason it matters.
-        return "\(Int(percent.rounded()))% đã dùng"
-    }
-
-    private var diskText: String {
-        guard let disk = snapshot?.primaryDisk, let used = disk.used else { return "—" }
-        return ByteFormatter.string(used)
-    }
-
-    private var diskFootnote: String? {
-        guard let disk = snapshot?.primaryDisk,
-              let total = disk.total, let used = disk.used else { return nil }
-        return "\(ByteFormatter.string(total - used)) trống"
-    }
-}
-
-struct MetricCard: View {
-    let title: String
-    let value: String
-    let accent: Color
-    var footnote: String?
-    var sparkline: [Double] = []
-    var progress: Double?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
-                Circle().fill(accent).frame(width: 7, height: 7)
-                Text(title)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            Text(value)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(Theme.textPrimary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.55)
-
-            if !sparkline.isEmpty {
-                SparklineView(values: sparkline, color: accent)
-                    .frame(height: 20)
-            } else if let progress {
-                Capsule()
-                    .fill(Theme.hairline)
-                    .frame(height: 5)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { geo in
-                            Capsule()
-                                .fill(accent)
-                                .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)))
-                        }
-                    }
-                    .frame(height: 5)
-            }
-
-            if let footnote {
-                Text(footnote)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textMuted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-        }
-        .padding(12)
-        // Reserve the same height for every card: two of the four carry a
-        // sparkline and two do not, and top-aligning unequal cards left the
-        // row with a ragged bottom edge.
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card))
-    }
-}
-
-struct Card<Content: View>: View {
-    let title: String
-    var trailing: String?
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                if let trailing {
-                    Text(trailing)
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-            }
-            content()
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.panel))
     }
 }

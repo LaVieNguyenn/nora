@@ -199,25 +199,25 @@ final class AppState: ObservableObject {
 
     /// Whichever of CPU / memory / disk is running highest right now.
     var hottestMetric: (label: String, value: Double, color: Color) {
-        let candidates: [(String, Double, Color)] = [
-            ("CPU", stream.snapshot?.cpu?.usage ?? 0, Theme.cpu),
-            ("RAM", stream.snapshot?.memory?.usedPercent ?? 0, Theme.ram),
-            ("Đĩa", stream.snapshot?.primaryDisk?.usedPercent ?? 0, Theme.disk),
+        let candidates: [(Metric, Double)] = [
+            (.cpu, stream.snapshot?.cpu?.usage ?? 0),
+            (.memory, stream.snapshot?.memory?.usedPercent ?? 0),
+            (.disk, stream.snapshot?.primaryDisk?.usedPercent ?? 0),
         ]
         let top = candidates.max { $0.1 < $1.1 } ?? candidates[0]
-        return (top.0, top.1, top.2)
+        return (top.0.shortTitle, top.1, top.0.tint)
     }
 
-    /// Colour of the menubar dot: the hue of whatever is hottest, or red once
+    /// Colour of the menubar mark: the hue of whatever is hottest, or red once
     /// anything crosses into trouble.
     var menubarTint: Color {
         let hottest = hottestMetric
         if hottest.value >= 85 { return Theme.danger }
         switch settings.menubarMetric {
-        case .cpu: return Theme.cpu
-        case .memory: return Theme.ram
-        case .disk: return Theme.disk
-        case .temperature: return Theme.heat
+        case .cpu: return Metric.cpu.tint
+        case .memory: return Metric.memory.tint
+        case .disk: return Metric.disk.tint
+        case .temperature: return Metric.thermal.tint
         case .hottest: return hottest.color
         }
     }

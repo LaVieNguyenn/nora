@@ -1,108 +1,120 @@
 import SwiftUI
 
-/// The space palette. Each metric owns one hue and keeps it everywhere it
-/// appears — the CPU bubble, the CPU card, and the CPU dot in the cleanup list
-/// are all `Theme.cpu`, so colour alone identifies a metric.
+/// Nora's design tokens.
+///
+/// Every colour here resolves through an AppKit semantic colour, a SwiftUI
+/// material or a system palette colour rather than a fixed hex value. That is
+/// the whole point: the app then follows the system appearance, and light mode,
+/// Increase Contrast and a changed accent colour all work without a second
+/// hand-tuned palette to keep in sync.
 enum Theme {
-    static let void = Color(red: 0.043, green: 0.043, blue: 0.071)      // #0b0b12
-    static let panel = Color(red: 0.071, green: 0.071, blue: 0.106)     // #12121b
-    static let card = Color(red: 0.086, green: 0.086, blue: 0.133)      // #161622
-    static let hairline = Color(red: 0.133, green: 0.133, blue: 0.184)  // #22222f
-    static let border = Color(red: 0.169, green: 0.169, blue: 0.239)    // #2b2b3d
 
-    static let textPrimary = Color(red: 0.910, green: 0.910, blue: 0.941)
-    static let textSecondary = Color(red: 0.541, green: 0.541, blue: 0.647)
-    static let textMuted = Color(red: 0.431, green: 0.431, blue: 0.533)
+    // MARK: - Surfaces
 
-    static let cpu = Color(red: 0.498, green: 0.467, blue: 0.867)       // #7F77DD
-    static let cpuLight = Color(red: 0.686, green: 0.663, blue: 0.925)  // #AFA9EC
-    static let cpuDeep = Color(red: 0.165, green: 0.145, blue: 0.318)   // #2a2551
+    /// The ground every stock macOS window sits on.
+    static let windowBackground = Color(nsColor: .windowBackgroundColor)
 
-    static let ram = Color(red: 0.114, green: 0.620, blue: 0.459)       // #1D9E75
-    static let ramLight = Color(red: 0.365, green: 0.792, blue: 0.647)  // #5DCAA5
-    static let ramDeep = Color(red: 0.071, green: 0.227, blue: 0.188)   // #123a30
+    /// Raised surfaces: cards and grouped rows.
+    static let cardBackground = Color(nsColor: .controlBackgroundColor)
 
-    static let disk = Color(red: 0.216, green: 0.541, blue: 0.867)      // #378ADD
-    static let diskLight = Color(red: 0.522, green: 0.718, blue: 0.922) // #85B7EB
-    static let diskDeep = Color(red: 0.059, green: 0.188, blue: 0.329)  // #0f3054
+    /// Recessed surfaces: log panes and other read-only transcript areas.
+    static let sunkenBackground = Color(nsColor: .underPageBackgroundColor)
 
-    static let net = Color(red: 0.847, green: 0.353, blue: 0.188)       // #D85A30
-    static let netLight = Color(red: 0.941, green: 0.600, blue: 0.482)  // #F0997B
-    static let netDeep = Color(red: 0.290, green: 0.129, blue: 0.075)   // #4a2113
+    static let separator = Color(nsColor: .separatorColor)
 
-    static let heat = Color(red: 0.937, green: 0.624, blue: 0.153)      // #EF9F27
-    static let heatLight = Color(red: 0.980, green: 0.780, blue: 0.459) // #FAC775
-    static let heatDeep = Color(red: 0.239, green: 0.165, blue: 0.020)  // #3d2a05
+    /// The unfilled part of a meter. `separatorColor` is too faint to read as a
+    /// track once a bar sits on a card rather than on the window ground.
+    static let meterTrack = Color(nsColor: .quaternaryLabelColor)
 
-    static let good = Color(red: 0.592, green: 0.769, blue: 0.349)      // #97C459
-    static let goodDeep = Color(red: 0.102, green: 0.239, blue: 0.035)  // #1a3d09
+    // MARK: - Text
 
-    static let danger = Color(red: 0.886, green: 0.294, blue: 0.290)    // #E24B4A
-    static let dangerLight = Color(red: 0.941, green: 0.584, blue: 0.584)
-    static let dangerDeep = Color(red: 0.314, green: 0.075, blue: 0.075)
+    static let label = Color(nsColor: .labelColor)
+    static let secondaryLabel = Color(nsColor: .secondaryLabelColor)
+    static let tertiaryLabel = Color(nsColor: .tertiaryLabelColor)
 
-    static let accent = Color(red: 0.325, green: 0.290, blue: 0.718)    // #534AB7
+    // MARK: - Status
 
-    /// Colour ramp for a battery level: green above 50, amber to 20, red below.
-    static func batteryColor(_ percent: Int?) -> Color {
-        guard let p = percent else { return textMuted }
-        if p <= 20 { return danger }
-        if p <= 50 { return heat }
-        return good
-    }
+    static let danger = Color(nsColor: .systemRed)
+    static let warning = Color(nsColor: .systemOrange)
+    static let success = Color(nsColor: .systemGreen)
 
-    static func batteryDeep(_ percent: Int?) -> Color {
-        guard let p = percent else { return card }
-        if p <= 20 { return dangerDeep }
-        if p <= 50 { return heatDeep }
-        return goodDeep
-    }
+    // MARK: - Geometry
+
+    /// One radius for cards, one for the controls inside them. Two values, not
+    /// the eight different corner radii the previous design accumulated.
+    static let cardRadius: CGFloat = 10
+    static let controlRadius: CGFloat = 6
+
+    // MARK: - Ramps
 
     /// Colour for a load percentage: calm below 60, warm to 85, hot above.
-    static func loadColor(_ percent: Double) -> Color {
+    ///
+    /// The calm end is the *accent* colour, not a fixed purple — an idle
+    /// machine should look like the rest of the user's system, not like Nora.
+    static func loadTint(_ percent: Double) -> Color {
         if percent >= 85 { return danger }
-        if percent >= 60 { return heat }
-        return cpu
+        if percent >= 60 { return warning }
+        return Metric.cpu.tint
+    }
+
+    /// Colour ramp for a battery level: green above 50, amber to 20, red below.
+    static func batteryTint(_ percent: Int?) -> Color {
+        guard let percent else { return tertiaryLabel }
+        if percent <= 20 { return danger }
+        if percent <= 50 { return warning }
+        return success
     }
 }
 
-/// A single star in the popover backdrop. Positions are fractions of the
-/// container so the field scales with the popover instead of being clipped.
-struct Star: Identifiable {
-    let id: Int
-    let x: Double
-    let y: Double
-    let r: Double
-    let opacity: Double
-}
+/// The five things Nora measures.
+///
+/// One type, used by the menubar rows, the detail panel and the overview cards,
+/// so a metric's name, glyph and hue cannot drift apart between them.
+enum Metric: String, CaseIterable, Identifiable {
+    case cpu, memory, disk, network, thermal
 
-enum Starfield {
-    /// A fixed field — regenerating it every render would make the sky twinkle
-    /// at frame rate, which reads as noise rather than space.
-    static let stars: [Star] = {
-        var generator = SeededGenerator(seed: 0x5EED_1234)
-        return (0..<26).map { i in
-            Star(
-                id: i,
-                x: Double.random(in: 0.02...0.98, using: &generator),
-                y: Double.random(in: 0.03...0.97, using: &generator),
-                r: Double.random(in: 0.6...1.5, using: &generator),
-                opacity: Double.random(in: 0.25...0.75, using: &generator)
-            )
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .cpu: return "CPU"
+        case .memory: return "Bộ nhớ"
+        case .disk: return "Ổ đĩa"
+        case .network: return "Mạng"
+        case .thermal: return "Nhiệt độ"
         }
-    }()
-}
+    }
 
-/// Deterministic RNG so the starfield is identical on every launch.
-struct SeededGenerator: RandomNumberGenerator {
-    private var state: UInt64
+    /// The short form the compact menubar rows use, where the column is narrow.
+    var shortTitle: String {
+        switch self {
+        case .cpu: return "CPU"
+        case .memory: return "RAM"
+        case .disk: return "Ổ đĩa"
+        case .network: return "Mạng"
+        case .thermal: return "Nhiệt"
+        }
+    }
 
-    init(seed: UInt64) { state = seed }
+    var symbol: String {
+        switch self {
+        case .cpu: return "cpu"
+        case .memory: return "memorychip"
+        case .disk: return "internaldrive"
+        case .network: return "network"
+        case .thermal: return "thermometer.medium"
+        }
+    }
 
-    mutating func next() -> UInt64 {
-        state ^= state << 13
-        state ^= state >> 7
-        state ^= state << 17
-        return state
+    /// System palette colours, so each hue tracks the system appearance and the
+    /// accessibility contrast settings instead of being frozen at one value.
+    var tint: Color {
+        switch self {
+        case .cpu: return Color(nsColor: .systemPurple)
+        case .memory: return Color(nsColor: .systemGreen)
+        case .disk: return Color(nsColor: .systemBlue)
+        case .network: return Color(nsColor: .systemOrange)
+        case .thermal: return Color(nsColor: .systemYellow)
+        }
     }
 }

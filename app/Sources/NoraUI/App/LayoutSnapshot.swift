@@ -11,6 +11,15 @@ enum LayoutSnapshot {
     static func render(to path: String, tab: MainTab, size: NSSize) {
         AppState.shared.selectedTab = tab
 
+        // `NORA_CLEANUP_LEDGER=1` populates the cleanup tab from the ledger a
+        // previous scan left on disk, so its full list — the densest screen in
+        // the app — can be laid out and measured without waiting minutes for a
+        // real scan.
+        if tab == .cleanup,
+           Foundation.ProcessInfo.processInfo.environment["NORA_CLEANUP_LEDGER"] == "1" {
+            AppState.shared.cleanup.loadCachedLedger()
+        }
+
         let root = MainWindow()
             .environmentObject(AppState.shared)
             .environmentObject(AppState.shared.stream)
@@ -18,6 +27,51 @@ enum LayoutSnapshot {
             .environmentObject(AppState.shared.settings)
             .environmentObject(AppState.shared.cleanup)
 
+        capture(AnyView(root), to: path, size: size)
+    }
+
+    /// The popover is the surface the app is used through, and until this
+    /// existed it was the one surface that could not be checked here at all —
+    /// `render` only ever built the main window.
+    ///
+    /// The metric names which detail panel to open, so the panels get exercised
+    /// too; `nil` shows the bare metric list.
+    static func renderPopover(to path: String, metric: Metric?) {
+        let root = MenuBarPopover()
+            .environmentObject(AppState.shared)
+            .environmentObject(AppState.shared.stream)
+            .environmentObject(AppState.shared.batteries)
+            .environmentObject(AppState.shared.settings)
+
+        if let metric {
+            setenv("NORA_POPOVER_OPEN", metric.rawValue, 1)
+        }
+
+        // The popover paints no background of its own — on screen `NSPopover`
+        // draws the system material behind it. Offscreen there is nothing
+        // there, so the capture came out as dark-appearance text on the
+        // bitmap's blank white, i.e. invisible. The backdrop exists only for
+        // this capture; nothing in the popover itself draws it.
+        let backed = ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            root
+        }
+
+        // The popover sizes itself; give it its fixed width and let the height
+        // come from the content, the same way `NSPopover` does.
+        let hosting = NSHostingView(rootView: AnyView(root))
+        hosting.frame = NSRect(x: 0, y: 0, width: 330, height: 2000)
+        hosting.layoutSubtreeIfNeeded()
+        let fitted = hosting.fittingSize
+
+        capture(
+            AnyView(backed),
+            to: path,
+            size: NSSize(width: 330, height: max(fitted.height, 320))
+        )
+    }
+
+    private static func capture(_ root: AnyView, to path: String, size: NSSize) {
         let hosting = NSHostingView(rootView: root)
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.layoutSubtreeIfNeeded()

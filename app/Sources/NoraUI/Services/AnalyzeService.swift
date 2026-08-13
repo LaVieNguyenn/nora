@@ -49,6 +49,13 @@ final class AnalyzeService: ObservableObject {
     /// Every directory visited, so the breadcrumb can walk back up.
     @Published private(set) var trail: [String] = []
 
+    /// The directory entries, largest first.
+    ///
+    /// Sorted once when a result lands rather than inside the view body: the
+    /// body re-evaluates on every hover, and re-sorting a home directory's
+    /// entry list per mouse move showed up as a stutter on the row highlight.
+    @Published private(set) var sortedEntries: [AnalyzeResult.Entry] = []
+
     private var currentTask: Task<Void, Never>?
 
     var currentPath: String? { trail.last }
@@ -97,6 +104,11 @@ final class AnalyzeService: ObservableObject {
                     return
                 }
                 self.result = decoded
+                self.sortedEntries = (decoded.entries ?? []).sorted { $0.size > $1.size }
+                // A cold scan of a home directory decodes tens of thousands of
+                // entries and throws most of them away; hand the pages back
+                // rather than sitting on them until the next scan.
+                MemoryRelief.release()
             }
         }
     }
@@ -108,7 +120,17 @@ final class AnalyzeService: ObservableObject {
     func reset() {
         trail = []
         result = nil
+        sortedEntries = []
         error = nil
+    }
+
+    /// Release the decoded tree when the tab goes away.
+    func discard() {
+        currentTask?.cancel()
+        currentTask = nil
+        reset()
+        isScanning = false
+        MemoryRelief.release()
     }
 
     func reveal(_ path: String) {

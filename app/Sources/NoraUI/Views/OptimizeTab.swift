@@ -5,7 +5,7 @@ struct OptimizeTab: View {
     @State private var confirming = false
 
     var body: some View {
-        TabScaffold(title: "Tối ưu", subtitle: subtitle) {
+        Page(title: "Tối ưu", subtitle: subtitle) {
             VStack(spacing: 0) {
                 if service.log.isEmpty {
                     taskList
@@ -37,21 +37,24 @@ struct OptimizeTab: View {
 
     private var taskList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            LazyVStack(alignment: .leading, spacing: 12) {
                 Text("""
                 Tối ưu không làm máy nhanh hơn một cách kỳ diệu — nó sửa những thứ \
                 hỏng vặt và nén những thứ phình to.
                 """)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textSecondary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 2)
 
                 ForEach(OptimizeTask.grouped, id: \.0) { group, tasks in
-                    Card(title: group.label, trailing: "\(tasks.count) tác vụ") {
+                    SectionCard(
+                        title: group.label,
+                        subtitle: "\(tasks.count) tác vụ",
+                        systemImage: group.symbol
+                    ) {
                         VStack(spacing: 0) {
                             ForEach(tasks) { task in
-                                taskRow(task, symbol: group.symbol)
+                                taskRow(task)
                             }
                         }
                     }
@@ -62,36 +65,29 @@ struct OptimizeTab: View {
         }
     }
 
-    private func taskRow(_ task: OptimizeTask, symbol: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.cpu)
-                .frame(width: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(task.name)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Theme.textPrimary)
-                    if task.needsAdmin {
-                        Text("cần quyền admin")
-                            .font(.system(size: 9))
-                            .foregroundStyle(Theme.heatLight)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Capsule().fill(Theme.heatDeep))
-                    }
+    private func taskRow(_ task: OptimizeTask) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Text(task.name)
+                    .font(.callout)
+                if task.needsAdmin {
+                    Text("cần quyền admin")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.warning)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Theme.warning.opacity(0.15), in: Capsule())
                 }
-                Text(task.detail)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            Text(task.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 5)
+        .accessibilityElement(children: .combine)
     }
 
     private var runningView: some View {
@@ -100,56 +96,41 @@ struct OptimizeTab: View {
                 if service.isBusy {
                     ProgressView().controlSize(.small)
                 } else {
-                    Image(systemName: "checkmark.circle").foregroundStyle(Theme.good)
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.success)
                 }
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textPrimary)
+                Text(subtitle).font(.callout)
                 Spacer()
             }
-            LogView(lines: service.log)
+            LogPane(lines: service.log)
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 12)
     }
 
     private var actionBar: some View {
-        VStack(spacing: 0) {
-            Divider().overlay(Theme.hairline)
-            HStack(spacing: 10) {
-                Text(service.phase == .idle
-                     ? "Xem trước chạy `nora optimize --dry-run`, không thay đổi gì."
-                     : "Nhật ký được lưu vào lịch sử của Nora.")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textMuted)
+        ActionBar {
+            Text(service.phase == .idle
+                 ? "Xem trước chạy `nora optimize --dry-run`, không thay đổi gì."
+                 : "Nhật ký được lưu vào lịch sử của Nora.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                Spacer()
+            Spacer()
 
-                if service.isBusy {
-                    Button("Dừng") { service.cancel() }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.dangerLight)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.dangerDeep))
-                } else {
-                    Button("Xem trước") { service.run(dryRun: true) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.textSecondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.card))
-
-                    AccentButton(title: "Chạy tối ưu", symbol: "slider.horizontal.3") {
-                        confirming = true
-                    }
+            if service.isBusy {
+                Button("Dừng", role: .destructive) { service.cancel() }
+            } else {
+                if !service.log.isEmpty {
+                    Button("Xoá nhật ký") { service.clearLog() }
                 }
+                Button("Xem trước") { service.run(dryRun: true) }
+                Button {
+                    confirming = true
+                } label: {
+                    Label("Chạy tối ưu", systemImage: "slider.horizontal.3")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 12)
-            .background(Theme.panel)
         }
     }
 }

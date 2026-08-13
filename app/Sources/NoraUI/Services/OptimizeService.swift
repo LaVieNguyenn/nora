@@ -233,11 +233,24 @@ final class OptimizeService: ObservableObject {
                 ? (preview ? "Xem trước xong — chưa thay đổi gì" : "Tối ưu xong")
                 : "Kết thúc với mã lỗi \(exitCode)"
         )
+        MemoryRelief.release()
+    }
+
+    /// Put the tab back on the task list.
+    ///
+    /// The log is what the view switches on, so without a way to clear it a
+    /// finished run left the catalogue unreachable until the app restarted —
+    /// and kept its lines resident for just as long.
+    func clearLog() {
+        guard !isBusy else { return }
+        log = []
+        phase = .idle
+        MemoryRelief.release()
     }
 
     private func append(_ level: LogLine.Level, _ message: String, detail: String? = nil) {
         log.append(LogLine(time: Date(), level: level, message: message, detail: detail))
-        if log.count > 2000 { log.removeFirst(log.count - 2000) }
+        LogLine.trim(&log)
     }
 
     var logText: String {

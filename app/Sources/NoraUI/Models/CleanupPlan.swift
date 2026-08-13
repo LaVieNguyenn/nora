@@ -154,4 +154,18 @@ struct LogLine: Identifiable {
     }()
 
     var timeText: String { Self.timeFormatter.string(from: time) }
+
+    /// Longest tail any log keeps.
+    static let historyLimit = 800
+
+    /// Bound a log in place.
+    ///
+    /// Trimmed in one batch when it overshoots, not on every append: a clean
+    /// appends one line per item, and `removeFirst(1)` per append past the cap
+    /// shifts the whole array each time — quadratic over a run of a few thousand
+    /// items, which is exactly when the log is longest.
+    static func trim(_ log: inout [LogLine]) {
+        guard log.count > historyLimit + 200 else { return }
+        log.removeFirst(log.count - historyLimit)
+    }
 }

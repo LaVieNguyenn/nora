@@ -47,11 +47,25 @@ final class CleanupService: ObservableObject {
     /// half a dozen O(n) filters.
     @Published private(set) var selectedCount = 0
     @Published private(set) var selectedBytesCached: Int64 = 0
+    /// Total item count across every group, cached for the same reason: the
+    /// subtitle asked for it on every body evaluation and paid a `flatMap` over
+    /// the whole ledger to get it.
+    @Published private(set) var itemCount = 0
 
     private func recalcSelection() {
-        let items = selectedItems
-        selectedCount = items.count
-        selectedBytesCached = items.compactMap(\.sizeBytes).reduce(0, +)
+        var count = 0
+        var bytes: Int64 = 0
+        // One pass over the groups rather than materialising `selectedItems`:
+        // that built a fresh ~3300-element array on every checkbox click, and
+        // during a clean it ran once per processed item.
+        for group in groups {
+            for item in group.items where selection.contains(item.id) {
+                count += 1
+                bytes += item.sizeBytes ?? 0
+            }
+        }
+        selectedCount = count
+        selectedBytesCached = bytes
     }
 
     // MARK: - Scan
@@ -110,6 +124,21 @@ final class CleanupService: ObservableObject {
         }
     }
 
+    /// Load the ledger a previous `nora clean --dry-run` already wrote, without
+    /// running one.
+    ///
+    /// Diagnostics only — `NORA_CLEANUP_LEDGER=1`. A real scan takes minutes,
+    /// so without this the tab's populated state, which is the one with a few
+    /// thousand rows in it, could be neither laid out nor measured offscreen.
+    /// It is deliberately not wired to any button: the ledger on disk is as old
+    /// as the last scan, and showing stale paths as if they were current is how
+    /// a cleanup tool deletes something that moved.
+    func loadCachedLedger() {
+        guard phase == .idle else { return }
+        phase = .scanning
+        finishScan()
+    }
+
     func cancelScan() {
         scanProcess?.terminate()
         scanPipe?.fileHandleForReading.readabilityHandler = nil
@@ -142,35 +171,38 @@ final class CleanupService: ObservableObject {
 
         let parsed = CleanupLedgerParser.parse(text)
         groups = parsed
+        itemCount = parsed.reduce(0) { $0 + $1.items.count }
         lastScanDate = Date()
 
         // Pre-tick only the regenerable groups; everything else waits for a
         // deliberate choice.
-        selection = Set(
-            parsed.filter(\.isSafeByDefault).flatMap(\.items).map(\.id)
-        )
+        var preselected: Set<UUID> = []
+        for group in parsed where group.isSafeByDefault {
+            for item in group.items { preselected.insert(item.id) }
+        }
+        selection = preselected
         recalcSelection()
 
         phase = parsed.isEmpty ? .idle : .ready
         scanProgress = ""
         appendLog(
             .done,
-            "Quét xong: \(parsed.count) nhóm, \(parsed.reduce(0) { $0 + $1.items.count }) mục",
-            detail: ByteFormatter.string(selectedBytes) + " đang được chọn"
+            "Quét xong: \(parsed.count) nhóm, \(itemCount) mục",
+            detail: ByteFormatter.string(selectedBytesCached) + " đang được chọn"
         )
+        // The parse walked the whole ledger and built a lot of short-lived
+        // strings on the way to the item list that survives.
+        MemoryRelief.release()
     }
 
     // MARK: - Selection
 
-    var allItems: [CleanupItem] { groups.flatMap(\.items) }
-
-    var selectedItems: [CleanupItem] { allItems.filter { selection.contains($0.id) } }
-
-    var selectedBytes: Int64 {
-        selectedItems.compactMap(\.sizeBytes).reduce(0, +)
+    /// The ticked items, built on demand. Only `performClean` needs the array —
+    /// the counts and totals the UI shows come from `recalcSelection`, which
+    /// keeps them cached.
+    private var selectedItems: [CleanupItem] {
+        groups.flatMap { $0.items.filter { selection.contains($0.id) } }
     }
-
-    var totalBytes: Int64 { allItems.compactMap(\.sizeBytes).reduce(0, +) }
 
     func toggle(_ item: CleanupItem) {
         if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) }
@@ -178,19 +210,24 @@ final class CleanupService: ObservableObject {
     }
 
     func toggle(group: CleanupGroup) {
-        let ids = Set(group.items.map(\.id))
-        if ids.isSubset(of: selection) {
-            selection.subtract(ids)
+        if selectionState(of: group).checked {
+            for item in group.items { selection.remove(item.id) }
         } else {
-            selection.formUnion(ids)
+            for item in group.items { selection.insert(item.id) }
         }
         recalcSelection()
     }
 
+    /// Whether a group is fully, partly or not selected.
+    ///
+    /// Counted in place rather than through `Set(group.items.map(\.id))`: the
+    /// group headers are pinned, so this runs on every scroll frame, and the
+    /// largest group on this machine holds 611 items — a fresh set of 611 UUIDs
+    /// per frame, per header, to answer a question about a checkbox.
     func selectionState(of group: CleanupGroup) -> (checked: Bool, partial: Bool) {
-        let ids = Set(group.items.map(\.id))
-        let hit = ids.intersection(selection).count
-        return (hit > 0, hit > 0 && hit < ids.count)
+        var hit = 0
+        for item in group.items where selection.contains(item.id) { hit += 1 }
+        return (hit > 0, hit > 0 && hit < group.items.count)
     }
 
     // MARK: - Clean
@@ -287,12 +324,33 @@ final class CleanupService: ObservableObject {
             "Hoàn tất — \(itemsProcessed) mục, \(ByteFormatter.string(bytesFreed))",
             detail: moveToTrash ? "Dung lượng được giải phóng khi bạn dọn Thùng rác" : nil
         )
+        MemoryRelief.release()
     }
 
     func reset() {
         phase = groups.isEmpty ? .idle : .ready
         bytesFreed = 0
         itemsProcessed = 0
+    }
+
+    /// Throw away a finished scan.
+    ///
+    /// This service is owned by `AppState`, so unlike the per-tab services its
+    /// results outlive the window they were shown in. A ledger is a few thousand
+    /// items plus a `Set<UUID>` of the ticked ones, held for the rest of the
+    /// process's life for a window nobody has open — so a run that has already
+    /// been acted on is dropped when the window closes. A scan still waiting for
+    /// the user's decision is kept.
+    func discardIfSettled() {
+        guard phase == .finished || phase == .idle else { return }
+        guard !groups.isEmpty else { return }
+        groups = []
+        selection = []
+        log = []
+        itemCount = 0
+        phase = .idle
+        recalcSelection()
+        MemoryRelief.release()
     }
 
     // MARK: - Helpers
@@ -321,9 +379,7 @@ final class CleanupService: ObservableObject {
 
     private func appendLog(_ level: LogLine.Level, _ message: String, detail: String? = nil) {
         log.append(LogLine(time: Date(), level: level, message: message, detail: detail))
-        // A long run can emit thousands of lines; keep the tail bounded so the
-        // view does not accumulate rows forever.
-        if log.count > 2000 { log.removeFirst(log.count - 2000) }
+        LogLine.trim(&log)
     }
 
     /// Nora colours its terminal output; the codes are noise in a GUI log.

@@ -55,8 +55,8 @@ final class HistoryService: ObservableObject {
                 else { return }
                 // Every CLI invocation logs a session, including `uninstall
                 // --list`, which the app itself runs each time the tab opens.
-                // Those zero-operation rows outnumbered the real ones twelve
-                // to four on a live machine and buried them.
+                // Those zero-operation rows outnumbered the real ones twelve to
+                // four on a live machine and buried them.
                 let all = decoded.sessions ?? []
                 self.sessions = all.filter { ($0.operationCount ?? 0) > 0 || ($0.items ?? 0) > 0 }
                 self.hiddenCount = all.count - self.sessions.count
@@ -70,23 +70,30 @@ struct HistoryTab: View {
     @StateObject private var service = HistoryService()
 
     var body: some View {
-        TabScaffold(title: "Lịch sử", subtitle: "Các phiên chạy gần đây của Nora") {
+        Page(title: "Lịch sử", subtitle: "Các phiên chạy gần đây của Nora") {
+            Button {
+                service.load()
+            } label: {
+                Label("Tải lại", systemImage: "arrow.clockwise")
+            }
+            .disabled(service.isLoading)
+        } content: {
             VStack(alignment: .leading, spacing: 10) {
                 if service.isLoading {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
                         Text("Đang đọc nhật ký…")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                 } else if service.sessions.isEmpty {
                     Text("Chưa có phiên nào thực sự thay đổi gì.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.textMuted)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
 
                 ScrollView {
-                    VStack(spacing: 2) {
+                    LazyVStack(spacing: 2) {
                         ForEach(service.sessions) { session in
                             sessionRow(session)
                         }
@@ -95,18 +102,18 @@ struct HistoryTab: View {
 
                 if service.hiddenCount > 0 {
                     Text("Đã ẩn \(service.hiddenCount) phiên không thao tác gì (mở app, liệt kê…).")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.textMuted)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
 
                 if let operations = service.logPaths["operations"] {
                     HStack(spacing: 6) {
                         Text("Nhật ký đầy đủ:")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Theme.textMuted)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                         Text(operations)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(Theme.textSecondary)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
                 }
@@ -119,46 +126,47 @@ struct HistoryTab: View {
 
     private func sessionRow(_ session: HistorySession) -> some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(color(for: session.command))
-                .frame(width: 8, height: 8)
+            Image(systemName: symbol(for: session.command))
+                .font(.callout)
+                .foregroundStyle(tint(for: session.command))
+                .frame(width: 18)
 
             Text(label(for: session.command))
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.textPrimary)
-                .frame(width: 110, alignment: .leading)
+                .font(.callout)
+                .frame(width: 104, alignment: .leading)
 
             Text(session.startedAt)
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Theme.textMuted)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
 
             Spacer()
 
             if let actions = session.actions {
                 HStack(spacing: 10) {
-                    counter("đã xóa", actions.removed, Theme.ramLight)
-                    counter("vào thùng rác", actions.trashed, Theme.diskLight)
-                    counter("bỏ qua", actions.skipped, Theme.heatLight)
-                    counter("lỗi", actions.failed, Theme.dangerLight)
+                    counter("đã xóa", actions.removed, Theme.success)
+                    counter("vào thùng rác", actions.trashed, Metric.disk.tint)
+                    counter("bỏ qua", actions.skipped, Theme.warning)
+                    counter("lỗi", actions.failed, Theme.danger)
                 }
             }
 
             Text(session.size ?? "—")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.textSecondary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 .monospacedDigit()
-                .frame(width: 66, alignment: .trailing)
+                .frame(width: 68, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.panel))
+        .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.controlRadius))
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private func counter(_ label: String, _ value: Int?, _ tint: Color) -> some View {
         if let value, value > 0 {
             Text("\(value) \(label)")
-                .font(.system(size: 10))
+                .font(.caption)
                 .foregroundStyle(tint)
         }
     }
@@ -173,12 +181,22 @@ struct HistoryTab: View {
         }
     }
 
-    private func color(for command: String) -> Color {
+    private func symbol(for command: String) -> String {
         switch command {
-        case "clean": return Theme.cpu
-        case "uninstall": return Theme.net
-        case "optimize": return Theme.ram
-        default: return Theme.textMuted
+        case "clean": return "sparkles"
+        case "uninstall": return "trash"
+        case "optimize": return "slider.horizontal.3"
+        case "purge": return "flame"
+        default: return "circle"
+        }
+    }
+
+    private func tint(for command: String) -> Color {
+        switch command {
+        case "clean": return Metric.cpu.tint
+        case "uninstall": return Metric.network.tint
+        case "optimize": return Metric.memory.tint
+        default: return Theme.tertiaryLabel
         }
     }
 }
