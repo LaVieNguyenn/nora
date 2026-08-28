@@ -14,10 +14,21 @@ CONFIG="${1:-release}"
 APP_NAME="NoraUI"
 BUNDLE="$SCRIPT_DIR/dist/$APP_NAME.app"
 
-echo "==> Building ($CONFIG)"
-swift build -c "$CONFIG"
+# Release builds ship one bundle for both Apple Silicon and Intel, so a user on
+# either gets a working app from the same download. A local build stays
+# host-only: nobody runs the other slice, and building it doubles the wait.
+arch_flags=""
+# shellcheck disable=SC2086  # NORA_APP_ARCHS is a space-separated list of archs.
+for arch in ${NORA_APP_ARCHS:-}; do
+    arch_flags="$arch_flags --arch $arch"
+done
 
-BINARY="$(swift build -c "$CONFIG" --show-bin-path)/$APP_NAME"
+echo "==> Building ($CONFIG${NORA_APP_ARCHS:+, ${NORA_APP_ARCHS// /+}})"
+# shellcheck disable=SC2086  # arch_flags is a flag list, splitting is the point.
+swift build -c "$CONFIG" $arch_flags
+
+# shellcheck disable=SC2086
+BINARY="$(swift build -c "$CONFIG" $arch_flags --show-bin-path)/$APP_NAME"
 if [[ ! -x "$BINARY" ]]; then
     echo "Build produced no executable at $BINARY" >&2
     exit 1

@@ -70,7 +70,7 @@ enum NoraLocator {
             return "Không tìm thấy bản cài Nora. Đặt đường dẫn trong Cài đặt."
         }
         if statusBinary == nil {
-            return "Thiếu bin/status-go. Chạy `make build` trong \(root.path)."
+            return "Thiếu bin/status-go trong \(root.path). Cài lại Nora, hoặc chạy `make build` nếu chạy từ mã nguồn."
         }
         return nil
     }

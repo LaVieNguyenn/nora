@@ -79,7 +79,7 @@ final class AnalyzeService: ObservableObject {
             guard let binary = NoraLocator.analyzeBinary else {
                 DispatchQueue.main.async {
                     self?.isScanning = false
-                    self?.error = "Thiếu bin/analyze-go — chạy `make build` trong thư mục Nora."
+                    self?.error = "Thiếu bin/analyze-go — cài lại Nora, hoặc chạy `make build` nếu chạy từ mã nguồn."
                 }
                 return
             }

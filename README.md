@@ -16,17 +16,30 @@ App không tự xoá gì cả — mọi thao tác đều gọi qua CLI, nên cá
 
 ## Cài đặt
 
-Một lệnh, không cần clone:
+Một lệnh, không cần clone, không cần cài sẵn thứ gì:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh | bash
 ```
 
-Lệnh này cài CLI vào `~/.nora`, tạo liên kết `nora` (và alias ngắn `nr`) trong
-`PATH`, rồi build app menubar vào `/Applications/Nora.app`.
+Lệnh này tải bản dựng sẵn, đối chiếu checksum, cài CLI vào `~/.nora`, đặt lệnh
+`nora` (và alias ngắn `nr`) vào `~/.local/bin`, rồi chép app menubar vào
+`/Applications/Nora.app`.
 
-Yêu cầu: macOS 14 trở lên. Nếu máy chưa có Go hoặc Xcode Command Line Tools,
-trình cài đặt sẽ báo và chỉ cách cài.
+Yêu cầu duy nhất là macOS 14 trở lên. **Không cần Go, không cần Xcode**: cả hai
+binary Go lẫn app Swift đều dựng sẵn ở dạng universal, chạy được trên cả Apple
+Silicon lẫn Intel.
+
+Muốn tự build thay vì tải — cần Go, và cần thêm Swift (Xcode Command Line
+Tools) nếu muốn có app; thiếu Swift thì vẫn được CLI:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LaVieNguyenn/nora/main/install.sh | bash -s -- --from-source
+```
+
+Vài tuỳ chọn khác: `--version V0.1.0` cài đúng một bản, `--prefix` và
+`--bin-dir` đổi nơi cài. Biến môi trường `NORA_RELEASE_BASE` trỏ trình cài đặt
+sang một nơi khác chứa tệp phát hành, cho máy không ra được GitHub.
 
 Gỡ ra:
 
@@ -89,7 +102,9 @@ gốc.
 **Sửa lỗi**: `pmset` là tiến trình con duy nhất không có giới hạn thời gian —
 nếu nó treo thì cả vòng thu thập đứng theo.
 
-**Bỏ bớt**: quy trình phát hành, tài liệu và cấu hình chỉ dành cho dự án gốc.
+**Bỏ bớt**: tài liệu và cấu hình chỉ dành cho dự án gốc. Quy trình phát hành
+viết lại gọn cho fork này — một workflow dựng bản universal và một trình cài
+đặt tải nó về.
 
 ## Phát triển
 
@@ -98,6 +113,16 @@ make build                      # build hai binary Go
 NORA_TEST_NO_AUTH=1 bats tests/ # bộ test shell
 go test ./...                   # bộ test Go
 cd app && ./build_app.sh release
+```
+
+Phát hành: cập nhật `VERSION` trong `nora`, rồi đẩy tag cùng số đó (`V0.1.0`).
+Workflow `.github/workflows/release.yml` dựng bản universal, tự cài thử bản vừa
+dựng, rồi đăng `nora-macos.tar.gz` kèm `SHA256SUMS` — đó chính là thứ
+`install.sh` tải về. Dựng thử tại máy:
+
+```bash
+./scripts/package_release.sh            # ra dist/nora-macos.tar.gz + SHA256SUMS
+NORA_RELEASE_BASE="file://$PWD/dist" ./install.sh
 ```
 
 App có chế độ tự kiểm tra, chạy mọi bộ giải mã trên dữ liệu thật của máy:
