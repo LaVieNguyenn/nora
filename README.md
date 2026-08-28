@@ -115,15 +115,25 @@ go test ./...                   # bộ test Go
 cd app && ./build_app.sh release
 ```
 
-Phát hành: cập nhật `VERSION` trong `nora`, rồi đẩy tag cùng số đó (`V0.1.0`).
-Workflow `.github/workflows/release.yml` dựng bản universal, tự cài thử bản vừa
-dựng, rồi đăng `nora-macos.tar.gz` kèm `SHA256SUMS` — đó chính là thứ
-`install.sh` tải về. Dựng thử tại máy:
+Phát hành: cập nhật `VERSION` trong `nora`, tạo tag cùng số đó, rồi dựng và
+đăng từ một máy có Go và Xcode:
 
 ```bash
-./scripts/package_release.sh            # ra dist/nora-macos.tar.gz + SHA256SUMS
+./scripts/package_release.sh --version V0.1.0
+gh release create V0.1.0 --title V0.1.0 dist/nora-macos.tar.gz dist/SHA256SUMS
+```
+
+`nora-macos.tar.gz` kèm `SHA256SUMS` chính là thứ `install.sh` tải về. Thử
+trước khi đăng, cài y như người dùng sẽ cài, chỉ khác chỗ tải:
+
+```bash
 NORA_RELEASE_BASE="file://$PWD/dist" ./install.sh
 ```
+
+Đẩy tag lên GitHub thì `.github/workflows/release.yml` chạy đúng các bước đó.
+Workflow ghim runner `macos-26`: Swift 6.1 trên `macos-15` từ chối
+`swiftLanguageMode` khi build universal, nó không hỏi toolchain xem có những
+chế độ ngôn ngữ nào.
 
 App có chế độ tự kiểm tra, chạy mọi bộ giải mã trên dữ liệu thật của máy:
 

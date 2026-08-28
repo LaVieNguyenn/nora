@@ -22,9 +22,13 @@ permissions:
 
 jobs:
   release:
-    # Package.swift declares swift-tools-version 6.0, which needs Xcode 16 —
-    # the default on the macos-15 image, not on macos-14.
-    runs-on: macos-15
+    # Not just "the newest image": the universal app build needs Swift 6.2 or
+    # later. On the macos-15 image (Swift 6.1.2) `swift build --arch arm64
+    # --arch x86_64` rejects the target's swiftLanguageMode with
+    # "given: [5], supported: []" — it never asks the toolchain which language
+    # modes it has. Building one arch at a time would only trade that for an
+    # untested path; the toolchain that works is the one to build on.
+    runs-on: macos-26
 
     steps:
       - name: Resolve tag
