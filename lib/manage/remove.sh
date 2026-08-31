@@ -9,6 +9,54 @@ if [[ -n "${NORA_MANAGE_REMOVE_LOADED:-}" ]]; then
 fi
 readonly NORA_MANAGE_REMOVE_LOADED=1
 
+# The PATH wrapper execs the install root, so it names where a --prefix install
+# put the tree. The default location is a candidate either way.
+_nora_install_root_candidates() {
+    local wrapper
+    for wrapper in "$@"; do
+        [[ -f "$wrapper" ]] || continue
+        sed -n 's|^exec "\(.*\)/nora" .*|\1|p' "$wrapper" 2> /dev/null | head -1
+    done
+    printf '%s\n' "$HOME/.nora"
+}
+
+# Only a directory that is actually an install: the entrypoint plus the library
+# it sources. A source checkout is not one — `nora remove` run from a clone must
+# never delete the clone.
+_nora_is_install_root() {
+    local root="$1"
+    [[ -n "$root" && -d "$root" ]] || return 1
+    [[ -x "$root/nora" && -f "$root/lib/core/common.sh" ]] || return 1
+
+    local marker
+    for marker in .git Makefile tests cmd app; do
+        [[ -e "$root/$marker" ]] && return 1
+    done
+    return 0
+}
+
+# Nora's own bundle, identified by its bundle id rather than by being named
+# Nora.app — somebody else's app of that name is not ours to delete.
+_nora_is_own_app_bundle() {
+    local bundle="$1"
+    [[ -n "$bundle" && -d "$bundle" ]] || return 1
+
+    local plist="$bundle/Contents/Info.plist"
+    [[ -f "$plist" ]] || return 1
+    [[ "$(plutil -extract CFBundleIdentifier raw "$plist" 2> /dev/null || true)" == "com.nora.ui" ]]
+}
+
+# Quit the app before its bundle goes away, and only the copy being removed:
+# a Nora launched from somewhere else is not part of this uninstall.
+_nora_quit_app_bundle() {
+    local bundle="$1" pid
+    for pid in $(pgrep -x NoraUI 2> /dev/null || true); do
+        case "$(ps -p "$pid" -o comm= 2> /dev/null)" in
+            "$bundle"/*) kill "$pid" 2> /dev/null || true ;;
+        esac
+    done
+}
+
 # Remove flow (Homebrew + manual + config/cache).
 remove_nora() {
     local dry_run_mode="${1:-false}"
@@ -109,15 +157,48 @@ remove_nora() {
         fi
     done
 
+    # The install tree and the app bundle install.sh writes. Neither was ever
+    # removed here: `nora remove` left ~/.nora — the entire CLI it claims to
+    # have removed — and /Applications/Nora.app behind.
+    local -a install_roots=()
+    local -a app_bundles=()
+    local candidate
+    while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] || continue
+        _nora_is_install_root "$candidate" || continue
+        local known=false root
+        for root in ${install_roots[@]+"${install_roots[@]}"}; do
+            [[ "$root" == "$candidate" ]] && known=true
+        done
+        [[ "$known" == "true" ]] || install_roots+=("$candidate")
+    done < <(
+        if [[ "$test_mode" == "true" ]]; then
+            printf '%s\n' "$HOME/.nora"
+        else
+            _nora_install_root_candidates \
+                ${manual_installs[@]+"${manual_installs[@]}"} \
+                ${alias_installs[@]+"${alias_installs[@]}"}
+        fi
+    )
+
+    local -a app_candidates=("$HOME/Applications/Nora.app")
+    [[ "$test_mode" == "true" ]] || app_candidates+=("/Applications/Nora.app")
+    for candidate in "${app_candidates[@]}"; do
+        _nora_is_own_app_bundle "$candidate" && app_bundles+=("$candidate")
+    done
+
     if [[ -t 1 ]]; then
         stop_inline_spinner
     fi
 
     printf '\n'
 
+    local install_root_count=${#install_roots[@]}
+    local app_bundle_count=${#app_bundles[@]}
     local manual_count=${#manual_installs[@]}
     local alias_count=${#alias_installs[@]}
-    if [[ "$is_homebrew" == "false" && ${manual_count:-0} -eq 0 && ${alias_count:-0} -eq 0 ]]; then
+    if [[ "$is_homebrew" == "false" && ${manual_count:-0} -eq 0 && ${alias_count:-0} -eq 0 &&
+        ${install_root_count:-0} -eq 0 && ${app_bundle_count:-0} -eq 0 ]]; then
         printf '%s\n\n' "${YELLOW}No Nora installation detected${NC}"
         exit 0
     fi
@@ -140,6 +221,16 @@ remove_nora() {
                 [[ -f "$alias" ]] && echo -e "  ${GRAY}${ICON_LIST} Would remove: ${alias}${NC}"
             done
         fi
+        if [[ ${install_root_count:-0} -gt 0 ]]; then
+            for root in "${install_roots[@]}"; do
+                echo -e "  ${GRAY}${ICON_LIST} Would remove: ${root}${NC}"
+            done
+        fi
+        if [[ ${app_bundle_count:-0} -gt 0 ]]; then
+            for bundle in "${app_bundles[@]}"; do
+                echo -e "  ${GRAY}${ICON_LIST} Would remove: ${bundle}${NC}"
+            done
+        fi
         [[ -d "$HOME/.cache/nora" ]] && echo -e "  ${GRAY}${ICON_LIST} Would remove: $HOME/.cache/nora${NC}"
         [[ -d "$HOME/.config/nora" ]] && echo -e "  ${GRAY}${ICON_LIST} Would remove: $HOME/.config/nora${NC}"
         [[ -d "$HOME/Library/Logs/nora" ]] && echo -e "  ${GRAY}${ICON_LIST} Would remove: $HOME/Library/Logs/nora${NC}"
@@ -152,7 +243,8 @@ remove_nora() {
     if [[ "$is_homebrew" == "true" ]]; then
         echo "  ${ICON_LIST} Nora via Homebrew"
     fi
-    for install in ${manual_installs[@]+"${manual_installs[@]}"} ${alias_installs[@]+"${alias_installs[@]}"}; do
+    for install in ${manual_installs[@]+"${manual_installs[@]}"} ${alias_installs[@]+"${alias_installs[@]}"} \
+        ${install_roots[@]+"${install_roots[@]}"} ${app_bundles[@]+"${app_bundles[@]}"}; do
         echo "  ${ICON_LIST} $install"
     done
     echo "  ${ICON_LIST} ~/.config/nora"
@@ -224,6 +316,17 @@ remove_nora() {
             fi
         done
     fi
+    if [[ ${app_bundle_count:-0} -gt 0 ]]; then
+        for bundle in "${app_bundles[@]}"; do
+            _nora_quit_app_bundle "$bundle"
+            if [[ -w "$(dirname "$bundle")" ]]; then
+                rm -rf "$bundle" 2> /dev/null || has_error=true # SAFE: bundle id checked above
+            elif [[ "${NORA_TEST_MODE:-0}" == "1" || "${NORA_TEST_NO_AUTH:-0}" == "1" ]] ||
+                ! sudo rm -rf "$bundle" 2> /dev/null; then
+                has_error=true
+            fi
+        done
+    fi
     if [[ -d "$HOME/.cache/nora" ]]; then
         rm -rf "$HOME/.cache/nora" 2> /dev/null || true # SAFE: hardcoded Nora-owned dir, -d guarded
     fi
@@ -232,6 +335,15 @@ remove_nora() {
     fi
     if [[ -d "$HOME/Library/Logs/nora" ]]; then
         rm -rf "$HOME/Library/Logs/nora" 2> /dev/null || true # SAFE: hardcoded Nora-owned dir, -d guarded
+    fi
+
+    # Last, because this is the tree the running script lives in. Unlinking an
+    # open file leaves the inode alive for the fd bash is reading from, so the
+    # rest of this function still runs; truncating it would not.
+    if [[ ${install_root_count:-0} -gt 0 ]]; then
+        for root in "${install_roots[@]}"; do
+            rm -rf "$root" 2> /dev/null || has_error=true # SAFE: verified install root above
+        done
     fi
 
     local final_message

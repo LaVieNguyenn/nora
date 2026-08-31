@@ -2767,3 +2767,123 @@ INNER
 	[ -n "$read_line" ] || return 1
 	[ "$guard_line" -lt "$read_line" ] || return 1
 }
+
+# `nora remove` used to leave behind the two things install.sh actually puts on
+# the machine: the ~/.nora tree holding the whole CLI, and the app bundle.
+
+_make_fake_install() {
+	mkdir -p "$HOME/.nora/lib/core" "$HOME/Applications/Nora.app/Contents/MacOS"
+	printf '#!/bin/bash\n:\n' > "$HOME/.nora/nora"
+	chmod +x "$HOME/.nora/nora"
+	printf 'true\n' > "$HOME/.nora/lib/core/common.sh"
+	cat > "$HOME/Applications/Nora.app/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.nora.ui</string>
+<key>CFBundleName</key><string>Nora</string>
+</dict></plist>
+PLIST
+}
+
+@test "remove_nora deletes the install tree and the app bundle" {
+	mkdir -p "$HOME/.local/bin"
+	touch "$HOME/.local/bin/nora" "$HOME/.local/bin/nr"
+	_make_fake_install
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+rm() {
+    local -a flags=()
+    local -a paths=()
+    local arg
+    for arg in "$@"; do
+        if [[ "$arg" == -* ]]; then
+            flags+=("$arg")
+        else
+            paths+=("$arg")
+        fi
+    done
+    local path
+    for path in "${paths[@]}"; do
+        if [[ "$path" == "$HOME" || "$path" == "$HOME/"* ]]; then
+            /bin/rm "${flags[@]}" "$path"
+        fi
+    done
+    return 0
+}
+export -f start_inline_spinner stop_inline_spinner rm
+printf '\n' | "$PROJECT_ROOT/nora" remove
+EOF
+
+	[ "$status" -eq 0 ]
+	[ ! -d "$HOME/.nora" ]
+	[ ! -d "$HOME/Applications/Nora.app" ]
+}
+
+@test "remove_nora dry-run lists the install tree and app bundle without touching them" {
+	mkdir -p "$HOME/.local/bin"
+	touch "$HOME/.local/bin/nora" "$HOME/.local/bin/nr"
+	_make_fake_install
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+export -f start_inline_spinner stop_inline_spinner
+printf '\n' | "$PROJECT_ROOT/nora" remove --dry-run
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"$HOME/.nora"* ]] || return 1
+	[[ "$output" == *"Nora.app"* ]] || return 1
+	[ -d "$HOME/.nora" ]
+	[ -d "$HOME/Applications/Nora.app" ]
+}
+
+@test "remove_nora refuses to delete a source checkout" {
+	# `nora remove` run from a clone resolves the repo as its install root, and
+	# the first thing removal does is rm -rf it.
+	mkdir -p "$HOME/.local/bin" "$HOME/.nora/lib/core" "$HOME/.nora/tests"
+	touch "$HOME/.local/bin/nora" "$HOME/.local/bin/nr"
+	printf '#!/bin/bash\n:\n' > "$HOME/.nora/nora"
+	chmod +x "$HOME/.nora/nora"
+	printf 'true\n' > "$HOME/.nora/lib/core/common.sh"
+	printf 'all:\n' > "$HOME/.nora/Makefile"
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+export -f start_inline_spinner stop_inline_spinner
+printf '\n' | "$PROJECT_ROOT/nora" remove --dry-run
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" != *"Would remove: $HOME/.nora"* ]] || return 1
+	[ -d "$HOME/.nora" ]
+}
+
+@test "remove_nora leaves an app bundle that is not Nora alone" {
+	mkdir -p "$HOME/.local/bin" "$HOME/Applications/Nora.app/Contents"
+	touch "$HOME/.local/bin/nora" "$HOME/.local/bin/nr"
+	cat > "$HOME/Applications/Nora.app/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.someone.else</string>
+</dict></plist>
+PLIST
+
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" PATH="/usr/bin:/bin" NORA_TEST_MODE=1 /bin/bash --noprofile --norc <<'EOF'
+set -euo pipefail
+start_inline_spinner() { :; }
+stop_inline_spinner() { :; }
+export -f start_inline_spinner stop_inline_spinner
+printf '\n' | "$PROJECT_ROOT/nora" remove --dry-run
+EOF
+
+	[ "$status" -eq 0 ]
+	[[ "$output" != *"Nora.app"* ]] || return 1
+	[ -d "$HOME/Applications/Nora.app" ]
+}
