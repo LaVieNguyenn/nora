@@ -2887,3 +2887,68 @@ EOF
 	[[ "$output" != *"Nora.app"* ]] || return 1
 	[ -d "$HOME/Applications/Nora.app" ]
 }
+
+@test "main reports a failed uninstall through its exit status" {
+	# The app has nothing to judge the run by but this status. While it was
+	# always 0, a summary reading "Uninstall incomplete / Failed: macOS privacy
+	# permission denied" was still followed by a green "Đã gỡ".
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" STUBS="$(_confirm_stubs)" \
+		/bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+eval "$STUBS"
+batch_uninstall_applications() {
+    printf 'Uninstall incomplete\n'
+    return 1
+}
+eval "$(sed -n '/^main()/,/^main "\$@"/p' "$PROJECT_ROOT/bin/uninstall.sh" | sed '$d')"
+
+status=0
+main --yes TestApp < /dev/null || status=$?
+[[ "$status" -eq 1 ]] || { printf 'expected exit 1, got %s\n' "$status" >&2; exit 1; }
+INNER
+
+	[ "$status" -eq 0 ]
+}
+
+@test "batch_uninstall_applications fails when an app could not be removed" {
+	run env PROJECT_ROOT="$PROJECT_ROOT" /bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+
+# Everything the orchestration touches around the two phases under test.
+selected_apps=("1000|/Applications/TestApp.app|TestApp|com.example.TestApp|1 MB|Today|1024")
+total_size_cleaned=0
+log_warning() { :; }
+# Not empty: an empty app_details is its own early "return 1", which would
+# make this test pass without ever reaching the status under test.
+_batch_scan_app_details() {
+    app_details=("TestApp|/Applications/TestApp.app|com.example.TestApp|1024|||false|false|false||||")
+}
+_batch_preview_and_confirm() { return 0; }
+_batch_render_summary() { printf 'summary\n'; }
+_uninstall_match_loaded_background_items() { :; }
+is_uninstall_dry_run() { return 1; }
+stop_sudo_session() { :; }
+remove_apps_from_dock() { :; }
+refresh_launch_services_after_uninstall() { :; }
+
+eval "$(sed -n '/^batch_uninstall_applications()/,$p' "$PROJECT_ROOT/lib/uninstall/batch.sh")"
+
+# One app removed, one not: the status has to follow the failure.
+_batch_execute_removals() {
+    success_count=1
+    failed_count=1
+}
+status=0
+batch_uninstall_applications || status=$?
+[[ "$status" -eq 1 ]] || { printf 'expected exit 1, got %s\n' "$status" >&2; exit 1; }
+
+# And a clean run still succeeds.
+_batch_execute_removals() {
+    success_count=1
+    failed_count=0
+}
+batch_uninstall_applications
+INNER
+
+	[ "$status" -eq 0 ]
+}

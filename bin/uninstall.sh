@@ -1556,8 +1556,9 @@ main() {
             fi
         fi
 
-        batch_uninstall_applications
-        return 0
+        local batch_status=0
+        batch_uninstall_applications || batch_status=$?
+        return "$batch_status"
     fi
 
     local first_scan=true
@@ -1723,7 +1724,10 @@ main() {
             ((index++))
         done
 
-        batch_uninstall_applications
+        # Failures are on screen in the summary the user is looking at, and the
+        # menu below keeps running either way; the exit status of an
+        # interactive session is not something anyone reads.
+        batch_uninstall_applications || true
 
         # A nested command may have returned the controlling terminal to the
         # parent shell. Reading while Nora is no longer the foreground process

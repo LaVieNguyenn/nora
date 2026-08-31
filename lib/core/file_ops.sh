@@ -850,7 +850,7 @@ nora_delete() {
             if [[ -z "${_NORA_PRIVACY_DENIED_WARNED:-}" ]]; then
                 _NORA_PRIVACY_DENIED_WARNED=1
                 export _NORA_PRIVACY_DENIED_WARNED
-                printf 'Error: macOS denied Trash access. Grant App Data or Full Disk Access to your terminal in System Settings, then retry.\n' >&2
+                printf 'Error: macOS denied Trash access. Grant App Data or Full Disk Access to %s in System Settings > Privacy & Security, then retry.\n' "$(nora_privacy_grant_target)" >&2
             fi
             debug_log "macOS privacy permission denied while moving to Trash: $path"
             return "$NORA_ERR_PRIVACY_DENIED"
@@ -1613,6 +1613,18 @@ calculate_total_size() {
     echo "$total_kb"
 }
 
+# The thing macOS is denying: the app when Nora runs under it, the terminal
+# when a person ran it themselves. "Grant access to your terminal" is useless
+# advice to someone whose uninstall came from the menubar app — there is no
+# terminal in that picture, and granting it to Terminal.app changes nothing.
+nora_privacy_grant_target() {
+    if nora_tty_is_usable; then
+        printf 'your terminal\n'
+    else
+        printf 'Nora\n'
+    fi
+}
+
 diagnose_removal_failure() {
     local exit_code="$1"
     local app_name="${2:-application}"
@@ -1642,7 +1654,7 @@ diagnose_removal_failure() {
             ;;
         "$NORA_ERR_PRIVACY_DENIED")
             reason="macOS privacy permission denied"
-            suggestion="Grant App Data or Full Disk Access to your terminal in System Settings"
+            suggestion="Grant App Data or Full Disk Access to $(nora_privacy_grant_target) in System Settings > Privacy & Security"
             ;;
         *)
             reason="permission denied"

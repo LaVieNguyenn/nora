@@ -150,7 +150,7 @@ final class UninstallService: ObservableObject {
                     guard !line.isEmpty else { continue }
                     self.log.append(LogLine(
                         time: Date(),
-                        level: line.lowercased().contains("skip") ? .skipped : .removed,
+                        level: Self.level(for: line),
                         message: line,
                         detail: nil
                     ))
@@ -171,6 +171,23 @@ final class UninstallService: ObservableObject {
                 MemoryRelief.release()
             }
         }
+    }
+
+    /// What a line from the CLI is reporting.
+    ///
+    /// Everything that was not a skip used to be logged as a removal, so the
+    /// lines saying the uninstall did not work — "Uninstall incomplete",
+    /// "Failed: macOS privacy permission denied" — were shown with the same
+    /// green check as a file that was actually deleted.
+    private nonisolated static func level(for line: String) -> LogLine.Level {
+        let lower = line.lowercased()
+        if lower.contains("failed") || lower.contains("incomplete") || lower.hasPrefix("error") {
+            return .failed
+        }
+        if lower.contains("skip") {
+            return .skipped
+        }
+        return .removed
     }
 
     func reveal(_ app: InstalledApp) {

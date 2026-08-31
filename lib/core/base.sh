@@ -959,6 +959,19 @@ stop_section_spinner() {
     stop_inline_spinner || true
 }
 
+# Whether a terminal can actually be opened, not merely whether its permission
+# bits look inviting. /dev/tty is crw-rw-rw- on every Mac, so `-r` and `-w` say
+# yes even to a process with no controlling terminal, where opening it fails
+# with ENXIO — which is every process the menubar app starts.
+# Usage: nora_tty_is_usable [tty_device]
+nora_tty_is_usable() {
+    local path="${1:-/dev/tty}"
+    [[ -n "$path" && -c "$path" ]] || return 1
+    # Read-write, so this rejects what the caller would fail on; <> rather than
+    # > so a path that is not a terminal cannot be truncated by the check.
+    (exec 3<> "$path") 2> /dev/null
+}
+
 # Safe terminal line clearing with terminal type detection
 # Usage: safe_clear_lines <num_lines> [tty_device]
 # Returns: 0 on success, 1 if terminal doesn't support ANSI

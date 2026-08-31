@@ -1680,5 +1680,12 @@ batch_uninstall_applications() {
     unset -f _restore_uninstall_traps
 
     total_size_cleaned=$((total_size_cleaned + total_size_freed))
+    local unremoved=$failed_count
     unset failed_items
+
+    # The summary block says "Uninstall incomplete" on screen; the exit status
+    # has to say the same. Returning 0 unconditionally is why the app followed
+    # a "Failed: macOS privacy permission denied" line with "Đã gỡ": it has
+    # nothing to go on but this status.
+    [[ $unremoved -eq 0 ]]
 }

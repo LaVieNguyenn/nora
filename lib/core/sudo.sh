@@ -42,21 +42,6 @@ is_clamshell_mode() {
     return 1 # Lid is open
 }
 
-# Whether a terminal can actually be opened, not merely whether its permission
-# bits look inviting. /dev/tty is crw-rw-rw- on every Mac, so `-r` and `-w` say
-# yes even to a process with no controlling terminal, where opening it fails
-# with ENXIO. The menubar app runs Nora with no terminal at all, and that test
-# sent it down the ask-on-the-terminal path: three "/dev/tty: Device not
-# configured" errors and "Admin access denied", instead of the GUI password
-# dialog waiting a few lines below.
-_tty_is_usable() {
-    local path="$1"
-    [[ -n "$path" && -c "$path" ]] || return 1
-    # Read-write, so this rejects the same things the caller would fail on, and
-    # <> rather than > so a non-tty path could not be truncated by the check.
-    (exec 3<> "$path") 2> /dev/null
-}
-
 _request_password() {
     local tty_path="$1"
 
@@ -98,9 +83,9 @@ request_sudo_access() {
     local tty_path="/dev/tty"
     local is_gui_mode=false
 
-    if ! _tty_is_usable "$tty_path"; then
+    if ! nora_tty_is_usable "$tty_path"; then
         tty_path=$(tty 2> /dev/null || echo "")
-        if ! _tty_is_usable "$tty_path"; then
+        if ! nora_tty_is_usable "$tty_path"; then
             is_gui_mode=true
         fi
     fi
