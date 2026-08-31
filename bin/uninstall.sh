@@ -1437,6 +1437,7 @@ main() {
     # Parse flags and collect app name arguments
     local -a app_name_args=()
     local list_mode=0
+    local assume_yes=0
     for arg in "$@"; do
         case "$arg" in
             "--help" | "-h")
@@ -1451,6 +1452,12 @@ main() {
                 ;;
             "--permanent")
                 export NORA_DELETE_MODE="permanent"
+                ;;
+            "--yes" | "-y")
+                assume_yes=1
+                # The batch flow asks a second time, from another file; this is
+                # how that prompt learns the answer is already given.
+                export NORA_ASSUME_YES=1
                 ;;
             "--list")
                 list_mode=1
@@ -1527,12 +1534,26 @@ main() {
         done
 
         printf '\n'
-        printf "Proceed with uninstallation? [y/N] "
-        local confirm
-        read -r confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-            echo "Aborted."
-            return 0
+        # A dry run changes nothing, so it never asks — asking is what made the
+        # app's preview return nothing but this match list.
+        #
+        # --yes is for callers without a terminal. The app runs this with stdin
+        # closed, where `read` hits EOF and returns nonzero; under `set -e` that
+        # killed the script right here, before the check below could read the
+        # empty answer as "no". Every uninstall started from the app ended as a
+        # failure whose output stopped at the prompt, and nothing was removed.
+        if [[ "${NORA_DRY_RUN:-0}" != "1" && "$assume_yes" != "1" ]]; then
+            printf "Proceed with uninstallation? [y/N] "
+            local confirm=""
+            if ! read -r confirm; then
+                printf '\n'
+                echo "No answer on stdin. Pass --yes to uninstall without the prompt."
+                return 1
+            fi
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                echo "Aborted."
+                return 0
+            fi
         fi
 
         batch_uninstall_applications

@@ -2641,3 +2641,129 @@ EOF
 
 	[ -z "$result" ]
 }
+
+# Direct uninstall by name: the confirmation prompt.
+#
+# The app runs `nr uninstall <name>` with stdin closed. `read` then hits EOF and
+# returns nonzero, which under `set -e` killed the script at the prompt: every
+# uninstall started from the app reported failure and removed nothing, and every
+# preview showed the match list and nothing else.
+
+_confirm_stubs() {
+	cat <<'STUBS'
+BLUE=""
+YELLOW=""
+NC=""
+ICON_CONFIRM=""
+ICON_DRY_RUN=""
+trace_file="$HOME/uninstall-confirm-trace.log"
+: > "$trace_file"
+
+log_operation_session_start() { :; }
+show_uninstall_help() { :; }
+hide_cursor() { :; }
+show_cursor() { :; }
+clear_screen() { :; }
+uninstall_normalize_size_display() { printf '%s\n' "$1"; }
+uninstall_normalize_last_used_display() { printf '%s\n' "$1"; }
+scan_applications() {
+    local apps_file="$HOME/apps-cache.txt"
+    : > "$apps_file"
+    printf '%s\n' "$apps_file"
+}
+load_applications() { return 0; }
+match_apps_by_name() {
+    selected_apps=("1000|$HOME/Applications/TestApp.app|TestApp|com.example.TestApp|1 MB|Today|1024")
+}
+batch_uninstall_applications() {
+    printf 'batch dry=%s yes=%s\n' "${NORA_DRY_RUN:-0}" "${NORA_ASSUME_YES:-0}" >> "$trace_file"
+}
+STUBS
+}
+
+@test "main --dry-run previews without stopping at the confirmation prompt" {
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" STUBS="$(_confirm_stubs)" \
+		/bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+eval "$STUBS"
+eval "$(sed -n '/^main()/,/^main "\$@"/p' "$PROJECT_ROOT/bin/uninstall.sh" | sed '$d')"
+
+main --dry-run TestApp < /dev/null
+
+[[ "$(cat "$trace_file")" == "batch dry=1 yes=0" ]] || {
+    printf 'unexpected trace: %s\n' "$(cat "$trace_file")" >&2
+    exit 1
+}
+INNER
+
+	[ "$status" -eq 0 ]
+}
+
+@test "main --yes uninstalls with stdin closed and tells the batch prompt too" {
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" STUBS="$(_confirm_stubs)" \
+		/bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+eval "$STUBS"
+eval "$(sed -n '/^main()/,/^main "\$@"/p' "$PROJECT_ROOT/bin/uninstall.sh" | sed '$d')"
+
+main --yes TestApp < /dev/null
+
+# yes=1 is the export lib/uninstall/batch.sh reads: its own key prompt has no
+# terminal to read from either.
+[[ "$(cat "$trace_file")" == "batch dry=0 yes=1" ]] || {
+    printf 'unexpected trace: %s\n' "$(cat "$trace_file")" >&2
+    exit 1
+}
+INNER
+
+	[ "$status" -eq 0 ]
+}
+
+@test "main without --yes refuses when there is no answer on stdin" {
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" STUBS="$(_confirm_stubs)" \
+		/bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+eval "$STUBS"
+eval "$(sed -n '/^main()/,/^main "\$@"/p' "$PROJECT_ROOT/bin/uninstall.sh" | sed '$d')"
+
+status=0
+main TestApp < /dev/null || status=$?
+
+[[ "$status" -eq 1 ]] || { printf 'expected exit 1, got %s\n' "$status" >&2; exit 1; }
+[[ -z "$(cat "$trace_file")" ]] || { printf 'batch ran anyway\n' >&2; exit 1; }
+INNER
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"--yes"* ]] || return 1
+}
+
+@test "main aborts without uninstalling when the answer is not y" {
+	run env HOME="$HOME" PROJECT_ROOT="$PROJECT_ROOT" STUBS="$(_confirm_stubs)" \
+		/bin/bash --noprofile --norc <<'INNER'
+set -euo pipefail
+eval "$STUBS"
+eval "$(sed -n '/^main()/,/^main "\$@"/p' "$PROJECT_ROOT/bin/uninstall.sh" | sed '$d')"
+
+printf 'n\n' | main TestApp
+
+[[ -z "$(cat "$trace_file")" ]] || { printf 'batch ran anyway\n' >&2; exit 1; }
+INNER
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Aborted."* ]] || return 1
+}
+
+@test "batch confirmation skips its key press when the answer is already given" {
+	# Guards the other half of the chain: main exports NORA_ASSUME_YES, and the
+	# prompt in lib/uninstall/batch.sh must act on it rather than land on EOF and
+	# read an empty key as confirmation, which was true only by accident.
+	run grep -q 'NORA_ASSUME_YES' "$PROJECT_ROOT/lib/uninstall/batch.sh"
+	[ "$status" -eq 0 ]
+
+	local guard_line read_line
+	guard_line=$(grep -n 'NORA_ASSUME_YES' "$PROJECT_ROOT/lib/uninstall/batch.sh" | head -1 | cut -d: -f1)
+	read_line=$(grep -n 'read -r -s -n1 key' "$PROJECT_ROOT/lib/uninstall/batch.sh" | head -1 | cut -d: -f1)
+	[ -n "$guard_line" ] || return 1
+	[ -n "$read_line" ] || return 1
+	[ "$guard_line" -lt "$read_line" ] || return 1
+}

@@ -136,8 +136,11 @@ final class UninstallService: ObservableObject {
 
         Task { [weak self] in
             guard let entrypoint = NoraLocator.entrypoint else { return }
+            // --yes because the confirmation already happened in the sheet, and
+            // ProcessRunner closes stdin: without it the CLI stops at its own
+            // prompt and reports failure without removing anything.
             let output = await ProcessRunner.run(
-                entrypoint, arguments: ["uninstall", app.uninstallName], timeout: 300)
+                entrypoint, arguments: ["uninstall", "--yes", app.uninstallName], timeout: 300)
 
             DispatchQueue.main.async {
                 guard let self else { return }

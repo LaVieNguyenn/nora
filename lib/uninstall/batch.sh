@@ -937,24 +937,33 @@ _batch_preview_and_confirm() {
     fi
     echo -ne "${PURPLE}${ICON_ARROW}${NC} ${removal_note}  ${GREEN}Enter${NC} confirm, ${GRAY}ESC${NC} cancel: "
 
-    drain_pending_input # Clean up any pending input before confirmation
-    IFS= read -r -s -n1 key || key=""
-    drain_pending_input # Clean up any escape sequence remnants
-    case "$key" in
-        $'\e' | q | Q)
-            echo ""
-            echo ""
-            return 2
-            ;;
-        "" | $'\n' | $'\r' | y | Y)
-            echo "" # Move to next line
-            ;;
-        *)
-            echo ""
-            echo ""
-            return 2
-            ;;
-    esac
+    # A caller that already confirmed elsewhere (nr uninstall --yes, which is
+    # how the app runs this) has no terminal to press a key on. Reading here
+    # would land on EOF, and an empty key happens to mean "confirm" below —
+    # correct by accident, and one edit away from silently blocking the app.
+    local key=""
+    if [[ "${NORA_ASSUME_YES:-0}" == "1" ]]; then
+        echo "" # Close the prompt line; the answer is already in.
+    else
+        drain_pending_input # Clean up any pending input before confirmation
+        IFS= read -r -s -n1 key || key=""
+        drain_pending_input # Clean up any escape sequence remnants
+        case "$key" in
+            $'\e' | q | Q)
+                echo ""
+                echo ""
+                return 2
+                ;;
+            "" | $'\n' | $'\r' | y | Y)
+                echo "" # Move to next line
+                ;;
+            *)
+                echo ""
+                echo ""
+                return 2
+                ;;
+        esac
+    fi
 
     # Enable uninstall mode - allows deletion of data-protected apps (VPNs, dev tools, etc.)
     # that user explicitly chose to uninstall. System-critical components remain protected.
