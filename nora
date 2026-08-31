@@ -92,7 +92,7 @@ source "$SCRIPT_DIR/lib/core/commands.sh"
 trap cleanup_temp_files EXIT INT TERM
 
 # Version and update helpers
-VERSION="0.1.0"
+VERSION="0.1.1"
 NORA_TAGLINE="Clean, analyze and optimize your Mac."
 NORA_REPO_URL="https://github.com/LaVieNguyenn/nora"
 
