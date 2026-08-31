@@ -182,3 +182,31 @@ TTY_PROBE
     [[ "$output" == *"TTY"* ]] || return 1
     [[ "$output" != *"NOTTY"* ]] || return 1
 }
+
+@test "request_sudo_access reaches the GUI dialog when there is no terminal" {
+    # The failure this guards: the app has no controlling terminal, so it must
+    # land on the password dialog. It used to land on the terminal instead and
+    # report "Admin access denied" for every app needing root.
+    run python3 - "$PROJECT_ROOT" <<'GUI_PROBE'
+import os, sys
+repo = sys.argv[1]
+script = """
+unset NORA_TEST_MODE NORA_TEST_NO_AUTH
+source "%s/lib/core/common.sh"
+source "%s/lib/core/sudo.sh"
+sudo() { case "$1" in -n) return 1 ;; -k) return 0 ;; -S) return 0 ;; *) return 1 ;; esac; }
+osascript() { printf 'a-password\\n'; }
+_request_password() { echo "TOOK_TERMINAL_PATH"; return 1; }
+if request_sudo_access "Admin required"; then echo "RESULT:ok"; else echo "RESULT:fail"; fi
+""" % (repo, repo)
+pid = os.fork()
+if pid == 0:
+    os.setsid()  # no controlling terminal, like the menubar app
+    os.execvp("bash", ["bash", "-c", script])
+os.waitpid(pid, 0)
+GUI_PROBE
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"RESULT:ok"* ]] || return 1
+    [[ "$output" != *"TOOK_TERMINAL_PATH"* ]] || return 1
+}
